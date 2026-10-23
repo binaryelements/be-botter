@@ -6423,7 +6423,8 @@ describe("threads.answerCall and threads.declineCall", () => {
     expect((await call("answerCall", {})).response.status).not.toBe(200);
     expect(prisma.bot.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: "bot-1", userId: "user-1", spaceId: "space-1" }),
+        // A deployment owner sees every bot in the space, so the boundary is the space.
+        where: expect.objectContaining({ id: "bot-1", spaceId: "space-1" }),
       }),
     );
     expect(prisma.message.updateMany).not.toHaveBeenCalled();
@@ -7161,7 +7162,8 @@ describe("routine watch creation boundaries", () => {
     ).rejects.toBeDefined();
     expect(findBot).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ spaceId: actor.spaceId, userId: actor.userId }),
+        // The owner actor sees every bot in the space, so the boundary is the space.
+        where: expect.objectContaining({ id: "bot-1", spaceId: actor.spaceId }),
       }),
     );
     findRoutine.mockResolvedValueOnce(null as never);

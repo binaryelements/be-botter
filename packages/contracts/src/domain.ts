@@ -211,6 +211,32 @@ export type GroupDetail = z.infer<typeof GroupDetailSchema>;
 
 export const BotSectionName = z.string().trim().min(1).max(60);
 
+export const DEPARTMENT_NAME_MAX_LENGTH = 60;
+export const DepartmentName = z.string().trim().min(1).max(DEPARTMENT_NAME_MAX_LENGTH);
+/** Heads manage who is in their department; members only use its bots. */
+export const DepartmentRoleSchema = z.enum(["member", "head"]);
+export type DepartmentRole = z.infer<typeof DepartmentRoleSchema>;
+export const DepartmentUserSchema = z.object({
+  userId: Id,
+  email: z.string(),
+  name: z.string(),
+  role: DepartmentRoleSchema,
+});
+export type DepartmentUser = z.infer<typeof DepartmentUserSchema>;
+/**
+ * A department of the company that owns the space. People and bots belong to any
+ * number of departments; a person may use a bot when they share one with it.
+ */
+export const DepartmentSchema = z.object({
+  id: Id,
+  name: z.string(),
+  users: z.array(DepartmentUserSchema),
+  botIds: z.array(Id),
+  /** True when the current user may change who is in it: space owners and its heads. */
+  canManageUsers: z.boolean(),
+});
+export type Department = z.infer<typeof DepartmentSchema>;
+
 export const BotSectionSchema = z.object({
   id: Id,
   name: z.string(),
@@ -1503,6 +1529,8 @@ export const MeSchema = z.object({
   name: z.string(),
   spaceId: Id,
   isDeploymentOwner: z.boolean(),
+  /** True when the user owns the active space and may manage its departments. */
+  isSpaceOwner: z.boolean().optional(),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),

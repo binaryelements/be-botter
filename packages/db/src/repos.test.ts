@@ -448,7 +448,10 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
       }),
     );
     expect(query.where).toEqual(
-      expect.objectContaining({ spaceId: { in: ["ws-2"] }, userId: actor.userId }),
+      expect.objectContaining({
+        spaceId: { in: ["ws-2"] },
+        OR: expect.arrayContaining([{ userId: actor.userId }]),
+      }),
     );
     expect(query.select).not.toHaveProperty("description");
     expect(query.select).not.toHaveProperty("instructions");

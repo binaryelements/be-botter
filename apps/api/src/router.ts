@@ -208,11 +208,14 @@ import {
   claimEmptySpaceDeletionForMember,
   commitBotUpdate,
   comparePreferenceOrder,
+  createDepartmentRepos,
   createExternalConversationRepos,
   createGroupRepos,
   createRepos,
   createSpaceForMember,
   createThreadMessageInTransaction,
+  DepartmentNameConflictError,
+  DepartmentPermissionError,
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
@@ -226,6 +229,7 @@ import {
   InstructionConflictError,
   InvalidSpaceNameError,
   IsolationError,
+  isSpaceOwner,
   issueMessagingLinkCode,
   listBoards,
   listSecurityEvents,
@@ -257,6 +261,7 @@ import {
   toTicketCommentDto,
   toTicketDto,
   touchGroupUpdatedAt,
+  UnknownAccountError,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "./agent-secrets.js";
@@ -929,6 +934,7 @@ export function createRouter(deps: RouterDeps) {
     phoneCallsEnabled: deps.env?.phoneCallsEnabled,
     phoneCallRingSeconds: deps.env?.phoneCallRingSeconds,
   });
+  const departmentRepos = createDepartmentRepos(deps.prisma);
   const onboardingDeps = { prisma: deps.prisma, events: deps.events, connectors: deps.connectors };
   const mcpOAuth = deps.mcpOAuth ?? new McpOAuthBroker(deps.prisma, deps.secrets);
   const mcpAwaitsOAuth = async (server: McpServerRow, actor: Actor, oauth: McpOAuthSummary) => {
@@ -1940,6 +1946,11 @@ export function createRouter(deps: RouterDeps) {
     },
     bots: {
       list: authed.bots.list.handler(async ({ context }) => repos.listBots(context.actor)),
+      setDepartments: authed.bots.setDepartments.handler(({ context, input }) =>
+        departmentCall(async () => ({
+          departmentIds: await departmentRepos.setBotDepartments(context.actor, input),
+        })),
+      ),
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
@@ -2272,6 +2283,26 @@ export function createRouter(deps: RouterDeps) {
           webhookConfigured: true as const,
         };
       }),
+    },
+    departments: {
+      list: authed.departments.list.handler(({ context }) =>
+        departmentRepos.listDepartments(context.actor),
+      ),
+      create: authed.departments.create.handler(({ context, input }) =>
+        departmentCall(() => departmentRepos.createDepartment(context.actor, input)),
+      ),
+      update: authed.departments.update.handler(({ context, input }) =>
+        departmentCall(() => departmentRepos.renameDepartment(context.actor, input)),
+      ),
+      remove: authed.departments.remove.handler(({ context, input }) =>
+        departmentCall(async () => {
+          await departmentRepos.deleteDepartment(context.actor, input);
+          return { ok: true as const };
+        }),
+      ),
+      setUsers: authed.departments.setUsers.handler(({ context, input }) =>
+        departmentCall(() => departmentRepos.setDepartmentUsers(context.actor, input)),
+      ),
     },
     groups: {
       create: authed.groups.create.handler(async ({ context, input }) => {
@@ -6868,8 +6899,10 @@ async function memberSpaceNavigation(
     select: { organizationId: true },
   });
   if (!currentSpace) throw new IsolationError();
+  // Every space the person belongs to, in any organization: a company adds people to its
+  // space by department, and they must be able to reach it from their own.
   const memberships = await deps.prisma.spaceMember.findMany({
-    where: { userId: actor.userId, organizationId: currentSpace.organizationId },
+    where: { userId: actor.userId },
     select: {
       spaceId: true,
       role: true,
@@ -7041,6 +7074,7 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     name: user.name,
     spaceId: actor.spaceId,
     isDeploymentOwner: actor.isDeploymentOwner,
+    isSpaceOwner: isSpaceOwner(actor),
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??
@@ -7917,4 +7951,22 @@ async function messagingConnectionDto(
     status: connection.status as "pending" | "approved" | "declined" | "revoked",
     incoming,
   };
+}
+
+/** Department errors with their own status: the UI shows the message as it is. */
+async function departmentCall<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof DepartmentPermissionError) {
+      throw new ORPCError("FORBIDDEN", { message: error.message, cause: error });
+    }
+    if (error instanceof DepartmentNameConflictError) {
+      throw new ORPCError("CONFLICT", { message: error.message, cause: error });
+    }
+    if (error instanceof UnknownAccountError) {
+      throw new ORPCError("BAD_REQUEST", { message: error.message, cause: error });
+    }
+    throw error;
+  }
 }
