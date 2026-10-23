@@ -445,6 +445,10 @@ msgstr "添加备用模型"
 msgid "Add credential"
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Add department"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "添加 Executor"
@@ -474,6 +478,10 @@ msgstr "添加 OpenAPI"
 #: src/components/PasskeySettings.tsx
 msgid "Add passkey"
 msgstr "添加通行密钥"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Add person"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
@@ -961,6 +969,7 @@ msgstr "无法读取图像"
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -1653,6 +1662,10 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Could not load departments"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
@@ -1775,9 +1788,11 @@ msgstr "无法撤销连接"
 msgid "Could not run routine"
 msgstr "无法运行例行任务"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "无法保存"
@@ -2121,6 +2136,11 @@ msgstr "已拒绝"
 msgid "Deny"
 msgstr "拒绝"
 
+#: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/bot-departments.tsx
+msgid "Departments"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Deployment default"
 msgstr "部署默认"
@@ -2296,6 +2316,7 @@ msgstr "先编辑"
 msgid "Edit Profile"
 msgstr "编辑资料"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "邮箱"
@@ -2612,6 +2633,10 @@ msgstr "请先挂断，然后输入屏幕上的代码。"
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "请挂断，然后输入屏幕上的代码。"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Head"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -3060,6 +3085,7 @@ msgstr "中"
 msgid "Medium"
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
 #: src/lib/identity-display.ts
 msgid "Member"
 msgstr "成员"
@@ -3305,6 +3331,10 @@ msgstr "新消息"
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "新建 Bot"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "New department"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -3976,6 +4006,7 @@ msgid "Reload"
 msgstr "重新加载"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -3984,6 +4015,8 @@ msgid "Remove"
 msgstr "移除"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "移除 {0}"
@@ -3991,6 +4024,11 @@ msgstr "移除 {0}"
 #. placeholder {0}: bot.name
 #: src/pages/GroupPanel.tsx
 msgid "Remove {0} from the group"
+msgstr ""
+
+#. placeholder {0}: department.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Remove {0}? Its people lose access to its bots."
 msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
@@ -4204,6 +4242,15 @@ msgstr "撤销"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "机器人"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Role"
+msgstr ""
+
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Role of {0}"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

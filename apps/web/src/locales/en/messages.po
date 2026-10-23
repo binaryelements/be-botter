@@ -445,6 +445,10 @@ msgstr "Add backup model"
 msgid "Add credential"
 msgstr "Add credential"
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Add department"
+msgstr "Add department"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "Add Executor"
@@ -474,6 +478,10 @@ msgstr "Add OpenAPI"
 #: src/components/PasskeySettings.tsx
 msgid "Add passkey"
 msgstr "Add passkey"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Add person"
+msgstr "Add person"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
@@ -961,6 +969,7 @@ msgstr "Can't read images"
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -1653,6 +1662,10 @@ msgstr "Could not load bots. Reload to try again."
 msgid "Could not load credentials."
 msgstr "Could not load credentials."
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Could not load departments"
+msgstr "Could not load departments"
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
@@ -1775,9 +1788,11 @@ msgstr "Could not revoke connection"
 msgid "Could not run routine"
 msgstr "Could not run routine"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "Could not save"
@@ -2121,6 +2136,11 @@ msgstr "Denied"
 msgid "Deny"
 msgstr "Deny"
 
+#: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/bot-departments.tsx
+msgid "Departments"
+msgstr "Departments"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Deployment default"
 msgstr "Deployment default"
@@ -2296,6 +2316,7 @@ msgstr "Edit first"
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "Email"
@@ -2612,6 +2633,10 @@ msgstr "Hang up first, then enter the code on screen."
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "Hang up, then enter the code on screen."
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Head"
+msgstr "Head"
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -3060,6 +3085,7 @@ msgstr "Medium"
 msgid "Medium"
 msgstr "Medium"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/lib/identity-display.ts
 msgid "Member"
 msgstr "Member"
@@ -3305,6 +3331,10 @@ msgstr "New"
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "New bot"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "New department"
+msgstr "New department"
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -3976,6 +4006,7 @@ msgid "Reload"
 msgstr "Reload"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -3984,6 +4015,8 @@ msgid "Remove"
 msgstr "Remove"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "Remove {0}"
@@ -3992,6 +4025,11 @@ msgstr "Remove {0}"
 #: src/pages/GroupPanel.tsx
 msgid "Remove {0} from the group"
 msgstr "Remove {0} from the group"
+
+#. placeholder {0}: department.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Remove {0}? Its people lose access to its bots."
+msgstr "Remove {0}? Its people lose access to its bots."
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Remove {full}"
@@ -4204,6 +4242,15 @@ msgstr "Revoke"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "Robot"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Role"
+msgstr "Role"
+
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Role of {0}"
+msgstr "Role of {0}"
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

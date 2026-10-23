@@ -12,6 +12,7 @@ export const BOT_SETTINGS_ADVANCED_ORDER = [
   "knowledge",
   "disabledTools",
   "credentials",
+  "departments",
 ] as const;
 
 /** Labels stay literal in each platform's translation calls. */

@@ -214,6 +214,7 @@ export async function openUserSettings(
     | "models"
     | "memory"
     | "voice"
+    | "departments"
     | "usage"
     | "computer"
     | "billing"

@@ -19,6 +19,7 @@ import {
   Monitor,
   Settings,
   ShieldCheck,
+  Users,
   Volume2,
   XIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import type { ComponentType } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApprovalRulesSettings } from "../components/ApprovalRulesSettings";
 import { computersAreUnavailable } from "../components/ComputersUnavailableHint";
+import { DepartmentsSettings } from "../components/DepartmentsSettings";
 import { hasServerUpdates, useServerUpdateStatus } from "../components/SoftwareUpdateSection";
 import { desktopBridge } from "../lib/desktop";
 import { rpcForSpace } from "../lib/rpc";
@@ -48,6 +50,7 @@ export type SettingsSection =
   | "memory"
   | "voice"
   | "confirmations"
+  | "departments"
   | "usage"
   | "computer"
   | "billing"
@@ -59,6 +62,7 @@ const SPACE_SECTIONS: ReadonlySet<SettingsSection> = new Set([
   "memory",
   "voice",
   "confirmations",
+  "departments",
 ]);
 
 type NavItem = {
@@ -222,6 +226,7 @@ export function SettingsOverlay({
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
+    { id: "departments", label: t`Departments`, icon: Users },
     { id: "usage", label: t`Usage`, icon: Gauge },
     ...(showComputer ? [{ id: "computer" as const, label: t`Computer`, icon: Monitor }] : []),
     ...(billingEnabled ? [{ id: "billing" as const, label: t`Billing`, icon: CreditCard }] : []),
@@ -429,6 +434,7 @@ export function SettingsOverlay({
                   />
                 ) : null}
                 {section === "confirmations" ? <ApprovalRulesSettings /> : null}
+                {section === "departments" ? <DepartmentsSettings /> : null}
                 {section === "usage" ? (
                   <UsageSettingsPanel usage={usage} panelRef={usageRef} />
                 ) : null}

@@ -445,6 +445,10 @@ msgstr "बैकअप मॉडल जोड़ें"
 msgid "Add credential"
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Add department"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "Executor जोड़ें"
@@ -474,6 +478,10 @@ msgstr "OpenAPI जोड़ें"
 #: src/components/PasskeySettings.tsx
 msgid "Add passkey"
 msgstr "पासकी जोड़ें"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Add person"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
@@ -961,6 +969,7 @@ msgstr "तस्वीरें नहीं पढ़ सकता"
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -1653,6 +1662,10 @@ msgstr ""
 msgid "Could not load credentials."
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Could not load departments"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
@@ -1775,9 +1788,11 @@ msgstr "कनेक्शन रद्द नहीं किया जा स�
 msgid "Could not run routine"
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "सहेजा नहीं जा सका"
@@ -2121,6 +2136,11 @@ msgstr "अस्वीकृत"
 msgid "Deny"
 msgstr "अस्वीकार करें"
 
+#: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/bot-departments.tsx
+msgid "Departments"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Deployment default"
 msgstr "डिप्लॉयमेंट डिफ़ॉल्ट"
@@ -2296,6 +2316,7 @@ msgstr "पहले संपादित करें"
 msgid "Edit Profile"
 msgstr "प्रोफ़ाइल संपादित करें"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "ईमेल"
@@ -2611,6 +2632,10 @@ msgstr ""
 
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
+msgstr ""
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Head"
 msgstr ""
 
 #: src/pages/RoutineEditor.tsx
@@ -3060,6 +3085,7 @@ msgstr "मध्यम"
 msgid "Medium"
 msgstr ""
 
+#: src/components/DepartmentsSettings.tsx
 #: src/lib/identity-display.ts
 msgid "Member"
 msgstr "सदस्य"
@@ -3305,6 +3331,10 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "नया बॉट"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "New department"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -3976,6 +4006,7 @@ msgid "Reload"
 msgstr "फिर से लोड करें"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -3984,6 +4015,8 @@ msgid "Remove"
 msgstr "हटाएं"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "{0} हटाएं"
@@ -3991,6 +4024,11 @@ msgstr "{0} हटाएं"
 #. placeholder {0}: bot.name
 #: src/pages/GroupPanel.tsx
 msgid "Remove {0} from the group"
+msgstr ""
+
+#. placeholder {0}: department.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Remove {0}? Its people lose access to its bots."
 msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
@@ -4203,6 +4241,15 @@ msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
+msgstr ""
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Role"
+msgstr ""
+
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Role of {0}"
 msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
