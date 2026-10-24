@@ -3828,6 +3828,7 @@ msgid "Priority"
 msgstr "Priority"
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/thread-switch.tsx
 msgid "Private"
 msgstr "Private"
 
@@ -4985,6 +4986,10 @@ msgstr "This subscription sign-in is not available in Rakazo yet. Use a deployme
 #: src/pages/Artifacts.tsx
 msgid "This week"
 msgstr "This week"
+
+#: src/pages/shell/thread-switch.tsx
+msgid "Thread"
+msgstr "Thread"
 
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"

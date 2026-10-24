@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   captureScreenshot,
+  chooseOption,
   completeOnboarding,
   createNamedBot,
   expandAdvancedSection,
@@ -11,6 +12,8 @@ test("an owner shares a bot with a department and its member can reach it", asyn
   page,
   browser,
 }, testInfo) => {
+  // Two accounts, a department and three thread views do not fit the default budget.
+  test.slow();
   const stamp = Date.now();
   const staffEmail = `departments-staff-${stamp}@rakazo.test`;
   // The staff member has their own account first; the owner then adds them by email.
@@ -58,5 +61,38 @@ test("an owner shares a bot with a department and its member can reach it", asyn
   await sharedBot.click();
   await expect(staffPage.getByPlaceholder(`Message ${botName}`)).toBeVisible();
   await captureScreenshot(staffPage, testInfo, "departments-member-chat");
+
+  // Staff write to the bot privately, then to the whole department in its channel.
+  const staffComposer = staffPage.getByRole("combobox", { name: `Message ${botName}` });
+  await staffComposer.fill("Private note");
+  await staffPage.keyboard.press("Enter");
+  await expect(
+    staffPage.getByTestId("message-user-bubble").getByText("Private note"),
+  ).toBeVisible();
+  const staffThreads = staffPage.getByTestId("thread-channel");
+  await expect(staffThreads).toHaveText("Private");
+  await chooseOption(staffThreads, "IT");
+  await expect(staffThreads).toHaveText("IT");
+  await expect(staffPage.getByTestId("message-user-bubble")).toHaveCount(0);
+  await staffComposer.fill("Team question");
+  await staffPage.keyboard.press("Enter");
+  await expect(
+    staffPage.getByTestId("message-user-bubble").getByText("Team question"),
+  ).toBeVisible();
+
+  // The owner reads the channel with the sender named, and the staff member's private
+  // thread without a composer.
+  await page.reload();
+  const ownerThreads = page.getByTestId("thread-channel");
+  await expect(ownerThreads).toHaveText("Private");
+  await chooseOption(ownerThreads, "IT");
+  await expect(ownerThreads).toHaveText("IT");
+  await expect(page.getByTestId("message-user-bubble").getByText("Team question")).toBeVisible();
+  await expect(page.getByTestId("message-sender")).toHaveText("IT Staff");
+  await captureScreenshot(page, testInfo, "departments-channel");
+  await chooseOption(ownerThreads, "IT Staff");
+  await expect(page.getByTestId("message-user-bubble").getByText("Private note")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: `Message ${botName}` })).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "departments-supervised");
   await staffContext.close();
 });

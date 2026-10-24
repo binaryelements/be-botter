@@ -40,8 +40,17 @@ export const SAVED_CHAT_MAX_BYTES = 1024 * 1024;
 export const SAVED_CHATS_MAX_BYTES = 20 * 1024 * 1024;
 const SAVED_INBOX_ROWS = 200;
 
-export function savedChatTarget(target: { botId?: string; groupId?: string }): string {
-  return target.groupId ? `group:${target.groupId}` : `bot:${target.botId}`;
+export function savedChatTarget(target: {
+  botId?: string;
+  groupId?: string;
+  departmentId?: string;
+  userId?: string;
+}): string {
+  if (target.groupId) return `group:${target.groupId}`;
+  // A bot's channel and supervised threads are saved apart from its own thread.
+  if (target.departmentId) return `bot:${target.botId}:department:${target.departmentId}`;
+  if (target.userId) return `bot:${target.botId}:user:${target.userId}`;
+  return `bot:${target.botId}`;
 }
 
 function spaceFile(scope: SavedChatsScope, name: string): File {

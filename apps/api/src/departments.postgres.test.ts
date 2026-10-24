@@ -92,6 +92,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
   let itBotId: string;
   let chiefBotId: string;
   let itDepartmentId: string;
+  let salesDepartmentId: string;
 
   beforeAll(async () => {
     const { createApp } = await import("./app.js");
@@ -359,5 +360,285 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     expect(await status(app, staff.cookie, "threads/get", { botId: itBotId }, companySpaceId)).toBe(
       404,
     );
+  });
+  it("opens a department channel for the department's people and refuses everyone else", async () => {
+    // The previous test removed IT; build it again with the same people and bot.
+    const rebuilt = await rpc<{ id: string }>(app, owner.cookie, "departments/create", {
+      name: "IT",
+    });
+    itDepartmentId = rebuilt.id;
+    await rpc(app, owner.cookie, "departments/setUsers", {
+      departmentId: itDepartmentId,
+      users: [{ email: staffEmail, role: "member" }],
+    });
+    await rpc(app, owner.cookie, "bots/setDepartments", {
+      botId: itBotId,
+      departmentIds: [itDepartmentId],
+    });
+    const channel = { botId: itBotId, departmentId: itDepartmentId };
+    const owners = await rpc<{ threadId: string; departmentId?: string }>(
+      app,
+      owner.cookie,
+      "threads/get",
+      channel,
+    );
+    expect(owners.departmentId).toBe(itDepartmentId);
+    const staffs = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      channel,
+      companySpaceId,
+    );
+    expect(staffs.threadId).toBe(owners.threadId);
+    const mine = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(mine.threadId).not.toBe(owners.threadId);
+    // A bot outside the department has no channel there, for anyone.
+    expect(
+      await status(app, owner.cookie, "threads/get", {
+        botId: chiefBotId,
+        departmentId: itDepartmentId,
+      }),
+    ).toBe(403);
+    // A department the person is not in stays closed even when the bot is in it.
+    const sales = await rpc<{ id: string }>(app, owner.cookie, "departments/create", {
+      name: "Sales",
+    });
+    salesDepartmentId = sales.id;
+    await rpc(app, owner.cookie, "bots/setDepartments", {
+      botId: itBotId,
+      departmentIds: [itDepartmentId, sales.id],
+    });
+    expect(
+      await status(
+        app,
+        staff.cookie,
+        "threads/get",
+        { botId: itBotId, departmentId: sales.id },
+        companySpaceId,
+      ),
+    ).toBe(403);
+    // One shared conversation: a member's message reaches the owner, and clearing clears for both.
+    await rpc(
+      app,
+      staff.cookie,
+      "threads/send",
+      { ...channel, text: "Team question" },
+      companySpaceId,
+    );
+    const shared = await rpc<{ messages: unknown[] }>(app, owner.cookie, "threads/get", channel);
+    expect(JSON.stringify(shared.messages)).toContain("Team question");
+    await rpc(app, staff.cookie, "threads/clear", channel, companySpaceId);
+    expect(
+      (await rpc<{ messages: unknown[] }>(app, owner.cookie, "threads/get", channel)).messages,
+    ).toEqual([]);
+  });
+
+  it("lets owners and department heads read, not write, their people's private threads", async () => {
+    const head = await signup(app, `dept-head-${stamp}@rakazo.test`, "IT Head");
+    const salesHead = await signup(app, `dept-sales-head-${stamp}@rakazo.test`, "Sales Head");
+    await rpc(app, owner.cookie, "departments/setUsers", {
+      departmentId: itDepartmentId,
+      users: [
+        { email: staffEmail, role: "member" },
+        { email: `dept-head-${stamp}@rakazo.test`, role: "head" },
+      ],
+    });
+    await rpc(app, owner.cookie, "departments/setUsers", {
+      departmentId: salesDepartmentId,
+      users: [{ email: `dept-sales-head-${stamp}@rakazo.test`, role: "head" }],
+    });
+    const mine = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    const theirs = { botId: itBotId, userId: staff.userId };
+    const supervised = await rpc<{
+      threadId: string;
+      userId?: string;
+      readOnly?: boolean;
+      messages: unknown[];
+    }>(app, owner.cookie, "threads/get", theirs);
+    expect(supervised).toMatchObject({
+      threadId: mine.threadId,
+      userId: staff.userId,
+      readOnly: true,
+    });
+    expect(JSON.stringify(supervised.messages)).toContain("Hello from IT");
+    expect(await status(app, owner.cookie, "threads/send", { ...theirs, text: "Nope" })).toBe(403);
+    expect(await status(app, owner.cookie, "threads/clear", theirs)).toBe(403);
+    const before = await db.thread.findUniqueOrThrow({
+      where: { id: mine.threadId },
+      select: { unread: true, lastReadSeq: true },
+    });
+    expect(await status(app, owner.cookie, "threads/markRead", theirs)).toBe(200);
+    expect(
+      await db.thread.findUniqueOrThrow({
+        where: { id: mine.threadId },
+        select: { unread: true, lastReadSeq: true },
+      }),
+    ).toEqual(before);
+    const byHead = await rpc<{ threadId: string; readOnly?: boolean }>(
+      app,
+      head.cookie,
+      "threads/get",
+      theirs,
+      companySpaceId,
+    );
+    expect(byHead).toMatchObject({ threadId: mine.threadId, readOnly: true });
+    expect(await status(app, salesHead.cookie, "threads/get", theirs, companySpaceId)).toBe(403);
+    expect(
+      await status(
+        app,
+        staff.cookie,
+        "threads/get",
+        { botId: itBotId, userId: owner.userId },
+        companySpaceId,
+      ),
+    ).toBe(403);
+    expect(
+      await status(
+        app,
+        staff.cookie,
+        "threads/get",
+        { botId: itBotId, userId: head.userId },
+        companySpaceId,
+      ),
+    ).toBe(403);
+
+    type Entry = {
+      kind: string;
+      name?: string;
+      departmentId?: string;
+      userId?: string;
+      threadId: string;
+    };
+    const label = (entry: Entry) => [entry.kind, entry.name ?? null];
+    const ownersList = await rpc<Entry[]>(app, owner.cookie, "bots/threads", { botId: itBotId });
+    expect(ownersList.map(label)).toEqual([
+      ["private", null],
+      ["channel", "IT"],
+      ["channel", "Sales"],
+      ["private", "IT Head"],
+      ["private", "IT Staff"],
+      ["private", "Sales Head"],
+    ]);
+    expect(ownersList[0]?.userId).toBe(owner.userId);
+    expect(ownersList[1]?.departmentId).toBe(itDepartmentId);
+    const headsList = await rpc<Entry[]>(
+      app,
+      head.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(headsList.map(label)).toEqual([
+      ["private", null],
+      ["channel", "IT"],
+      ["private", "IT Staff"],
+    ]);
+    expect(headsList[2]?.threadId).toBe(mine.threadId);
+    const staffsList = await rpc<Entry[]>(
+      app,
+      staff.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(staffsList.map(label)).toEqual([
+      ["private", null],
+      ["channel", "IT"],
+    ]);
+  });
+  it("tracks who has read a department channel", async () => {
+    const channel = { botId: itBotId, departmentId: itDepartmentId };
+    const head = (await db.user.findFirstOrThrow({ where: { name: "IT Head" } })).id;
+    const sent = await rpc<{ runId: string }>(app, owner.cookie, "threads/send", {
+      ...channel,
+      text: "Owner update",
+    });
+    // Let the reply land first, so the channel's newest message is stable below.
+    for (let i = 0; i < 150; i++) {
+      const run = await db.run.findUnique({ where: { id: sent.runId }, select: { status: true } });
+      if (run && ["completed", "failed", "cancelled"].includes(run.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    type Entry = { kind: string; departmentId?: string; unread: boolean; threadId: string };
+    const channelEntry = (entries: Entry[]) =>
+      entries.find((entry) => entry.departmentId === itDepartmentId);
+    const staffBefore = await rpc<Entry[]>(
+      app,
+      staff.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(channelEntry(staffBefore)?.unread).toBe(true);
+    // Several people write here, so each message says who sent it.
+    const seen = await rpc<{ messages: { userId?: string; blocks: unknown[] }[] }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      channel,
+      companySpaceId,
+    );
+    const update = seen.messages.find((message) =>
+      JSON.stringify(message.blocks).includes("Owner update"),
+    );
+    expect(update?.userId).toBe(owner.userId);
+    const roster = await rpc<{ id: string; unread: boolean; preview: string }[]>(
+      app,
+      staff.cookie,
+      "bots/list",
+      {},
+      companySpaceId,
+    );
+    const itBot = roster.find((bot) => bot.id === itBotId);
+    expect(itBot?.unread).toBe(true);
+    expect(itBot?.preview).not.toContain("Owner update");
+    // The sender has read what they sent.
+    expect(
+      await db.threadRead.findUnique({
+        where: { threadId_userId: { threadId: staffBefore[1]!.threadId, userId: owner.userId } },
+      }),
+    ).toMatchObject({ unread: false });
+    const marked = await rpc<{ unreadAfterSeq: number | null }>(
+      app,
+      staff.cookie,
+      "threads/markRead",
+      channel,
+      companySpaceId,
+    );
+    // The member's own earlier send set their position, so the divider follows it.
+    expect(marked.unreadAfterSeq).not.toBeNull();
+    const staffAfter = await rpc<Entry[]>(
+      app,
+      staff.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(channelEntry(staffAfter)?.unread).toBe(false);
+    // Another reader's position is their own.
+    expect(
+      await db.threadRead.findUnique({
+        where: { threadId_userId: { threadId: staffBefore[1]!.threadId, userId: head } },
+      }),
+    ).toBeNull();
+    await rpc(app, staff.cookie, "threads/markUnread", channel, companySpaceId);
+    expect(
+      channelEntry(
+        await rpc<Entry[]>(app, staff.cookie, "bots/threads", { botId: itBotId }, companySpaceId),
+      )?.unread,
+    ).toBe(true);
   });
 });

@@ -309,7 +309,7 @@ describe("thread menu archive notifications", () => {
       "confirmDeleteBot",
       "Alert",
       compile(`
-        const readOnly = false, botId = "bot-b", displayName = "Bot";
+        const readOnly = false, botId = "bot-b", displayName = "Bot", snap = null;
         const t = text => text, openBotComputer = () => {}, clearConversation = () => {};
         const router = { push() {} }, errorText = () => "failure";
         ${actionsSource}

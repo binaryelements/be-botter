@@ -692,6 +692,8 @@ model Message {
   role             String
   blocks           Json
   botId            String?
+  /// Who sent a user message; null for bot and system messages and for rows before channels.
+  userId           String?
   replyToMessageId String?
   replyQuote       String?
   replyTo          Message?  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)

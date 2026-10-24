@@ -281,6 +281,7 @@ import {
   listSpaceArtifacts,
 } from "./artifacts.js";
 import type { BillingService } from "./billing.js";
+import { listBotThreads } from "./bot-thread.js";
 import {
   executionBlocksUserTakeover,
   resolveBusyBotName,
@@ -330,6 +331,7 @@ import {
   shouldForwardPeerThreadEvent,
 } from "./thread-message-pages.js";
 import {
+  assertWritable,
   markThreadRead,
   reactToThreadMessage,
   resolveThreadTarget,
@@ -1954,6 +1956,9 @@ export function createRouter(deps: RouterDeps) {
           departmentIds: await departmentRepos.setBotDepartments(context.actor, input),
         })),
       ),
+      threads: authed.bots.threads.handler(({ context, input }) =>
+        listBotThreads(deps.prisma, context.actor, input.botId),
+      ),
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),
       ),
@@ -2539,10 +2544,11 @@ export function createRouter(deps: RouterDeps) {
           throw new ORPCError("BAD_REQUEST", { message: MODEL_REQUIRED_SEND_ERROR });
         }
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
         }
-        return sendThreadMessage(
+        const sent = await sendThreadMessage(
           deps,
           context.actor,
           target,
@@ -2551,9 +2557,15 @@ export function createRouter(deps: RouterDeps) {
             ? (runId) => releaseComputerControl(deps, context.actor, target.botId, "done", runId)
             : undefined,
         );
+        // In a channel the sender has read what they just wrote.
+        if (target.kind === "bot" && target.departmentId) {
+          await markThreadRead(deps.prisma, context.actor, target);
+        }
+        return sent;
       }),
       react: authed.threads.react.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         // Without a model or while teaching, the reaction is still saved; it just starts no turn.
         const mayStartTurn =
           !(await modelSetup(deps, context.actor)).needsModel &&
@@ -2585,6 +2597,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       clear: authed.threads.clear.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         const contextBotId = target.kind === "bot" ? target.botId : target.memberBotIds[0];
         if (!contextBotId) throw new IsolationError();
         const { cancelledRunIds, historyCompactionGeneration } = await deps.events.clearThread({
@@ -2634,6 +2647,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       followUp: authed.threads.followUp.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
           const sent = await deps.events.sendUserMessage({
@@ -2677,6 +2691,7 @@ export function createRouter(deps: RouterDeps) {
           const message = await createThreadMessageInTransaction(tx, {
             threadId: target.threadId,
             role: "user",
+            userId: context.actor.userId,
             blocks,
             clientNonce: input.clientNonce,
           });
@@ -2731,7 +2746,7 @@ export function createRouter(deps: RouterDeps) {
             botId,
             type: "thread.message.created",
             runId: run?.id ?? active?.id,
-            payload: { messageId: message.id, role: "user", blocks },
+            payload: { messageId: message.id, role: "user", userId: context.actor.userId, blocks },
           });
           await touchGroupUpdatedAt(tx, target.groupId);
           return { runId: run?.id, eventSeq: event.seq };
@@ -2805,6 +2820,7 @@ export function createRouter(deps: RouterDeps) {
               where: {
                 threadId,
                 role: "user",
+                userId: context.actor.userId,
                 clientNonce: { startsWith: `${CALL_CLIENT_NONCE_PREFIX}${input.callId}:` },
               },
               select: { id: true },
@@ -2882,6 +2898,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       answer: authed.threads.answer.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         const answered = await deps.events.answerRunInput({
           spaceId: context.actor.spaceId,
           threadId: target.threadId,
@@ -2906,11 +2923,16 @@ export function createRouter(deps: RouterDeps) {
       }),
       markRead: authed.threads.markRead.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        const unreadAfterSeq = await markThreadRead(deps.prisma, context.actor, target);
+        // A supervisor's reading leaves the owner's own unread state alone.
+        const unreadAfterSeq =
+          target.kind === "bot" && target.readOnly
+            ? null
+            : await markThreadRead(deps.prisma, context.actor, target);
         return { ok: true as const, unreadAfterSeq };
       }),
       markUnread: authed.threads.markUnread.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        assertWritable(target);
         await setThreadUnreadState(deps.prisma, context.actor, target, true);
         return { ok: true as const };
       }),

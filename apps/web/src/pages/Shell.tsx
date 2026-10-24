@@ -226,6 +226,8 @@ import { SidebarHeader } from "./shell/sidebar-header";
 import { BotsSidebarLayout } from "./shell/sidebar-layout";
 import { SidebarRoster } from "./shell/sidebar-roster";
 import { commitSpaceRename, countUnreadChats, sidebarGroupsForSpaces } from "./shell/space-sidebar";
+import type { ThreadScope } from "./shell/thread-switch";
+import { channelSenderName, ThreadSwitch, useBotThreads } from "./shell/thread-switch";
 import { Transcript } from "./shell/transcript";
 import { useRoutineEditor } from "./shell/use-routine-editor";
 import { useSidebarExpansion } from "./shell/use-sidebar-expansion";
@@ -810,6 +812,18 @@ function SpaceShell() {
   routeGroupId.current = groupId;
   const activeBotId = useRef<string | undefined>(inGroup ? undefined : active?.id);
   activeBotId.current = inGroup ? undefined : active?.id;
+  const botThreads = useBotThreads(active?.id);
+  const threadScopeRef = useRef<ThreadScope>({});
+  threadScopeRef.current = botThreads.scope;
+  const threadScopeKey = botThreads.scope.departmentId ?? botThreads.scope.userId;
+  // The chosen channel or supervised thread applies to the open bot only.
+  const botThreadTarget = useCallback(
+    (id: string) => ({
+      botId: id,
+      ...(id === activeBotId.current ? threadScopeRef.current : {}),
+    }),
+    [],
+  );
   const activeGroupId = useRef<string | undefined>(groupId);
   activeGroupId.current = groupId;
   const {
@@ -852,7 +866,7 @@ function SpaceShell() {
   const markBotRead = useCallback(
     async (id: string, stillWanted: () => boolean = () => true) => {
       const answer = await readInOrder(`bot:${id}`, () =>
-        stillWanted() ? rpc.threads.markRead({ botId: id }) : Promise.resolve(null),
+        stillWanted() ? rpc.threads.markRead(botThreadTarget(id)) : Promise.resolve(null),
       );
       if (!answer) return undefined;
       const { unreadAfterSeq } = answer;
@@ -866,7 +880,7 @@ function SpaceShell() {
     async (id: string) => {
       manuallyUnread.current.add(id);
       try {
-        await rpc.threads.markUnread({ botId: id });
+        await rpc.threads.markUnread(botThreadTarget(id));
       } catch (err) {
         manuallyUnread.current.delete(id);
         throw err;
@@ -1075,7 +1089,7 @@ function SpaceShell() {
     const request = ++threadRefreshEpoch.current;
     // Apply threads.get as soon as it returns so stop/takeover status is not held behind
     // routines/skills/screen fetches (progress can advance the cursor meanwhile).
-    const snap = await rpc.threads.get({ botId: id }, signal ? { signal } : undefined);
+    const snap = await rpc.threads.get(botThreadTarget(id), signal ? { signal } : undefined);
     markOnce("rk:renderer:thread-response");
     if (
       activeBotId.current !== id ||
@@ -1167,7 +1181,7 @@ function SpaceShell() {
     setLoadingOlder(true);
     try {
       const page = await rpc.threads.messages({
-        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! }),
+        ...(targetGroupId ? { groupId: targetGroupId } : botThreadTarget(targetBotId!)),
         before,
       });
       if (
@@ -1377,7 +1391,7 @@ function SpaceShell() {
       window.removeEventListener("focus", markVisibleBotRead);
       document.removeEventListener("visibilitychange", markVisibleBotRead);
     };
-  }, [active?.id, markBotReadIfVisible]);
+  }, [active?.id, threadScopeKey, markBotReadIfVisible]);
 
   useEffect(() => {
     if (!active) return;
@@ -1409,15 +1423,19 @@ function SpaceShell() {
         return primed?.botId === active.id
           ? primed
           : pendingJump
-            ? rpc.threads.get({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) })
+            ? rpc.threads.get(botThreadTarget(active.id), {
+                signal: threadSnapshotSignal(abort.signal),
+              })
             : refreshThread(active.id, threadSnapshotSignal(abort.signal));
       },
       loadHead: () =>
-        rpc.threads.head({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) }),
+        rpc.threads.head(botThreadTarget(active.id), {
+          signal: threadSnapshotSignal(abort.signal),
+        }),
       refresh: () => refreshThread(active.id, threadSnapshotSignal(abort.signal)),
       currentSnapshot: () => snapshotRef.current,
       subscribe: (cursor, signal) =>
-        rpc.threads.subscribe({ botId: active.id, cursor }, { signal }),
+        rpc.threads.subscribe({ ...botThreadTarget(active.id), cursor }, { signal }),
       beforeEvent: (event) => {
         if (isRunTerminalEvent(event) && event.runId) {
           terminalRunReceipts.current.add(event.runId);
@@ -1480,7 +1498,7 @@ function SpaceShell() {
     return () => {
       abort.abort();
     };
-  }, [active?.id, markBotReadIfVisible, notifyBrowserForEvent]);
+  }, [active?.id, threadScopeKey, markBotReadIfVisible, notifyBrowserForEvent]);
 
   useEffect(() => {
     if (!groupId || !activeGroup) return;
@@ -1981,6 +1999,39 @@ function SpaceShell() {
     [active?.id, groupId, inGroup],
   );
   const transcriptMembers = activeSnapshot?.members ?? activeGroup?.members;
+  const channelDepartmentId = activeSnapshot?.departmentId;
+  const [peopleNames, setPeopleNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!channelDepartmentId) return;
+    let cancelled = false;
+    rpc.departments
+      .list()
+      .then((departments) => {
+        if (cancelled) return;
+        setPeopleNames((current) => {
+          const next = { ...current };
+          for (const department of departments) {
+            for (const user of department.users) next[user.userId] = user.name;
+          }
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [channelDepartmentId]);
+  const resolveSenderName = useCallback(
+    (userId: string | undefined) =>
+      channelSenderName(
+        channelDepartmentId,
+        bootstrapMe?.userId,
+        peopleNames,
+        botThreads.threads,
+        userId,
+      ),
+    [channelDepartmentId, bootstrapMe?.userId, peopleNames, botThreads.threads],
+  );
   const resolveTranscriptBot = useCallback(
     (botId: string) => {
       const bot = bots.find((candidate) => candidate.id === botId);
@@ -2176,7 +2227,7 @@ function SpaceShell() {
       const groupId = activeGroupId.current;
       if (!botId && !groupId) return;
       await rpc.threads.answer({
-        ...(groupId ? { groupId } : { botId: botId! }),
+        ...(groupId ? { groupId } : botThreadTarget(botId!)),
         runId: message.runId ?? "",
         messageId: message.id,
         answer: text,
@@ -2201,7 +2252,7 @@ function SpaceShell() {
       if (!botId && !groupId) return;
       try {
         const result = await rpc.threads.react({
-          ...(groupId ? { groupId } : { botId: botId! }),
+          ...(groupId ? { groupId } : botThreadTarget(botId!)),
           messageId: message.id,
           reaction,
           clientNonce: newClientId(),
@@ -2364,7 +2415,7 @@ function SpaceShell() {
           accepted = true;
         } else if (botTarget) {
           const sent = await rpc.threads.send({
-            botId: botTarget,
+            ...botThreadTarget(botTarget),
             clientNonce,
             text: trimmed || undefined,
             mentions: plan.mentionPayload.length ? plan.mentionPayload : undefined,
@@ -2458,7 +2509,7 @@ function SpaceShell() {
       if (!botTarget) return;
       setSendError(null);
       try {
-        await rpc.threads.stop({ botId: botTarget });
+        await rpc.threads.stop(botThreadTarget(botTarget));
       } catch (error) {
         if (activeBotId.current === botTarget) {
           setSendError(errorText(error, t`Failed to stop`));
@@ -3413,6 +3464,13 @@ function SpaceShell() {
                 </span>
               </span>
             </button>
+            {!inGroup && active ? (
+              <ThreadSwitch
+                threads={botThreads.threads}
+                value={botThreads.thread?.threadId}
+                onChange={botThreads.choose}
+              />
+            ) : null}
           </div>
           <div className="flex items-center gap-1">
             {bootstrapMe?.phoneCallsEnabled && !inGroup && active ? (
@@ -3506,6 +3564,8 @@ function SpaceShell() {
               setPeerConversation(peer);
             }}
             memberName={resolveTranscriptMemberName}
+            senderName={resolveSenderName}
+            readOnly={Boolean(activeSnapshot?.readOnly)}
             peerBot={resolveTranscriptBot}
             onRefresh={refreshActiveThread}
             onBotChanged={refreshBots}
@@ -3521,7 +3581,7 @@ function SpaceShell() {
             <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
           </div>
         ) : null}
-        {active || activeGroup ? (
+        {(active || activeGroup) && !activeSnapshot?.readOnly ? (
           <Composer
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             draftKey={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
@@ -3983,7 +4043,7 @@ function SpaceShell() {
             onConfirm={async () => {
               await rpc.threads.clear(
                 clearTarget.kind === "bot"
-                  ? { botId: clearTarget.chat.id }
+                  ? botThreadTarget(clearTarget.chat.id)
                   : { groupId: clearTarget.chat.id },
               );
               if (

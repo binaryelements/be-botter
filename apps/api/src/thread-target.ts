@@ -28,6 +28,8 @@ import {
   answerWaitingRunWithTextInTransaction,
   appendEventInTransaction,
   botOrOwnWhere,
+  canOpenChannel,
+  channelThread,
   createGroupRepos,
   createRepos,
   createThreadMessageInTransaction,
@@ -35,6 +37,7 @@ import {
   IsolationError,
   lockOwnedGroup,
   retireWaitingQuestionInTransaction,
+  supervises,
   touchGroupUpdatedAt,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -54,6 +57,12 @@ export type ThreadTarget =
       botId: string;
       threadId: string;
       bot: Awaited<ReturnType<ReturnType<typeof createRepos>["getBot"]>>;
+      /** Set on a department channel. */
+      departmentId?: string;
+      /** Set on another person's private thread, which the actor supervises. */
+      userId?: string;
+      /** Supervisors read; they do not write. */
+      readOnly?: boolean;
     }
   | {
       kind: "group";
@@ -284,20 +293,45 @@ async function lockAndLoadGroupMembers(
 export async function resolveThreadTarget(
   prisma: PrismaClient,
   actor: Actor,
-  input: { botId?: string; groupId?: string },
+  input: { botId?: string; groupId?: string; departmentId?: string; userId?: string },
   options: { includeArchived?: boolean } = {},
 ): Promise<ThreadTarget> {
   const repos = createRepos(prisma);
   const groupRepos = createGroupRepos(prisma);
   if (input.botId) {
     const bot = await repos.getBot(actor, input.botId, options);
-    if (!bot.thread) throw new IsolationError();
-    return {
-      kind: "bot",
-      botId: bot.id,
-      threadId: bot.thread.id,
-      bot,
-    };
+    if (input.departmentId) {
+      if (!(await canOpenChannel(prisma, actor, bot.id, input.departmentId))) {
+        throw new ORPCError("FORBIDDEN");
+      }
+      const channel = await channelThread(prisma, bot, input.departmentId, actor.userId);
+      return {
+        kind: "bot",
+        botId: bot.id,
+        threadId: channel.id,
+        bot,
+        departmentId: input.departmentId,
+      };
+    }
+    if (input.userId && input.userId !== actor.userId) {
+      if (!(await supervises(prisma, actor, bot.id, input.userId)))
+        throw new ORPCError("FORBIDDEN");
+      // Never created on a supervisor's behalf: no thread means nothing to read yet.
+      const theirs = await prisma.thread.findFirst({
+        where: { botId: bot.id, userId: input.userId, departmentId: null },
+        select: { id: true },
+      });
+      if (!theirs) throw new IsolationError();
+      return {
+        kind: "bot",
+        botId: bot.id,
+        threadId: theirs.id,
+        bot,
+        userId: input.userId,
+        readOnly: true,
+      };
+    }
+    return { kind: "bot", botId: bot.id, threadId: bot.thread.id, bot };
   }
   if (input.groupId) {
     const group = await groupRepos.getGroupTarget(actor, input.groupId);
@@ -318,6 +352,11 @@ export async function resolveThreadTarget(
     };
   }
   throw new IsolationError();
+}
+
+/** Supervisors read a person's private thread; they do not write in it. */
+export function assertWritable(target: ThreadTarget): void {
+  if (target.kind === "bot" && target.readOnly) throw new ORPCError("FORBIDDEN");
 }
 
 export async function threadHead(prisma: PrismaClient, target: ThreadTarget) {
@@ -427,6 +466,9 @@ export async function threadSnapshot(
     return {
       botId: target.botId,
       threadId: target.threadId,
+      departmentId: target.departmentId,
+      userId: target.userId,
+      readOnly: target.readOnly,
       cursor: core.last?.seq ?? -1,
       messages: messagesWithLiveEvents(core.messagePage.messages, core.liveEvents),
       olderCursor: core.messagePage.olderCursor,
@@ -709,6 +751,7 @@ export async function sendThreadMessage(
         const message = await createThreadMessageInTransaction(tx, {
           threadId: target.threadId,
           role: "user",
+          userId: actor.userId,
           blocks,
           replyToMessageId,
           replyQuote,
@@ -758,6 +801,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               seq: message.seq,
               role: "user",
+              userId: actor.userId,
               blocks,
               callId,
               runIds: answered.map((run) => run.id),
@@ -792,6 +836,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               seq: message.seq,
               role: "user",
+              userId: actor.userId,
               blocks,
               callId,
               replyToMessageId,
@@ -840,6 +885,7 @@ export async function sendThreadMessage(
             messageId: message.id,
             seq: message.seq,
             role: "user",
+            userId: actor.userId,
             blocks,
             callId,
             runIds: [run.id],
@@ -875,6 +921,7 @@ export async function sendThreadMessage(
       const message = await createThreadMessageInTransaction(tx, {
         threadId: target.threadId,
         role: "user",
+        userId: actor.userId,
         blocks,
         replyToMessageId,
         replyQuote,
@@ -993,6 +1040,7 @@ export async function sendThreadMessage(
           messageId: message.id,
           seq: message.seq,
           role: "user",
+          userId: actor.userId,
           blocks,
           callId,
           runIds: runs.map((run) => run.id),
@@ -1090,6 +1138,7 @@ export async function reactToThreadMessage(
     const message = await createThreadMessageInTransaction(tx, {
       threadId: target.threadId,
       role: "user",
+      userId: actor.userId,
       blocks,
       replyToMessageId: parent.id,
       clientNonce: input.clientNonce,
@@ -1110,6 +1159,7 @@ export async function reactToThreadMessage(
       payload: {
         messageId: message.id,
         role: "user",
+        userId: actor.userId,
         blocks,
         replyToMessageId: parent.id,
         ...(runs.length ? { runIds: runs.map((run) => run.id) } : {}),
@@ -1421,6 +1471,7 @@ export async function markThreadRead(
   actor: Actor,
   target: ThreadTarget,
 ): Promise<number | null> {
+  if (target.kind === "bot" && target.departmentId) return markChannelRead(prisma, actor, target);
   const where = { id: target.threadId, spaceId: actor.spaceId, ...botOrOwnWhere(actor) };
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const thread = await prisma.thread.findFirst({
@@ -1456,6 +1507,39 @@ export async function markThreadRead(
   });
 }
 
+/**
+ * A channel's read state is per reader (`thread_reads`); one never opened counts as unread from
+ * the start, so the first read places the divider before everything.
+ */
+async function markChannelRead(
+  prisma: PrismaClient,
+  actor: Actor,
+  target: ThreadTarget,
+): Promise<number | null> {
+  const thread = await prisma.thread.findFirst({
+    where: { id: target.threadId, spaceId: actor.spaceId },
+    select: { nextMessageSeq: true },
+  });
+  if (!thread) return null;
+  const latestSeq = thread.nextMessageSeq - 1;
+  const key = { threadId: target.threadId, userId: actor.userId };
+  const read = (await prisma.threadRead.findUnique({
+    where: { threadId_userId: key },
+    select: { unread: true, lastReadSeq: true },
+  })) ?? { unread: false, lastReadSeq: -1 };
+  const state = {
+    unread: read.unread || read.lastReadSeq < latestSeq,
+    lastReadSeq: read.lastReadSeq,
+  };
+  if (!state.unread) return null;
+  await prisma.threadRead.upsert({
+    where: { threadId_userId: key },
+    create: { ...key, lastReadSeq: latestSeq, unread: false },
+    update: { lastReadSeq: latestSeq, unread: false },
+  });
+  return dividerSeq(state, latestSeq);
+}
+
 /** A chat only gets a divider when its unread dot was on, so replies seen live never do. */
 function dividerSeq(thread: { unread: boolean; lastReadSeq: number }, latestSeq: number) {
   return thread.unread && thread.lastReadSeq < latestSeq ? thread.lastReadSeq : null;
@@ -1467,6 +1551,15 @@ export async function setThreadUnreadState(
   target: ThreadTarget,
   unread: boolean,
 ) {
+  if (target.kind === "bot" && target.departmentId) {
+    const key = { threadId: target.threadId, userId: actor.userId };
+    await prisma.threadRead.upsert({
+      where: { threadId_userId: key },
+      create: { ...key, unread },
+      update: { unread },
+    });
+    return;
+  }
   const result = await prisma.thread.updateMany({
     where: {
       id: target.threadId,

@@ -39,6 +39,7 @@ import {
   BotSchema,
   BotSectionName,
   BotSectionSchema,
+  BotThreadSchema,
   CapabilityInstallSchema,
   ComputerModeSchema,
   ComputerReleaseReasonSchema,
@@ -124,6 +125,10 @@ const threadTarget = z
   .object({
     botId: Id.optional(),
     groupId: Id.optional(),
+    /** With botId: that department's channel with the bot. */
+    departmentId: Id.optional(),
+    /** With botId: that person's private thread with the bot, read-only to their supervisors. */
+    userId: Id.optional(),
   })
   .superRefine((input, ctx) => {
     const hasBot = Boolean(input.botId);
@@ -135,7 +140,17 @@ const threadTarget = z
         path: ["botId"],
       });
     }
+    const scopes = Number(Boolean(input.departmentId)) + Number(Boolean(input.userId));
+    if (scopes > 1 || (scopes === 1 && !hasBot)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "departmentId or userId needs botId, not both",
+        path: ["departmentId"],
+      });
+    }
   });
+/** Which thread a `threads.*` call means; exported for its own tests. */
+export const ThreadTargetInput = threadTarget;
 
 const structuredMentionTarget = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("bot"), id: Id }),
@@ -319,6 +334,8 @@ export const appContract = {
     setDepartments: oc
       .input(z.object({ botId: Id, departmentIds: z.array(Id).max(100) }))
       .output(z.object({ departmentIds: z.array(Id) })),
+    /** The threads of this bot the current user may open, their own first. */
+    threads: oc.input(botId).output(z.array(BotThreadSchema)),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
     create: oc.input(CreateBotInput).output(BotSchema),

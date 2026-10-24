@@ -343,3 +343,57 @@ export function createDepartmentRepos(prisma: PrismaClient) {
     },
   };
 }
+
+/**
+ * Whether the actor may open a department's channel with a bot: the department holds the
+ * bot, and the actor is a space owner or one of the department's people.
+ */
+export async function canOpenChannel(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  actor: Actor,
+  botId: string,
+  departmentId: string,
+): Promise<boolean> {
+  const department = await prisma.department.findFirst({
+    where: {
+      id: departmentId,
+      spaceId: actor.spaceId,
+      bots: { some: { botId } },
+      ...(isSpaceOwner(actor) ? {} : { users: { some: { userId: actor.userId } } }),
+    },
+    select: { id: true },
+  });
+  return department !== null;
+}
+
+/**
+ * Whether the actor may read another person's private thread with a bot: space owners for
+ * anyone in the space, department heads for the people of a department that holds the bot.
+ */
+export async function supervises(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  actor: Actor,
+  botId: string,
+  userId: string,
+): Promise<boolean> {
+  if (userId === actor.userId) return false;
+  if (isSpaceOwner(actor)) {
+    const member = await prisma.spaceMember.findFirst({
+      where: { spaceId: actor.spaceId, userId },
+      select: { id: true },
+    });
+    return member !== null;
+  }
+  const department = await prisma.department.findFirst({
+    where: {
+      spaceId: actor.spaceId,
+      bots: { some: { botId } },
+      AND: [
+        { users: { some: { userId: actor.userId, role: "head" } } },
+        { users: { some: { userId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return department !== null;
+}

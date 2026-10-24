@@ -60,6 +60,8 @@ export const Transcript = memo(function Transcript({
   onJumpToMessage,
   onOpenPeerMessages,
   memberName,
+  senderName,
+  readOnly = false,
   peerBot,
   onRefresh,
   onBotChanged,
@@ -99,6 +101,9 @@ export const Transcript = memo(function Transcript({
   onJumpToMessage: (messageId: string) => void;
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   memberName?: (botId: string | undefined) => string | undefined;
+  /** Names the person behind a user message where several people share the thread. */
+  senderName?: (userId: string | undefined) => string | undefined;
+  readOnly?: boolean;
   peerBot: (botId: string) => { name?: string; color: string; status?: string } | undefined;
   onRefresh: () => Promise<void>;
   onBotChanged: () => Promise<void>;
@@ -491,9 +496,10 @@ export const Transcript = memo(function Transcript({
                           ? undefined
                           : message.role === "bot"
                             ? memberName?.(message.botId)
-                            : undefined
+                            : senderName?.(message.userId)
                       }
                       memberName={memberName}
+                      readOnly={readOnly}
                       peerBot={peerBot}
                       replyParent={
                         message.replyToMessageId
@@ -549,7 +555,7 @@ export const Transcript = memo(function Transcript({
           <ActiveBotGlyph bots={workingBots} label={workingLabel} />
         ) : null}
       </div>
-      {quoteDraft ? (
+      {quoteDraft && !readOnly ? (
         <QuoteSelectionButton
           range={quoteDraft.range}
           onQuote={() => {

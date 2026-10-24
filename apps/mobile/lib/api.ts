@@ -1047,6 +1047,8 @@ export type MobileMessage = {
   /** Set when the message was sent from a live voice call; groups one call's transcript. */
   callId?: string;
   botId?: string;
+  /** Who sent a user message; named in a department channel when it was someone else. */
+  userId?: string;
   replyToMessageId?: string;
   replyQuote?: string;
   replyPreview?: ReplyPreview | null;
@@ -1089,7 +1091,18 @@ export type MobileSnapshot = {
     mode: ComputerMode;
     busyBotName: string | null;
   };
+  /** Set on a department channel. */
+  departmentId?: string;
+  /** Set when reading another person's private thread. */
+  userId?: string;
+  /** True when the caller may read but not write, as a supervisor of the thread's owner. */
+  readOnly?: boolean;
 };
+
+/** Which thread a `threads/*` call means; a bot's own, a department channel, or a person's. */
+export type MobileThreadTarget =
+  | { botId: string; departmentId?: string; userId?: string }
+  | { groupId: string };
 
 export function shouldApplyMobileThreadRefresh(input: {
   requestEpoch: number;
@@ -1227,7 +1240,7 @@ function httpError(message: string, res: Response, code?: string): Error {
 }
 
 export async function subscribeThread(
-  target: { botId: string } | { groupId: string },
+  target: MobileThreadTarget,
   cursor: number,
   onEvent: (event: ThreadEvent) => void,
   signal: AbortSignal,
@@ -1551,6 +1564,7 @@ export function applyMobileThreadEvent(
       callId: typeof event.payload?.callId === "string" ? event.payload.callId : known?.callId,
       blocks: (event.payload?.blocks as MobileMessage["blocks"]) ?? [],
       botId: event.botId ?? (event.payload?.botId ? String(event.payload.botId) : undefined),
+      userId: typeof event.payload?.userId === "string" ? event.payload.userId : known?.userId,
       ...replyMetadata(event.payload ?? {}, known),
     };
     return {

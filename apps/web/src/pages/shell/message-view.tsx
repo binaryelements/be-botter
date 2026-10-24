@@ -58,6 +58,7 @@ export const MessageView = memo(function MessageView({
   onSpeak,
   onOpenComputer,
   showToolActivity,
+  readOnly = false,
   onReply,
   onReact,
 }: {
@@ -89,6 +90,8 @@ export const MessageView = memo(function MessageView({
   onSpeak: () => void;
   onOpenComputer: (botId?: string) => void;
   showToolActivity: boolean;
+  /** A supervisor reading someone else's thread may not reply or react. */
+  readOnly?: boolean;
   onReply: (message: ThreadMessage) => void;
   onReact: (message: ThreadMessage, reaction: MessageReaction) => Promise<void>;
 }) {
@@ -111,7 +114,15 @@ export const MessageView = memo(function MessageView({
   );
   const messageContext = (
     <>
-      {speakerName ? (
+      {speakerName && message.role === "user" ? (
+        <div
+          data-testid="message-sender"
+          className="mb-1.5 flex justify-end text-[13px] font-semibold tracking-tight text-muted-foreground"
+          dir="auto"
+        >
+          {speakerName}
+        </div>
+      ) : speakerName ? (
         <div
           className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold tracking-tight"
           dir="auto"
@@ -143,14 +154,15 @@ export const MessageView = memo(function MessageView({
   // Anchored below the speaker and reply line so the rail centers on the bubble itself.
   // A message with text and attachments anchors it on its first text bubble.
   const hoverAnchorIndex = message.blocks.findIndex((block) => block.kind === "text");
-  const hoverActions = isPeerReceiptBlocks(message.blocks) ? null : (
-    <MessageHoverActions
-      message={message}
-      side={message.role === "user" ? "start" : "end"}
-      onReply={onReply}
-      onReact={onReact}
-    />
-  );
+  const hoverActions =
+    readOnly || isPeerReceiptBlocks(message.blocks) ? null : (
+      <MessageHoverActions
+        message={message}
+        side={message.role === "user" ? "start" : "end"}
+        onReply={onReply}
+        onReact={onReact}
+      />
+    );
   if (isNarration) {
     if (visibleNarrationBlocks.length === 0) return null;
     if (isToolOnlyNarration(message.blocks, showToolActivity)) {

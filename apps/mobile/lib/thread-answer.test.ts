@@ -14,6 +14,7 @@ function setup(refresh: () => Promise<void>) {
     useCallback: <T>(callback: T) => callback,
     botId: "bot-1",
     groupId: undefined,
+    threadScope: undefined,
     readOnly: false,
     rpc: vi.fn(async () => undefined),
     isCurrentTarget: () => true,

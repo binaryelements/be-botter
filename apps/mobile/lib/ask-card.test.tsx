@@ -266,6 +266,7 @@ it("closes the current sheet and keeps the card saved when refresh fails", async
     useCallback: <T,>(callback: T) => callback,
     botId: "bot-1",
     groupId: undefined,
+    threadScope: undefined,
     readOnly: false,
     rpc,
     isCurrentTarget: () => true,

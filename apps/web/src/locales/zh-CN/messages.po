@@ -3828,6 +3828,7 @@ msgid "Priority"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/thread-switch.tsx
 msgid "Private"
 msgstr "私有"
 
@@ -4984,6 +4985,10 @@ msgstr "此订阅登录在 Rakazo 中尚不可用。请使用部署凭据或选�
 
 #: src/pages/Artifacts.tsx
 msgid "This week"
+msgstr ""
+
+#: src/pages/shell/thread-switch.tsx
+msgid "Thread"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx

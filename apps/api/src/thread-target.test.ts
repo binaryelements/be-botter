@@ -149,6 +149,7 @@ describe("reaction messages", () => {
         payload: {
           messageId: "reaction-2",
           role: "user",
+          userId: "user-1",
           blocks: [{ kind: "text", text: "❤️" }],
           replyToMessageId: "parent",
         },

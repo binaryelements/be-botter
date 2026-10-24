@@ -431,6 +431,7 @@ export async function sendUserMessage(
       const message = await createThreadMessageInTransaction(tx, {
         threadId: input.threadId,
         role: "user",
+        userId: input.userId,
         blocks: input.blocks,
         clientNonce: input.clientNonce,
       });
@@ -523,6 +524,7 @@ export async function sendUserMessage(
         payload: {
           messageId: message.id,
           role: "user",
+          userId: input.userId,
           blocks: input.blocks,
           // Carries the call id on the live event so a spoken turn groups into the
           // call card immediately, instead of after a refetch reads the nonce.

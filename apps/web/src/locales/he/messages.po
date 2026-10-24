@@ -3828,6 +3828,7 @@ msgid "Priority"
 msgstr "עדיפות"
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/thread-switch.tsx
 msgid "Private"
 msgstr "פרטי"
 
@@ -4985,6 +4986,10 @@ msgstr "התחברות עם המנוי הזה עדיין לא זמינה ב-Raka
 #: src/pages/Artifacts.tsx
 msgid "This week"
 msgstr "השבוע"
+
+#: src/pages/shell/thread-switch.tsx
+msgid "Thread"
+msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
