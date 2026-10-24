@@ -237,6 +237,21 @@ export const DepartmentSchema = z.object({
 });
 export type Department = z.infer<typeof DepartmentSchema>;
 
+/**
+ * A thread of a bot the current user may open: their own (no `name`; the client labels it),
+ * a department channel (`departmentId`, the department's name), or the private thread of a
+ * person they supervise (`userId`, the person's name), which is read-only to them.
+ */
+export const BotThreadSchema = z.object({
+  kind: z.enum(["private", "channel"]),
+  threadId: Id,
+  name: z.string().optional(),
+  departmentId: Id.optional(),
+  userId: Id.optional(),
+  unread: z.boolean(),
+});
+export type BotThread = z.infer<typeof BotThreadSchema>;
+
 export const BotSectionSchema = z.object({
   id: Id,
   name: z.string(),
@@ -1103,6 +1118,12 @@ export const ThreadSnapshotSchema = z.object({
   run: RunSchema.nullable(),
   activeRuns: z.array(RunSchema).optional(),
   computer: ComputerStatusSchema.optional(),
+  /** Set on a department channel. */
+  departmentId: Id.optional(),
+  /** Set when reading another person's private thread. */
+  userId: Id.optional(),
+  /** True when the caller may read but not write, as a supervisor of the thread's owner. */
+  readOnly: z.boolean().optional(),
 });
 export type ThreadSnapshot = z.infer<typeof ThreadSnapshotSchema>;
 
