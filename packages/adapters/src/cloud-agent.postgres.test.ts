@@ -239,7 +239,18 @@ describePostgres("cloud agent lifecycle and recovery (PostgreSQL + Cursor emulat
 
   it("never dispatches a launch whose card transaction fails", async () => {
     const h = await setup();
-    await expect(h.tool("launch", { prompt: "Task" }, { userId: "wrong-owner" })).rejects.toThrow();
+    // The card lands on the run's thread; a run pointing at a thread that does not exist cannot commit it.
+    await expect(
+      runAsSystem("agent run tool call", () =>
+        executeCloudAgentTool(
+          h.deps,
+          h.context,
+          { ...h.run, threadId: "missing-thread" },
+          "cloud_agent_launch",
+          { prompt: "Task" },
+        ),
+      ),
+    ).rejects.toThrow();
     expect(await prisma.cloudAgent.count({ where: { userId: h.id } })).toBe(0);
     expect(h.wire.requests).toHaveLength(0);
   });
