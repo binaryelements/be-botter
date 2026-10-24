@@ -3716,6 +3716,8 @@ function SpaceShell() {
                 key={active.id}
                 bot={active}
                 memoryProviderConfigured={memoryProviderConfig != null}
+                settingsOpen={settingsOpen}
+                onOpenDepartments={() => openSettings("departments")}
                 onSkillsChange={setAgentSkills}
                 onSave={async ({ computerMode, ...patch }) => {
                   if (computerMode !== undefined && computerMode !== active.computerMode) {

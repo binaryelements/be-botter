@@ -144,6 +144,21 @@ export function SettingsOverlay({
   const panelBusy = memoryBusy || voiceBusy;
   const spaceScoped = SPACE_SECTIONS.has(section);
   const spaceId = spaceScoped ? (space?.id ?? null) : null;
+  // Departments appear in the nav once the space has one; the first is created from a bot's page.
+  const [hasDepartments, setHasDepartments] = useState(false);
+  useEffect(() => {
+    if (!space?.id) return;
+    let cancelled = false;
+    rpcForSpace(space.id)
+      .departments.list()
+      .then((list) => {
+        if (!cancelled) setHasDepartments(list.length > 0);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [space?.id]);
   // The shell only holds the selected space's memory config; another space's loads here.
   const otherSpace = Boolean(spaceId && currentSpaceId && spaceId !== currentSpaceId);
   // Kept with the space it was loaded for, so a switch never shows the previous space's config.
@@ -226,7 +241,9 @@ export function SettingsOverlay({
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
-    { id: "departments", label: t`Departments`, icon: Users },
+    ...(hasDepartments || section === "departments"
+      ? [{ id: "departments" as const, label: t`Departments`, icon: Users }]
+      : []),
     { id: "usage", label: t`Usage`, icon: Gauge },
     ...(showComputer ? [{ id: "computer" as const, label: t`Computer`, icon: Monitor }] : []),
     ...(billingEnabled ? [{ id: "billing" as const, label: t`Billing`, icon: CreditCard }] : []),

@@ -66,18 +66,23 @@ vi.mock("./AccountSettingsOverlay", () => ({
   UpdatesSettingsPanel: () => null,
   UsageSettingsPanel: () => null,
 }));
-const { memoryConfigs, providerConfig, updaterStatus } = vi.hoisted(() => ({
+const { memoryConfigs, providerConfig, updaterStatus, departmentsList } = vi.hoisted(() => ({
   memoryConfigs: [] as unknown[],
   providerConfig: vi.fn(async (_spaceId: string): Promise<unknown> => null),
   updaterStatus: vi.fn(async (): Promise<unknown> => ({ installKind: "compose" })),
+  departmentsList: vi.fn(async (_spaceId: string): Promise<unknown[]> => []),
 }));
 vi.mock("../lib/rpc", () => ({
   rpc: { updater: { status: updaterStatus } },
   rpcForSpace: (spaceId: string) => ({
     memory: { providerConfig: () => providerConfig(spaceId) },
+    departments: { list: () => departmentsList(spaceId) },
   }),
 }));
 vi.mock("./BillingSettingsPanel", () => ({ BillingSettingsPanel: () => null }));
+vi.mock("../components/DepartmentsSettings", () => ({
+  DepartmentsSettings: () => <div data-testid="departments-settings" />,
+}));
 vi.mock("./MemorySettingsOverlay", () => ({
   MemorySettingsOverlay: ({ config }: { config: unknown }) => {
     memoryConfigs.push(config);
@@ -245,6 +250,43 @@ it("withholds memory connection controls after a failed load and retries the edi
     expect(memoryConfigs.at(-1)).toBe(config);
     expect(container.textContent).not.toContain("Retry");
     expect(onMemoryConfigChange).not.toHaveBeenCalled();
+  } finally {
+    await cleanup();
+  }
+});
+
+const departmentsNav = (container: HTMLElement) =>
+  container.querySelector('[data-testid="settings-nav-departments"]');
+
+it("hides Departments until the space has one", async () => {
+  const { container, cleanup } = await render({ space: acme, spaces: [acme] });
+  try {
+    await vi.waitFor(() => expect(departmentsList).toHaveBeenCalledWith("space-a"));
+    expect(departmentsNav(container)).toBeNull();
+  } finally {
+    await cleanup();
+  }
+});
+
+it("shows Departments once the space has one", async () => {
+  departmentsList.mockResolvedValueOnce([{ id: "dept-it", name: "IT" }]);
+  const { container, cleanup } = await render({ space: acme, spaces: [acme] });
+  try {
+    await vi.waitFor(() => expect(departmentsNav(container)).not.toBeNull());
+  } finally {
+    await cleanup();
+  }
+});
+
+it("keeps the Departments tab while the section is open from elsewhere", async () => {
+  const { container, cleanup } = await render({
+    space: acme,
+    spaces: [acme],
+    initialSection: "departments",
+  });
+  try {
+    expect(departmentsNav(container)).not.toBeNull();
+    expect(container.querySelector('[data-testid="departments-settings"]')).not.toBeNull();
   } finally {
     await cleanup();
   }

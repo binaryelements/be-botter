@@ -1,12 +1,21 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Department } from "@rakazo/contracts";
-import { Switch } from "@rakazo/ui-web";
+import { Button, Switch } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
-/** Which departments may use this bot; space owners only. Hidden until a department exists. */
-export function BotDepartmentsSection({ botId }: { botId: string }) {
+/** Which departments may use this bot; space owners only. Until one exists, a way to create it. */
+export function BotDepartmentsSection({
+  botId,
+  settingsOpen = false,
+  onOpenDepartments,
+}: {
+  botId: string;
+  /** While the settings overlay is open the list may change; it reloads when it closes. */
+  settingsOpen?: boolean;
+  onOpenDepartments: () => void;
+}) {
   const { t } = useLingui();
   const ids = useId();
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -14,6 +23,7 @@ export function BotDepartmentsSection({ botId }: { botId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (settingsOpen) return;
     let cancelled = false;
     rpc.departments
       .list()
@@ -30,9 +40,15 @@ export function BotDepartmentsSection({ botId }: { botId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [botId]);
+  }, [botId, settingsOpen]);
 
-  if (departments.length === 0) return null;
+  if (departments.length === 0) {
+    return (
+      <Button variant="outline" size="sm" className="mt-5" onClick={onOpenDepartments}>
+        <Trans>Departments</Trans>
+      </Button>
+    );
+  }
 
   async function toggle(departmentId: string, on: boolean) {
     const previous = memberIds;
