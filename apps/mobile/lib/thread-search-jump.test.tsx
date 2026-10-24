@@ -51,6 +51,7 @@ function mountJumpProbe(latest: MobileSnapshot, page: unknown, targetKey: "botId
     const jumpScrollTarget = useRef<string | null>(null);
     const scope = {
       rpc,
+      threadScope: undefined,
       liveSavedChatsScope: async () => ({}),
       isIntegrationsScopeCurrent: () => true,
       snapshotOrigin: useRef(null),

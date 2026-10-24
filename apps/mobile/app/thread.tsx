@@ -1,9 +1,12 @@
 import type { MenuAction } from "@expo/ui/community/menu";
+import { MenuView } from "@expo/ui/community/menu";
 import { ChatMarkdown, markdownCodeBlocks } from "@rakazo/chat-ui/native";
 import type {
   AgentSkillCatalogEntry,
+  BotThread,
   Connection,
   ConnectionCatalogItem,
+  DepartmentUser,
   MessageBlock,
   MessageReaction,
   Routine,
@@ -182,6 +185,7 @@ import { nextAutoSpeakAction } from "../lib/auto-speak";
 import { confirmDeleteBot, restoreArchivedBot } from "../lib/bot-lifecycle";
 import { retainUnchangedBotRoster } from "../lib/bot-roster";
 import { findSwitchTarget, ringOnArrival, takeRingOnArrival } from "../lib/bot-switch";
+import { botThreadScope, channelSenderName, loadDepartments } from "../lib/bot-threads";
 import { setCallProviderTranscribe, startCall, useCallSession } from "../lib/call-session";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
@@ -435,6 +439,8 @@ export default function ThreadRoute() {
   );
 }
 
+const NO_THREADS: BotThread[] = [];
+
 function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string }) {
   const keyboardLayout = useKeyboardLayout();
   const colorScheme = useResolvedAppearance();
@@ -487,6 +493,8 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     messageId,
     threadId,
     readOnly: readOnlyParam,
+    departmentId,
+    userId: personId,
   } = useLocalSearchParams<{
     botId?: string;
     groupId?: string;
@@ -494,8 +502,15 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     messageId?: string;
     threadId?: string;
     readOnly?: string;
+    departmentId?: string;
+    userId?: string;
   }>();
-  const readOnly = readOnlyParam === "1";
+  const archived = readOnlyParam === "1";
+  // A department channel or a supervised person's thread of this bot; its own thread otherwise.
+  const threadScope = useMemo(
+    () => botThreadScope({ departmentId, userId: personId }),
+    [departmentId, personId],
+  );
   const [restoring, setRestoring] = useState(false);
   const requestedThreadId = typeof threadId === "string" && threadId ? threadId : undefined;
   const inGroup = Boolean(groupId);
@@ -583,6 +598,51 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       : undefined;
   const [snap, setSnap] = useState<MobileSnapshot | null>(null);
   const snapRef = useRef<MobileSnapshot | null>(null);
+  // Archived bots and supervised threads both read only; only archived ones can be restored.
+  const readOnly = archived || snap?.readOnly === true;
+  const [botThreads, setBotThreads] = useState<{ botId: string; list: BotThread[] }>();
+  const threads = botThreads && botThreads.botId === botId ? botThreads.list : NO_THREADS;
+  const [channelUsers, setChannelUsers] = useState<{
+    departmentId: string;
+    users: DepartmentUser[];
+  }>();
+  useEffect(() => {
+    if (!botId) return;
+    let cancelled = false;
+    void rpc<BotThread[]>("bots/threads", { botId })
+      .then((list) => {
+        if (!cancelled) setBotThreads({ botId, list });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [botId, sessionEpoch]);
+  const channelId = snap?.departmentId;
+  useEffect(() => {
+    if (!channelId) return;
+    let cancelled = false;
+    void loadDepartments()
+      .then((departments) => {
+        if (cancelled) return;
+        const users = departments.find((department) => department.id === channelId)?.users ?? [];
+        setChannelUsers({ departmentId: channelId, users });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, sessionEpoch]);
+  const senderContext = useMemo(
+    () => ({
+      me: userId,
+      departmentId: channelId,
+      users:
+        channelUsers && channelUsers.departmentId === channelId ? channelUsers.users : undefined,
+      threads,
+    }),
+    [userId, channelId, channelUsers, threads],
+  );
   // The copy saved on this device stays on screen until a live snapshot replaces it.
   const [showingSaved, setShowingSaved] = useState(false);
   const snapshotOrigin = useRef<SavedChatsScope | null>(null);
@@ -929,16 +989,15 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       title: displayName || t("Thread"),
       headerTitleAlign: "center",
       ...threadEdgeOptions(),
-      headerTitle: () => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={!inGroup && botId ? t("Chat settings") : displayName || t("Thread")}
-          disabled={readOnly || inGroup || !botId}
-          onPress={() => {
-            if (readOnly || !botId || inGroup) return;
-            router.push({ pathname: "/bot-settings", params: { botId } });
-          }}
-        >
+      headerTitle: () => {
+        const isCurrent = (thread: BotThread) =>
+          (thread.departmentId ?? "") === (departmentId ?? "") &&
+          (thread.userId ?? "") === (personId ?? "");
+        const current = threads.find(isCurrent);
+        const title = current?.name
+          ? `${displayName || t("Thread")} · ${current.name}`
+          : displayName || t("Thread");
+        const capsule = (
           <GlassSurface style={styles.titleCapsule} fallbackStyle={styles.titleCapsuleFill}>
             {!inGroup && currentBot ? (
               <BotAvatar
@@ -954,11 +1013,54 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
               numberOfLines={1}
               style={styles.title}
             >
-              {displayName || t("Thread")}
+              {title}
             </Text>
+            {threads.length > 1 ? (
+              <NativeSymbol
+                ios="chevron.down"
+                android="chevron-down"
+                size={12}
+                color={tokens.mutedForeground}
+              />
+            ) : null}
           </GlassSurface>
-        </Pressable>
-      ),
+        );
+        // With channels or supervised people, the title picks the thread instead of opening settings.
+        return threads.length > 1 ? (
+          <MenuView
+            actions={threads.map((thread) => ({
+              id: thread.threadId,
+              title: thread.name ?? t("Private"),
+              state: isCurrent(thread) ? "on" : "off",
+            }))}
+            colorScheme={colorScheme}
+            onPressAction={(event) => {
+              const thread = threads.find((entry) => entry.threadId === event.nativeEvent.event);
+              if (thread)
+                router.setParams({
+                  departmentId: thread.departmentId ?? "",
+                  userId: thread.userId ?? "",
+                });
+            }}
+          >
+            <View accessibilityRole="button" accessibilityLabel={title}>
+              {capsule}
+            </View>
+          </MenuView>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={!inGroup && botId ? t("Chat settings") : title}
+            disabled={readOnly || inGroup || !botId}
+            onPress={() => {
+              if (readOnly || !botId || inGroup) return;
+              router.push({ pathname: "/bot-settings", params: { botId } });
+            }}
+          >
+            {capsule}
+          </Pressable>
+        );
+      },
       ...(Platform.OS === "ios" && !readOnly && (!inGroup || iosAtLeast(26))
         ? {
             unstable_headerRightItems: () => [
@@ -1051,15 +1153,19 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           }
         : // Folding back takes the list away, so the chat gets its back button again.
           { headerBackVisible: true, headerLeft: undefined }),
-      ...(readOnly
+      ...(archived
         ? trailingHeaderOptions(t("Restore"), () => void restoreConversation(), restoring)
         : {}),
     });
   }, [
     split,
     inboxHidden,
+    archived,
     readOnly,
     restoring,
+    threads,
+    departmentId,
+    personId,
     botId,
     currentBot,
     currentBotStatus,
@@ -1095,7 +1201,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
 
   function clearConversation() {
     if (!botId) return;
-    void rpc("threads/clear", { botId })
+    void rpc("threads/clear", { botId, ...threadScope })
       .then(() => {
         expandedHistoryThread.current = null;
         pinnedAroundRef.current = null;
@@ -1136,21 +1242,25 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           params: { botId: botId ?? "" },
         }),
     },
-    {
-      text: t("Clear conversation"),
-      destructive: true,
-      onPress: () =>
-        Alert.alert(
-          t("Clear conversation?"),
-          t(
-            "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
-          ),
-          [
-            { text: t("Cancel"), style: "cancel" },
-            { text: t("Clear"), style: "destructive", onPress: clearConversation },
-          ],
-        ),
-    },
+    ...(snap?.readOnly
+      ? []
+      : [
+          {
+            text: t("Clear conversation"),
+            destructive: true,
+            onPress: () =>
+              Alert.alert(
+                t("Clear conversation?"),
+                t(
+                  "This removes every message and stops current work. The bot, computer, memory, and routines are kept.",
+                ),
+                [
+                  { text: t("Cancel"), style: "cancel" },
+                  { text: t("Clear"), style: "destructive", onPress: clearConversation },
+                ],
+              ),
+          },
+        ]),
     {
       text: t("Archive"),
       onPress: () =>
@@ -1181,7 +1291,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
 
   /** Shows the chat's saved copy until live data for it arrives; never under a search jump. */
   function showSavedThread(signal: AbortSignal) {
-    const target = savedChatTarget({ botId, groupId });
+    const target = savedChatTarget({ botId, groupId, ...threadScope });
     // Another chat's messages must never stay on screen under this chat's name.
     if (snapRef.current && savedChatTarget(snapRef.current) !== target) {
       commitSnap(null);
@@ -1211,7 +1321,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     const generation = ++refreshGeneration.current;
     const next = await rpc<MobileSnapshot>(
       "threads/get",
-      targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
+      targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId!, ...threadScope },
     );
     if (
       origin.sessionGeneration !== currentSessionGeneration() ||
@@ -1258,7 +1368,9 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   }
 
   async function applyMessageJump(target: { botId?: string; groupId?: string; messageId: string }) {
-    const threadTarget = target.groupId ? { groupId: target.groupId } : { botId: target.botId! };
+    const threadTarget = target.groupId
+      ? { groupId: target.groupId }
+      : { botId: target.botId!, ...threadScope };
     const epoch = historyEpoch.current;
     jumpGeneration.current += 1;
     const jumpId = jumpGeneration.current;
@@ -1333,7 +1445,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       const page = await rpc<MobileMessagePage & { coveredThroughSeq?: number }>(
         "threads/messages",
         {
-          ...(groupId ? { groupId } : { botId: botId! }),
+          ...(groupId ? { groupId } : { botId: botId!, ...threadScope }),
           around: { seq: probe },
         },
       );
@@ -1409,7 +1521,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     const pinned = pinnedAroundRef.current;
     try {
       const page = await rpc<MobileMessagePage>("threads/messages", {
-        ...(groupId ? { groupId } : { botId: botId! }),
+        ...(groupId ? { groupId } : { botId: botId!, ...threadScope }),
         before: snap.olderCursor,
         includePeerReceipts: true,
       });
@@ -1428,8 +1540,9 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
   }
 
   const markReadIfVisible = useCallback(() => {
-    if (readOnly || AppState.currentState !== "active" || !navigation.isFocused()) return;
-    const target = groupId ?? botId;
+    if (archived || AppState.currentState !== "active" || !navigation.isFocused()) return;
+    const target =
+      botId || groupId ? savedChatTarget({ botId, groupId, ...threadScope }) : undefined;
     if (!target || readVisibleTarget.current === target) return;
     readVisibleTarget.current = target;
     const visit = readVisit.current.visit;
@@ -1443,7 +1556,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       navigation.isFocused()
         ? rpc<{ unreadAfterSeq?: number | null }>(
             "threads/markRead",
-            groupId ? { groupId } : { botId: botId! },
+            groupId ? { groupId } : { botId: botId!, ...threadScope },
           )
         : Promise.resolve(null),
     )
@@ -1462,7 +1575,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       .catch(() => {
         if (readVisibleTarget.current === target) readVisibleTarget.current = null;
       });
-  }, [botId, groupId, navigation, readInOrder, readOnly]);
+  }, [botId, groupId, threadScope, navigation, readInOrder, archived]);
 
   useEffect(() => {
     if (!notificationThreadId || AppState.currentState !== "active" || !navigation.isFocused())
@@ -1552,7 +1665,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           : messageId
             ? await rpc<MobileSnapshot>(
                 "threads/get",
-                groupId ? { groupId } : { botId: botId! },
+                groupId ? { groupId } : { botId: botId!, ...threadScope },
               ).catch((err: unknown) => {
                 setError(errorText(err));
                 return null;
@@ -1561,7 +1674,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
                 setError(errorText(err));
                 return null;
               });
-      if (abort.signal.aborted || readOnly) return;
+      if (abort.signal.aborted || archived) return;
       let cursor = liveCursor.current ?? next?.cursor ?? -1;
       liveCursor.current = cursor;
       let retryMs = 250;
@@ -1570,7 +1683,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
         try {
           liveSubscribed.current = true;
           await subscribeThread(
-            groupId ? { groupId } : { botId: botId! },
+            groupId ? { groupId } : { botId: botId!, ...threadScope },
             cursor,
             (event) => {
               if (abort.signal.aborted || sessionGeneration !== currentSessionGeneration()) return;
@@ -1650,7 +1763,16 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     return () => {
       abort.abort();
     };
-  }, [botId, groupId, foreground, readOnly, markReadIfVisible, refreshMentionBots, sessionEpoch]);
+  }, [
+    botId,
+    groupId,
+    threadScope,
+    foreground,
+    archived,
+    markReadIfVisible,
+    refreshMentionBots,
+    sessionEpoch,
+  ]);
 
   useEffect(() => () => pendingSave.current?.(), [botId, groupId]);
 
@@ -1664,7 +1786,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       expandedHistoryThread.current
     )
       return;
-    const target = savedChatTarget({ botId, groupId });
+    const target = savedChatTarget({ botId, groupId, ...threadScope });
     const latest = snapRef.current;
     if (!latest || savedChatTarget(latest) !== target) return;
     const origin = snapshotOrigin.current;
@@ -1690,7 +1812,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       const refreshDelay = () =>
         threadRefreshDelayMs(snap?.run?.status, {
           liveSubscribed: liveSubscribed.current,
-          readOnly,
+          readOnly: archived,
         });
       function schedule() {
         if (!cancelled) timer = setTimeout(() => void tick(), refreshDelay());
@@ -1715,7 +1837,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
         cancelled = true;
         if (timer !== undefined) clearTimeout(timer);
       };
-    }, [botId, foreground, groupId, readOnly, snap?.run?.status]),
+    }, [botId, foreground, groupId, threadScope, archived, snap?.run?.status]),
   );
 
   useEffect(() => {
@@ -1889,7 +2011,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     try {
       await rpc(
         "threads/stop",
-        targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
+        targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId!, ...threadScope },
       );
     } catch (err) {
       if (isCurrentTarget(targetBotId, targetGroupId)) {
@@ -1916,7 +2038,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       const targetGroupId = groupId;
       if (readOnly || (!targetBotId && !targetGroupId) || !message.runId) return;
       await rpc("threads/answer", {
-        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! }),
+        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId!, ...threadScope }),
         runId: message.runId,
         messageId: message.id,
         answer,
@@ -1926,7 +2048,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
       // The answer is saved once the server accepts it; a failed refresh only delays the card.
       if (isCurrentTarget(targetBotId, targetGroupId)) await refresh().catch(() => undefined);
     },
-    [botId, groupId, readOnly],
+    [botId, groupId, threadScope, readOnly],
   );
 
   const openBot = useCallback(
@@ -2236,7 +2358,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     if (!targetBotId && !targetGroupId) return;
     try {
       const result = await rpc<{ ok: true; runIds?: string[] }>("threads/react", {
-        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! }),
+        ...(targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId!, ...threadScope }),
         messageId: message.id,
         reaction,
         clientNonce: newClientNonce(),
@@ -2365,6 +2487,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
           groupId={groupId}
           botName={displayName}
           showBotSenderName={showBotSenderName}
+          senderName={channelSenderName(message, senderContext)}
           bots={mentionBots}
           members={snap?.members}
           readOnly={readOnly}
@@ -2397,6 +2520,7 @@ function Thread({ sessionEpoch, userId }: { sessionEpoch: number; userId: string
     [
       messagesById,
       showBotSenderName,
+      senderContext,
       snap?.members,
       snap?.activeRuns,
       snap?.run,
@@ -3163,6 +3287,8 @@ type MessageRowProps = {
   groupId?: string;
   botName?: string;
   showBotSenderName: boolean;
+  /** Another person's name over their message in a department channel. */
+  senderName?: string;
   bots: MobileBot[];
   members?: MobileSnapshot["members"];
   readOnly: boolean;
@@ -3203,6 +3329,7 @@ const MessageRow = memo(function MessageRow({
   groupId,
   botName,
   showBotSenderName,
+  senderName,
   bots,
   members,
   readOnly,
@@ -3483,6 +3610,7 @@ const MessageRow = memo(function MessageRow({
                 message={message}
                 botName={botName}
                 showBotSenderName={showBotSenderName}
+                senderName={senderName}
                 bots={bots}
                 members={members}
                 canAnswer={canAnswer}
@@ -3537,6 +3665,7 @@ const MessageBubble = memo(function MessageBubble({
   botId,
   botName,
   showBotSenderName,
+  senderName,
   bots,
   groupId,
   message,
@@ -3556,6 +3685,7 @@ const MessageBubble = memo(function MessageBubble({
   botId: string;
   botName?: string;
   showBotSenderName: boolean;
+  senderName?: string;
   bots: MobileBot[];
   groupId?: string;
   message: MobileMessage;
@@ -4052,9 +4182,10 @@ const MessageBubble = memo(function MessageBubble({
     .join("\n");
   if (attachments.length > 0) {
     const speaker =
-      message.role === "bot" ? (memberName(members, message.botId) ?? botName) : undefined;
+      message.role === "bot" ? (memberName(members, message.botId) ?? botName) : senderName;
     const speakerColor =
       message.role === "bot" ? speakerColorFor(bots, members, message.botId) : undefined;
+    const showSpeaker = message.role === "bot" ? showBotSenderName : Boolean(senderName);
     return (
       <View
         style={{
@@ -4066,7 +4197,7 @@ const MessageBubble = memo(function MessageBubble({
           gap: 8,
         }}
       >
-        {showBotSenderName && speaker ? (
+        {showSpeaker && speaker ? (
           <Text style={{ color: speakerColor ?? tokens.mutedForeground, ...typeScale.footnote }}>
             {speaker}
           </Text>
@@ -4208,9 +4339,10 @@ const MessageBubble = memo(function MessageBubble({
   }
   const segments = messagePresentationSegments(message.blocks);
   const speaker =
-    message.role === "bot" ? (memberName(members, message.botId) ?? botName) : undefined;
+    message.role === "bot" ? (memberName(members, message.botId) ?? botName) : senderName;
   const speakerColor =
     message.role === "bot" ? speakerColorFor(bots, members, message.botId) : undefined;
+  const showSpeaker = message.role === "bot" ? showBotSenderName : Boolean(senderName);
   const firstContent = segments.findIndex((segment) => segment.kind === "content");
   const choiceBlocks = message.blocks.filter(
     (block): block is Extract<MessageBlock, { kind: "choice" }> => block.kind === "choice",
@@ -4224,8 +4356,8 @@ const MessageBubble = memo(function MessageBubble({
         <MessageTextCard
           key={`${message.id}-content-${index}`}
           message={{ ...message, blocks: segment.blocks }}
-          speaker={showBotSenderName && index === firstContent ? speaker : undefined}
-          speakerColor={showBotSenderName && index === firstContent ? speakerColor : undefined}
+          speaker={showSpeaker && index === firstContent ? speaker : undefined}
+          speakerColor={showSpeaker && index === firstContent ? speakerColor : undefined}
           actionProps={actionProps}
         />
       ))}
