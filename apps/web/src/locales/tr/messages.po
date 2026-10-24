@@ -3828,6 +3828,7 @@ msgid "Priority"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/thread-switch.tsx
 msgid "Private"
 msgstr "Özel"
 
@@ -4984,6 +4985,10 @@ msgstr "Bu abonelik girişi Rakazo'da henüz kullanılamıyor. Bir dağıtım ki
 
 #: src/pages/Artifacts.tsx
 msgid "This week"
+msgstr ""
+
+#: src/pages/shell/thread-switch.tsx
+msgid "Thread"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx

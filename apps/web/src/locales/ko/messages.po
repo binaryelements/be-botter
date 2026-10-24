@@ -3828,6 +3828,7 @@ msgid "Priority"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/thread-switch.tsx
 msgid "Private"
 msgstr "Bot 전용"
 
@@ -4984,6 +4985,10 @@ msgstr "이 구독 로그인 방식은 아직 Rakazo에서 지원되지 않습�
 
 #: src/pages/Artifacts.tsx
 msgid "This week"
+msgstr ""
+
+#: src/pages/shell/thread-switch.tsx
+msgid "Thread"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
