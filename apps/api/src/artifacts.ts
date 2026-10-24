@@ -17,7 +17,13 @@ import {
   validateAttachmentMimeType,
 } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
-import { IsolationError, Prisma, withResolvedArtifactVersion } from "@rakazo/db";
+import {
+  accessibleBotIds,
+  botOrOwnWhere,
+  IsolationError,
+  Prisma,
+  withResolvedArtifactVersion,
+} from "@rakazo/db";
 
 function adapterContext(actor: ArtifactOwner, botId: string, operationId: string) {
   return {
@@ -215,7 +221,7 @@ export async function getOwnedArtifact(
       botId: input.botId,
       groupId: null,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
     },
   });
   if (!row) throw new IsolationError();
@@ -235,7 +241,7 @@ export async function getSpaceArtifact(
       id: input.artifactId,
       groupId: input.groupId,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
     },
   });
   if (!row) throw new IsolationError();
@@ -255,7 +261,7 @@ export async function getSpaceArtifactById(
     where: {
       id: input.artifactId,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
     },
   });
   if (!row) throw new IsolationError();
@@ -372,10 +378,14 @@ function cursorBotId(value: unknown): string | null {
 }
 
 export async function listSpaceArtifacts(
-  deps: { prisma: Pick<PrismaClient, "artifact" | "$queryRaw"> },
+  deps: { prisma: Pick<PrismaClient, "artifact" | "bot" | "$queryRaw"> },
   actor: Actor,
   input: { botId?: string; cursor?: string; limit?: number },
 ) {
+  const botIds = await accessibleBotIds(deps.prisma, actor);
+  const accessFilter = botIds.length
+    ? Prisma.sql`("userId" = ${actor.userId} OR "botId" IN (${Prisma.join(botIds)}))`
+    : Prisma.sql`"userId" = ${actor.userId}`;
   const take = Math.min(Math.max(input.limit ?? 30, 1), 60);
   const scopeBotId = input.botId ?? null;
   const botFilter = scopeBotId ? Prisma.sql`AND "botId" = ${scopeBotId}` : Prisma.empty;
@@ -393,7 +403,7 @@ export async function listSpaceArtifacts(
   const rows = await deps.prisma.$queryRaw<ListSpaceRow[]>(Prisma.sql`
     WITH scoped AS (
       SELECT * FROM "artifacts"
-      WHERE "spaceId" = ${actor.spaceId} AND "userId" = ${actor.userId} ${botFilter}
+      WHERE "spaceId" = ${actor.spaceId} AND ${accessFilter} ${botFilter}
         AND "createdAt" <= ${asOf}
     ),
     latest AS (
@@ -455,7 +465,7 @@ export async function listArtifactVersions(
   input: { familyId: string },
 ) {
   const anchor = await deps.prisma.artifact.findFirst({
-    where: { id: input.familyId, spaceId: actor.spaceId, userId: actor.userId },
+    where: { id: input.familyId, spaceId: actor.spaceId, ...botOrOwnWhere(actor) },
     select: { id: true, rootArtifactId: true },
   });
   if (!anchor) throw new IsolationError();
@@ -463,7 +473,7 @@ export async function listArtifactVersions(
   const rows = await deps.prisma.artifact.findMany({
     where: {
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOrOwnWhere(actor),
       OR: [{ id: rootId }, { rootArtifactId: rootId }],
     },
     orderBy: { version: "desc" },
@@ -485,7 +495,7 @@ export async function deleteArtifactFamily(
   input: { familyId: string },
 ) {
   const anchor = await deps.prisma.artifact.findFirst({
-    where: { id: input.familyId, spaceId: actor.spaceId, userId: actor.userId },
+    where: { id: input.familyId, spaceId: actor.spaceId, ...botOrOwnWhere(actor) },
     select: { id: true, rootArtifactId: true, botId: true },
   });
   if (!anchor) throw new IsolationError();
@@ -495,7 +505,7 @@ export async function deleteArtifactFamily(
     const members = await deps.prisma.artifact.findMany({
       where: {
         spaceId: actor.spaceId,
-        userId: actor.userId,
+        AND: botOrOwnWhere(actor),
         OR: [{ id: rootId }, { rootArtifactId: rootId }],
       },
       select: { id: true, storageKey: true, botId: true },
@@ -639,7 +649,7 @@ export async function resolveSendAttachments(
       botId,
       groupId: null,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
     },
   });
   return toAttachmentResolution(ids, rows);
@@ -659,7 +669,7 @@ export async function resolveGroupSendAttachments(
     where: {
       id: { in: ids },
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOrOwnWhere(actor),
       OR: [
         { groupId },
         // Uploads from before group ownership was stored, still tied to a current member.

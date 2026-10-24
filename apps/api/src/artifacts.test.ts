@@ -69,10 +69,11 @@ describe("listSpaceArtifacts", () => {
         ]);
       const page = await listSpaceArtifacts(
         {
-          prisma: { artifact: { findFirst: vi.fn() }, $queryRaw: queryRaw } as unknown as Pick<
-            PrismaClient,
-            "artifact" | "$queryRaw"
-          >,
+          prisma: {
+            artifact: { findFirst: vi.fn() },
+            bot: { findMany: async () => [] },
+            $queryRaw: queryRaw,
+          } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
         },
         actor,
         { limit: 2 },
@@ -113,10 +114,11 @@ describe("listSpaceArtifacts", () => {
         ])
         .mockResolvedValueOnce([listRow("version-c", "family-c", "2026-09-01T00:00:00.000Z")]);
       const deps = {
-        prisma: { artifact: { findFirst: vi.fn() }, $queryRaw: queryRaw } as unknown as Pick<
-          PrismaClient,
-          "artifact" | "$queryRaw"
-        >,
+        prisma: {
+          artifact: { findFirst: vi.fn() },
+          bot: { findMany: async () => [] },
+          $queryRaw: queryRaw,
+        } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
       };
       const first = await listSpaceArtifacts(deps, actor, { limit: 2 });
       vi.setSystemTime(new Date("2026-09-21T12:00:00.000Z"));
@@ -149,10 +151,11 @@ describe("listSpaceArtifacts", () => {
     await expect(
       listSpaceArtifacts(
         {
-          prisma: { artifact: { findFirst: vi.fn() }, $queryRaw: queryRaw } as unknown as Pick<
-            PrismaClient,
-            "artifact" | "$queryRaw"
-          >,
+          prisma: {
+            artifact: { findFirst: vi.fn() },
+            bot: { findMany: async () => [] },
+            $queryRaw: queryRaw,
+          } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
         },
         actor,
         { cursor: legacy, limit: 2 },
@@ -171,10 +174,11 @@ describe("listSpaceArtifacts", () => {
     const queryRaw = vi.fn().mockResolvedValue([]);
     await listSpaceArtifacts(
       {
-        prisma: { artifact: { findFirst }, $queryRaw: queryRaw } as unknown as Pick<
-          PrismaClient,
-          "artifact" | "$queryRaw"
-        >,
+        prisma: {
+          artifact: { findFirst },
+          bot: { findMany: async () => [] },
+          $queryRaw: queryRaw,
+        } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
       },
       actor,
       { cursor: pageCursor, limit: 2 },
@@ -194,10 +198,11 @@ describe("listSpaceArtifacts", () => {
     await expect(
       listSpaceArtifacts(
         {
-          prisma: { artifact: { findFirst: vi.fn() }, $queryRaw: queryRaw } as unknown as Pick<
-            PrismaClient,
-            "artifact" | "$queryRaw"
-          >,
+          prisma: {
+            artifact: { findFirst: vi.fn() },
+            bot: { findMany: async () => [] },
+            $queryRaw: queryRaw,
+          } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
         },
         actor,
         {
@@ -222,10 +227,11 @@ describe("listSpaceArtifacts", () => {
     });
     await listSpaceArtifacts(
       {
-        prisma: { artifact: { findFirst: vi.fn() }, $queryRaw: queryRaw } as unknown as Pick<
-          PrismaClient,
-          "artifact" | "$queryRaw"
-        >,
+        prisma: {
+          artifact: { findFirst: vi.fn() },
+          bot: { findMany: async () => [] },
+          $queryRaw: queryRaw,
+        } as unknown as Pick<PrismaClient, "artifact" | "$queryRaw">,
       },
       actor,
       { botId: "bot-1", cursor: pageCursor, limit: 2 },

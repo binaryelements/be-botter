@@ -1,5 +1,5 @@
 import type * as db from "@rakazo/db";
-import { appendEventInTransaction } from "@rakazo/db";
+import { appendEventInTransaction, botAccessWhere } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import { chooseFocus, markAppConnected } from "./onboarding.js";
 
@@ -170,7 +170,9 @@ it("rejects another user's group even in the same space", async () => {
   ).rejects.toThrow();
   expect(tx.message.update).not.toHaveBeenCalled();
   expect(deps.prisma.bot.findFirst).toHaveBeenCalledWith(
-    expect.objectContaining({ where: { id: "bot", spaceId: actor.spaceId, userId: actor.userId } }),
+    expect.objectContaining({
+      where: { id: "bot", spaceId: actor.spaceId, ...botAccessWhere(actor) },
+    }),
   );
 });
 

@@ -18,6 +18,7 @@ import {
 import type { Actor, VoiceAccountErrorCode, VoiceCredential, VoiceStatus } from "@rakazo/contracts";
 import { toUtterances } from "@rakazo/core";
 import {
+  botAccessWhere,
   deleteUnreferencedCredentialSecret,
   findDefaultVoiceCredential,
   findVoiceCredential,
@@ -219,7 +220,7 @@ export async function resolveVoiceTarget(
   let botVoiceId: string | null = null;
   if (input.botId) {
     const bot = await deps.prisma.bot.findFirst({
-      where: { id: input.botId, spaceId: actor.spaceId, userId: actor.userId },
+      where: { id: input.botId, spaceId: actor.spaceId, ...botAccessWhere(actor) },
       select: { voiceId: true },
     });
     if (!bot) throw new IsolationError();

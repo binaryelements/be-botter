@@ -7,6 +7,7 @@ import {
   displayName,
 } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
+import { botOwnedWhere } from "@rakazo/db";
 
 const RECENT_LIMIT = 20;
 const TERMINAL_STATUSES = ["completed", "failed", "cancelled"] as const;
@@ -62,7 +63,7 @@ export async function listSpaceRuns(
   const rows = await prisma.run.findMany({
     where: {
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOwnedWhere(actor),
       bot: { archivedAt: null },
       // Background ticket work belongs on the board, not in the activity list.
       trigger: { notIn: [...BACKGROUND_RUN_TRIGGERS] },

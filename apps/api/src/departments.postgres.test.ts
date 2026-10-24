@@ -235,6 +235,90 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     expect(run.botId).toBe(itBotId);
   });
 
+  it("lets the member use what belongs to the shared bot and nothing of the private one", async () => {
+    const seed = async (botId: string, label: string) => {
+      const thread = await db.thread.findUniqueOrThrow({ where: { botId } });
+      const base = { spaceId: companySpaceId, botId, userId: owner.userId };
+      const routine = await db.routine.create({
+        data: { ...base, name: `${label} routine`, prompt: `Check ${label}`, crons: [] },
+      });
+      await db.memoryDocument.create({
+        data: { ...base, scope: "bot", path: `${label}/notes.md`, content: `${label} notes` },
+      });
+      const artifact = await db.artifact.create({
+        data: {
+          ...base,
+          name: `${label}.txt`,
+          mimeType: "text/plain",
+          size: 1,
+          hash: `hash-${label}`,
+          storageKey: `key-${label}`,
+        },
+      });
+      const task = await db.task.create({
+        data: { ...base, threadId: thread.id, prompt: `Check ${label}`, status: "completed" },
+      });
+      const run = await db.run.create({
+        data: {
+          ...base,
+          threadId: thread.id,
+          taskId: task.id,
+          status: "completed",
+          trigger: "user",
+        },
+      });
+      const skill = await db.taughtSkill.create({
+        data: {
+          ...base,
+          goal: `${label} goal`,
+          status: "saved",
+          playbook: {
+            whenToUse: "",
+            inputs: [],
+            steps: [],
+            howToCheck: "",
+            whatToReturn: "",
+            approvalBoundaries: "",
+          },
+        },
+      });
+      return { routine, artifact, run, skill };
+    };
+    const shared = await seed(itBotId, "it");
+    const hidden = await seed(chiefBotId, "chief");
+    const call = <T>(procedure: string, body: unknown) =>
+      rpc<T>(app, staff.cookie, procedure, body, companySpaceId);
+    /** The private bot yields nothing: either not found, or an empty list. */
+    const nothing = async (procedure: string, body: unknown) => {
+      const response = await raw(app, staff.cookie, procedure, body, companySpaceId);
+      if (response.status === 404) return true;
+      const payload = JSON.parse(await response.text()) as { json?: unknown[] };
+      return response.status === 200 && payload.json?.length === 0;
+    };
+
+    const routines = await call<{ id: string }[]>("routines/list", { botId: itBotId });
+    expect(routines.map((routine) => routine.id)).toEqual([shared.routine.id]);
+    expect(await nothing("routines/list", { botId: chiefBotId })).toBe(true);
+    const artifacts = await call<{ id: string }[]>("artifacts/list", { botId: itBotId });
+    expect(artifacts.map((artifact) => artifact.id)).toEqual([shared.artifact.id]);
+    expect(await nothing("artifacts/list", { botId: chiefBotId })).toBe(true);
+    const skills = await call<{ id: string }[]>("skills/list", { botId: itBotId });
+    expect(skills.map((skill) => skill.id)).toEqual([shared.skill.id]);
+    expect(await nothing("skills/list", { botId: chiefBotId })).toBe(true);
+    const memory = await call<{ path: string }[]>("memory/list", {});
+    expect(memory.map((doc) => doc.path)).toEqual(["it/notes.md"]);
+    const runs = JSON.stringify(await call("runs/list", { filter: "recent" }));
+    expect(runs).toContain(shared.run.id);
+    expect(runs).not.toContain(hidden.run.id);
+    const hits = JSON.stringify(await call("search/query", { q: "routine" }));
+    expect(hits).toContain("it routine");
+    expect(hits).not.toContain("chief routine");
+    await call("threads/markRead", { botId: itBotId });
+    expect(
+      await status(app, staff.cookie, "threads/markRead", { botId: chiefBotId }, companySpaceId),
+    ).toBe(404);
+  });
+
   it("takes the access away when the department goes", async () => {
     await rpc(app, owner.cookie, "departments/remove", { departmentId: itDepartmentId });
     expect(await rpc<unknown[]>(app, staff.cookie, "bots/list", {}, companySpaceId)).toEqual([]);
