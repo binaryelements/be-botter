@@ -299,9 +299,11 @@ export async function loadStoredModelSecret(
   secretStore: Pick<SecretStore, "load">,
   userId: string,
   secretId: string,
+  /** Set for the company's connection, whose key is a secret shared by the space. */
+  spaceId?: string,
 ): Promise<LoadedModelSecret> {
   const secret = await prisma.secret.findFirst({
-    where: { id: secretId, userId, spaceId: null },
+    where: spaceId ? { id: secretId, spaceId } : { id: secretId, userId, spaceId: null },
     select: { id: true, ciphertext: true },
   });
   if (!secret) return { status: "missing" };
@@ -400,8 +402,9 @@ async function loadModelSecret(
   secretStore: Pick<SecretStore, "load">,
   userId: string,
   secretId: string,
+  spaceId?: string,
 ): Promise<StoredModelSecret | undefined> {
-  const secret = await loadStoredModelSecret(prisma, secretStore, userId, secretId);
+  const secret = await loadStoredModelSecret(prisma, secretStore, userId, secretId, spaceId);
   if (secret.status !== "loaded") return undefined;
   try {
     return parseModelSecret(secret.plaintext);
@@ -435,10 +438,16 @@ export async function findConnectedModelCredential(
   ) {
     selected = { ...selected, defaultModel: replacement.defaultModel };
   }
-  const readSecret = (credential: { id: string; secretId: string }) =>
+  const readSecret = (credential: { id: string; secretId: string; scope?: "user" | "space" }) =>
     credential.id === replacement?.credentialId
       ? Promise.resolve(replacement.secret)
-      : loadModelSecret(prisma, secretStore, actor.userId, credential.secretId);
+      : loadModelSecret(
+          prisma,
+          secretStore,
+          actor.userId,
+          credential.secretId,
+          credential.scope === "space" ? actor.spaceId : undefined,
+        );
   const id = usableModelId(modelId);
   if (!selected || provider !== OPENAI_COMPATIBLE_PROVIDER_ID || !id) return selected;
   if (selected.defaultModel === id) return selected;
@@ -458,7 +467,13 @@ export async function findConnectedModelCredential(
     if (credential.id === selected.id) continue;
     const candidate = await readSecret(credential);
     candidates.push({
-      credential: { ...credential, isDefault: false, defaultModel: null, thinkingLevel: null },
+      credential: {
+        ...credential,
+        isDefault: false,
+        defaultModel: null,
+        thinkingLevel: null,
+        scope: "user" as const,
+      },
       defaultModel: null,
       enabledModelIds: candidate?.kind === "openai_compatible" ? candidate.enabledModelIds : [],
     });
@@ -608,6 +623,7 @@ export async function prepareAllowedThinkingLevels(
     deps.secretStore,
     actor.userId,
     credential.secretId,
+    credential.scope === "space" ? actor.spaceId : undefined,
   );
   return {
     ...compatibleThinkingLevels(

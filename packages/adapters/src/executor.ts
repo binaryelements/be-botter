@@ -125,6 +125,7 @@ import {
   InvalidSpaceNameError,
   isTooManyDatabaseConnections,
   loadRunHistoryMessages,
+  modelSecretWhere,
   Prisma,
   parseComputerMode,
   RunHistoryWriteError,
@@ -9823,6 +9824,7 @@ async function resolveModelKey(
   credential: {
     id: string;
     secretId: string;
+    scope?: "user" | "space";
     provider: string;
     defaultModel?: string | null;
     supportsImages?: boolean;
@@ -9856,7 +9858,7 @@ async function resolveModelKey(
   if (credential) {
     return withModelCredentialLock(credential.secretId, async () => {
       const row = await deps.prisma.secret.findFirst({
-        where: { id: credential.secretId, userId, spaceId: null },
+        where: modelSecretWhere(credential, { userId, spaceId }),
       });
       if (!row) {
         if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
