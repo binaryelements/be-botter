@@ -65,6 +65,32 @@ export function botAccessWhere(actor: Actor): Prisma.BotWhereInput {
   return isSpaceOwner(actor) ? {} : departmentBotAccessWhere(actor.userId);
 }
 
+/** Rows with a required `bot` relation (routines, runs, skills): visible when the bot is. */
+export function botOwnedWhere(actor: Actor): { bot?: Prisma.BotWhereInput } {
+  return isSpaceOwner(actor) ? {} : { bot: departmentBotAccessWhere(actor.userId) };
+}
+
+/** Rows with an optional `bot` (threads, artifacts, memory): the actor's own, or their bot's. */
+export function botOrOwnWhere(actor: Actor): {
+  OR?: Array<{ userId: string } | { bot: Prisma.BotWhereInput }>;
+} {
+  return isSpaceOwner(actor)
+    ? {}
+    : { OR: [{ userId: actor.userId }, { bot: departmentBotAccessWhere(actor.userId) }] };
+}
+
+/** Ids of the bots the actor may use in the active space, for raw SQL filters. */
+export async function accessibleBotIds(
+  prisma: Pick<PrismaClient, "bot"> | Prisma.TransactionClient,
+  actor: Actor,
+): Promise<string[]> {
+  const rows = await prisma.bot.findMany({
+    where: { spaceId: actor.spaceId, ...botAccessWhere(actor) },
+    select: { id: true },
+  });
+  return rows.map((row) => row.id);
+}
+
 const departmentInclude = {
   users: {
     include: { user: { select: { email: true, name: true } } },
