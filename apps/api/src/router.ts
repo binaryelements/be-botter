@@ -283,6 +283,11 @@ import {
 import type { BillingService } from "./billing.js";
 import { listBotThreads } from "./bot-thread.js";
 import {
+  clearCompanyModelConnection,
+  getCompanyModelConnection,
+  setCompanyModelConnection,
+} from "./company-model.js";
+import {
   executionBlocksUserTakeover,
   resolveBusyBotName,
   toComputerStatus,
@@ -1595,6 +1600,16 @@ export function createRouter(deps: RouterDeps) {
           },
           codexCatalog,
         );
+      }),
+      companyConnection: authed.models.companyConnection.handler(({ context }) =>
+        getCompanyModelConnection(deps, context.actor),
+      ),
+      setCompanyConnection: authed.models.setCompanyConnection.handler(({ context, input }) =>
+        setCompanyModelConnection(deps, context.actor, input, context.signal),
+      ),
+      clearCompanyConnection: authed.models.clearCompanyConnection.handler(async ({ context }) => {
+        await clearCompanyModelConnection(deps, context.actor);
+        return { ok: true as const };
       }),
       probeOpenAiCompatible: authed.models.probeOpenAiCompatible.handler(
         async ({ context, input }) => {
