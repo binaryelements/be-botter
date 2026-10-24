@@ -124,7 +124,8 @@ export function useModelSettings(onClose: () => void) {
       rpc.models.list(),
       rpc.models.credentials(),
       rpc.me(),
-      rpc.models.companyConnection(),
+      // Local settings open without an app session; no company connection then.
+      rpc.models.companyConnection().catch(() => null),
     ]);
     if (refreshRevision !== refreshRevisionRef.current) return;
     const nextProvider =
