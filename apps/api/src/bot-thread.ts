@@ -1,6 +1,12 @@
 import type { Actor, BotThread, MessageBlock } from "@rakazo/contracts";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
-import { appendEventInTransaction, channelThread, createRepos, isSpaceOwner } from "@rakazo/db";
+import {
+  appendEventInTransaction,
+  channelThread,
+  channelUnread,
+  createRepos,
+  isSpaceOwner,
+} from "@rakazo/db";
 
 /** Minimal dependency surface for helpers that update a bot's thread cards. */
 export type BotThreadDeps = {
@@ -55,20 +61,26 @@ export async function listBotThreads(
     select: {
       id: true,
       name: true,
-      threads: { where: { botId: bot.id }, select: { id: true } },
+      threads: {
+        where: { botId: bot.id },
+        select: {
+          id: true,
+          nextMessageSeq: true,
+          reads: { where: { userId: actor.userId }, select: { lastReadSeq: true, unread: true } },
+        },
+      },
       users: { select: { userId: true, role: true } },
     },
   });
   const channels: BotThread[] = [];
   for (const department of departments) {
-    const thread =
-      department.threads[0] ?? (await channelThread(prisma, bot, department.id, actor.userId));
+    const thread = department.threads[0];
     channels.push({
       kind: "channel",
-      threadId: thread.id,
+      threadId: thread?.id ?? (await channelThread(prisma, bot, department.id, actor.userId)).id,
       name: department.name,
       departmentId: department.id,
-      unread: false,
+      unread: thread ? channelUnread(thread) : false,
     });
   }
   // Owners supervise everyone with a thread here; a head, the people of the departments they head.

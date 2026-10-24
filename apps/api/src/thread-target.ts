@@ -1463,6 +1463,7 @@ export async function markThreadRead(
   actor: Actor,
   target: ThreadTarget,
 ): Promise<number | null> {
+  if (target.kind === "bot" && target.departmentId) return markChannelRead(prisma, actor, target);
   const where = { id: target.threadId, spaceId: actor.spaceId, ...botOrOwnWhere(actor) };
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const thread = await prisma.thread.findFirst({
@@ -1498,6 +1499,39 @@ export async function markThreadRead(
   });
 }
 
+/**
+ * A channel's read state is per reader (`thread_reads`); one never opened counts as unread from
+ * the start, so the first read places the divider before everything.
+ */
+async function markChannelRead(
+  prisma: PrismaClient,
+  actor: Actor,
+  target: ThreadTarget,
+): Promise<number | null> {
+  const thread = await prisma.thread.findFirst({
+    where: { id: target.threadId, spaceId: actor.spaceId },
+    select: { nextMessageSeq: true },
+  });
+  if (!thread) return null;
+  const latestSeq = thread.nextMessageSeq - 1;
+  const key = { threadId: target.threadId, userId: actor.userId };
+  const read = (await prisma.threadRead.findUnique({
+    where: { threadId_userId: key },
+    select: { unread: true, lastReadSeq: true },
+  })) ?? { unread: false, lastReadSeq: -1 };
+  const state = {
+    unread: read.unread || read.lastReadSeq < latestSeq,
+    lastReadSeq: read.lastReadSeq,
+  };
+  if (!state.unread) return null;
+  await prisma.threadRead.upsert({
+    where: { threadId_userId: key },
+    create: { ...key, lastReadSeq: latestSeq, unread: false },
+    update: { lastReadSeq: latestSeq, unread: false },
+  });
+  return dividerSeq(state, latestSeq);
+}
+
 /** A chat only gets a divider when its unread dot was on, so replies seen live never do. */
 function dividerSeq(thread: { unread: boolean; lastReadSeq: number }, latestSeq: number) {
   return thread.unread && thread.lastReadSeq < latestSeq ? thread.lastReadSeq : null;
@@ -1509,6 +1543,15 @@ export async function setThreadUnreadState(
   target: ThreadTarget,
   unread: boolean,
 ) {
+  if (target.kind === "bot" && target.departmentId) {
+    const key = { threadId: target.threadId, userId: actor.userId };
+    await prisma.threadRead.upsert({
+      where: { threadId_userId: key },
+      create: { ...key, unread },
+      update: { unread },
+    });
+    return;
+  }
   const result = await prisma.thread.updateMany({
     where: {
       id: target.threadId,

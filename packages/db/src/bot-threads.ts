@@ -1,3 +1,5 @@
+import type { Actor } from "@rakazo/contracts";
+import { isSpaceOwner } from "./departments.js";
 import type { Prisma, PrismaClient } from "./generated/prisma/client.js";
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -60,4 +62,45 @@ export async function homeThread(
   const thread = await privateThread(db, bot, bot.userId);
   await db.bot.update({ where: { id: bot.id }, data: { homeThreadId: thread.id } });
   return thread;
+}
+
+type ChannelReadState = {
+  nextMessageSeq: number;
+  reads: Array<{ lastReadSeq: number; unread: boolean }>;
+};
+
+/**
+ * Whether a channel is unread for the one reader whose row was selected: behind its newest
+ * message, or marked unread by hand. A channel never opened is unread once it has a message.
+ */
+export function channelUnread(thread: ChannelReadState): boolean {
+  const latestSeq = thread.nextMessageSeq - 1;
+  if (latestSeq < 0) return false;
+  const read = thread.reads[0];
+  return read ? read.unread || read.lastReadSeq < latestSeq : true;
+}
+
+/** The bots among `botIds` with a channel the actor may open and has not read. */
+export async function botsWithUnreadChannels(
+  db: Db,
+  actor: Actor,
+  botIds: string[],
+): Promise<Set<string>> {
+  if (botIds.length === 0) return new Set();
+  const channels = await db.thread.findMany({
+    where: {
+      botId: { in: botIds },
+      departmentId: { not: null },
+      nextMessageSeq: { gt: 0 },
+      ...(isSpaceOwner(actor) ? {} : { department: { users: { some: { userId: actor.userId } } } }),
+    },
+    select: {
+      botId: true,
+      nextMessageSeq: true,
+      reads: { where: { userId: actor.userId }, select: { lastReadSeq: true, unread: true } },
+    },
+  });
+  return new Set(
+    channels.filter(channelUnread).flatMap((channel) => (channel.botId ? [channel.botId] : [])),
+  );
 }

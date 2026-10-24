@@ -559,4 +559,74 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       ["channel", "IT"],
     ]);
   });
+  it("tracks who has read a department channel", async () => {
+    const channel = { botId: itBotId, departmentId: itDepartmentId };
+    const head = (await db.user.findFirstOrThrow({ where: { name: "IT Head" } })).id;
+    const sent = await rpc<{ runId: string }>(app, owner.cookie, "threads/send", {
+      ...channel,
+      text: "Owner update",
+    });
+    // Let the reply land first, so the channel's newest message is stable below.
+    for (let i = 0; i < 150; i++) {
+      const run = await db.run.findUnique({ where: { id: sent.runId }, select: { status: true } });
+      if (run && ["completed", "failed", "cancelled"].includes(run.status)) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    type Entry = { kind: string; departmentId?: string; unread: boolean; threadId: string };
+    const channelEntry = (entries: Entry[]) =>
+      entries.find((entry) => entry.departmentId === itDepartmentId);
+    const staffBefore = await rpc<Entry[]>(
+      app,
+      staff.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(channelEntry(staffBefore)?.unread).toBe(true);
+    const roster = await rpc<{ id: string; unread: boolean; preview: string }[]>(
+      app,
+      staff.cookie,
+      "bots/list",
+      {},
+      companySpaceId,
+    );
+    const itBot = roster.find((bot) => bot.id === itBotId);
+    expect(itBot?.unread).toBe(true);
+    expect(itBot?.preview).not.toContain("Owner update");
+    // The sender has read what they sent.
+    expect(
+      await db.threadRead.findUnique({
+        where: { threadId_userId: { threadId: staffBefore[1]!.threadId, userId: owner.userId } },
+      }),
+    ).toMatchObject({ unread: false });
+    const marked = await rpc<{ unreadAfterSeq: number | null }>(
+      app,
+      staff.cookie,
+      "threads/markRead",
+      channel,
+      companySpaceId,
+    );
+    // The member's own earlier send set their position, so the divider follows it.
+    expect(marked.unreadAfterSeq).not.toBeNull();
+    const staffAfter = await rpc<Entry[]>(
+      app,
+      staff.cookie,
+      "bots/threads",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(channelEntry(staffAfter)?.unread).toBe(false);
+    // Another reader's position is their own.
+    expect(
+      await db.threadRead.findUnique({
+        where: { threadId_userId: { threadId: staffBefore[1]!.threadId, userId: head } },
+      }),
+    ).toBeNull();
+    await rpc(app, staff.cookie, "threads/markUnread", channel, companySpaceId);
+    expect(
+      channelEntry(
+        await rpc<Entry[]>(app, staff.cookie, "bots/threads", { botId: itBotId }, companySpaceId),
+      )?.unread,
+    ).toBe(true);
+  });
 });

@@ -36,6 +36,7 @@ const baseBot = {
 
 function reposFor(memoryScope: string | null) {
   const prisma = {
+    thread: { findMany: vi.fn(async () => []) },
     bot: {
       findMany: vi.fn(async () => [{ ...baseBot, memoryScope }]),
     },
@@ -57,6 +58,7 @@ describe("createRepos.listBots", () => {
     ]);
     const repos = createRepos({
       bot: { findMany },
+      thread: { findMany: vi.fn(async () => []) },
       $queryRaw: vi.fn(async () => []),
     } as unknown as PrismaClient);
 
@@ -92,6 +94,7 @@ describe("createRepos.listBots", () => {
 
   it("classifies initial preview runs once across bots, including non-peer results", async () => {
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () =>
           ["one", "two"].map((id) => ({
@@ -124,6 +127,7 @@ describe("createRepos.listBots", () => {
 
   it("classifies unseen runs in older pages and retains negative results between pages", async () => {
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () => [
           {
@@ -183,6 +187,7 @@ describe("createRepos.listBots", () => {
       },
     ]);
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany,
       },
@@ -228,6 +233,7 @@ describe("createRepos.listBots", () => {
 
   it("skips a peer-run preview tail when the receipt is outside the window", async () => {
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () => [
           {
@@ -270,6 +276,7 @@ describe("createRepos.listBots", () => {
       { seq: 1, runId: "run-user", blocks: [{ kind: "text", text: "Older visible answer" }] },
     ]);
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () => [
           {
@@ -319,6 +326,7 @@ describe("createRepos.listBots", () => {
       return peerWindows[windowIndex] ?? [];
     });
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () => [
           {
@@ -350,6 +358,7 @@ describe("createRepos.listBots", () => {
 
   it("dates the row by its newest message, not the bot's last settings write", async () => {
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       bot: {
         findMany: vi.fn(async () => [
           {
@@ -471,6 +480,7 @@ describe("createRepos.reorderBots", () => {
       },
     };
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       $transaction: vi.fn((run: (client: typeof tx) => Promise<void>) => run(tx)),
     };
     return { repos: createRepos(prisma as unknown as PrismaClient), update };
@@ -512,6 +522,7 @@ it("finds incoming calls independently of the sidebar message window", async () 
   ];
   const messageQuery = vi.fn(async () => [{ threadId: "thread-1", role: "bot", blocks }]);
   const prisma = {
+    thread: { findMany: vi.fn(async () => []) },
     bot: {
       findMany: vi.fn(async () => [
         baseBot,

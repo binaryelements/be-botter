@@ -2548,7 +2548,7 @@ export function createRouter(deps: RouterDeps) {
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
         }
-        return sendThreadMessage(
+        const sent = await sendThreadMessage(
           deps,
           context.actor,
           target,
@@ -2557,6 +2557,11 @@ export function createRouter(deps: RouterDeps) {
             ? (runId) => releaseComputerControl(deps, context.actor, target.botId, "done", runId)
             : undefined,
         );
+        // In a channel the sender has read what they just wrote.
+        if (target.kind === "bot" && target.departmentId) {
+          await markThreadRead(deps.prisma, context.actor, target);
+        }
+        return sent;
       }),
       react: authed.threads.react.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);

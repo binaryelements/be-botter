@@ -4874,6 +4874,7 @@ describe("bot model auth on save", () => {
       event: { create: vi.fn(async () => ({ seq: 1 })) },
     };
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       $queryRaw: vi.fn(async () => []),
       bot: {
         findFirst: vi.fn(async () => bot),
@@ -5700,6 +5701,7 @@ describe("openai-compatible enabled models", () => {
     const pins = pinStores(options);
     const bot = botRow(options.botModelId ?? options.defaultModel);
     const prisma = {
+      thread: { findMany: vi.fn(async () => []) },
       ...pins,
       $queryRaw: vi.fn(async () => []),
       bot: {
@@ -7245,6 +7247,7 @@ describe("API-key live model catalog", () => {
         updatedAt: new Date(0),
       };
       const prisma = {
+        thread: { findMany: vi.fn(async () => []) },
         userModelCredential: { findMany: vi.fn(async () => [credential]) },
         spaceModelPreference: { findMany: vi.fn(async () => []) },
         secret: {

@@ -8,7 +8,7 @@ import {
   ringingCall,
   userVisibleMessages,
 } from "@rakazo/core";
-import { privateThread } from "./bot-threads.js";
+import { botsWithUnreadChannels, privateThread } from "./bot-threads.js";
 import type { PrismaClient } from "./client.js";
 import type { ComputerMode } from "./computers.js";
 import { ensureComputerRecord, parseComputerMode } from "./computers.js";
@@ -436,6 +436,11 @@ export function createRepos(
         for (const id of missing) checkedRunIds.add(id);
       };
       await classifyRunIds(candidateRunIds);
+      const unreadChannels = await botsWithUnreadChannels(
+        prisma,
+        actor,
+        bots.map((bot) => bot.id),
+      );
       return Promise.all(
         bots.map(async (bot) => {
           let messages = bot.thread?.messages ?? [];
@@ -472,7 +477,8 @@ export function createRepos(
             if (messages.length === 0) break;
           }
           return mapBot(
-            bot,
+            // A department channel with news lights the bot's dot like a reply in the private thread.
+            unreadChannels.has(bot.id) ? { ...bot, thread: { ...bot.thread, unread: true } } : bot,
             preview,
             bot.runs[0]?.status ?? "idle",
             rosterRunErrorId(bot.thread?.runs[0], bot.runs[0]),

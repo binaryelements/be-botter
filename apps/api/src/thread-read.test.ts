@@ -120,3 +120,47 @@ describe("markThreadRead", () => {
     expect(store.updateMany).not.toHaveBeenCalled();
   });
 });
+
+describe("markThreadRead on a department channel", () => {
+  const channel = {
+    kind: "bot",
+    botId: "bot-1",
+    threadId: "channel-1",
+    departmentId: "dept-1",
+  } as ThreadTarget;
+  function channelStore(read: { unread: boolean; lastReadSeq: number } | null, nextMessageSeq = 5) {
+    const upsert = vi.fn(async () => ({}));
+    const prisma = {
+      thread: { findFirst: vi.fn(async () => ({ nextMessageSeq })) },
+      threadRead: { findUnique: vi.fn(async () => read), upsert },
+    } as unknown as PrismaClient;
+    return { prisma, upsert };
+  }
+
+  it("treats a channel never opened as unread from the start and records the reader", async () => {
+    const { prisma, upsert } = channelStore(null);
+    await expect(markThreadRead(prisma, actor, channel)).resolves.toBe(-1);
+    expect(upsert).toHaveBeenCalledWith({
+      where: { threadId_userId: { threadId: "channel-1", userId: "user-1" } },
+      create: { threadId: "channel-1", userId: "user-1", lastReadSeq: 4, unread: false },
+      update: { lastReadSeq: 4, unread: false },
+    });
+  });
+
+  it("places the divider after the reader's own position, not another reader's", async () => {
+    const { prisma } = channelStore({ unread: false, lastReadSeq: 2 });
+    await expect(markThreadRead(prisma, actor, channel)).resolves.toBe(2);
+  });
+
+  it("does nothing once the reader is at the newest message", async () => {
+    const { prisma, upsert } = channelStore({ unread: false, lastReadSeq: 4 });
+    await expect(markThreadRead(prisma, actor, channel)).resolves.toBeNull();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("clears a hand-marked unread without a divider", async () => {
+    const { prisma, upsert } = channelStore({ unread: true, lastReadSeq: 4 });
+    await expect(markThreadRead(prisma, actor, channel)).resolves.toBeNull();
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+});
