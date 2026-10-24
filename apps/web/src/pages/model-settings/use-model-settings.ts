@@ -1,5 +1,10 @@
 import { useLingui } from "@lingui/react/macro";
-import type { Me, ThinkingLevel } from "@rakazo/contracts";
+import type {
+  CompanyModelConnection,
+  Me,
+  ModelConnectInput,
+  ThinkingLevel,
+} from "@rakazo/contracts";
 import {
   CLOUDFLARE_AI_GATEWAY_PROVIDER_ID,
   cloudflareGatewayRouting,
@@ -53,6 +58,7 @@ export function useModelSettings(onClose: () => void) {
   const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
   const [credentials, setCredentials] = useState<ModelCredential[]>([]);
   const [me, setMe] = useState<Me | null>(null);
+  const [companyConnection, setCompanyConnection] = useState<CompanyModelConnection | null>(null);
   const [provider, setProvider] = useState("");
   // The provider whose optional personal-key form is open.
   const [ownKeyProvider, setOwnKeyProvider] = useState<string | null>(null);
@@ -114,10 +120,11 @@ export function useModelSettings(onClose: () => void) {
   async function refresh() {
     const refreshRevision = ++refreshRevisionRef.current;
     const selectionRevision = selectionRevisionRef.current;
-    const [nextCatalog, nextCredentials, nextMe] = await Promise.all([
+    const [nextCatalog, nextCredentials, nextMe, nextCompanyConnection] = await Promise.all([
       rpc.models.list(),
       rpc.models.credentials(),
       rpc.me(),
+      rpc.models.companyConnection(),
     ]);
     if (refreshRevision !== refreshRevisionRef.current) return;
     const nextProvider =
@@ -140,6 +147,7 @@ export function useModelSettings(onClose: () => void) {
     setCatalog(nextCatalog);
     setCredentials(nextCredentials);
     setMe(nextMe);
+    setCompanyConnection(nextCompanyConnection);
     if (selectionRevision === selectionRevisionRef.current) {
       invalidatePreflight();
       resetOpenAiCompatibleProbe();
@@ -642,6 +650,17 @@ export function useModelSettings(onClose: () => void) {
     }
   }
 
+  // Owner-only; errors surface inside the company block, not the detail pane.
+  async function connectCompanyModel(input: ModelConnectInput) {
+    await rpc.models.setCompanyConnection(input);
+    await refresh();
+  }
+
+  async function clearCompanyModel() {
+    await rpc.models.clearCompanyConnection();
+    await refresh();
+  }
+
   function handleClose() {
     cancelOAuthAttempt(false);
     onClose();
@@ -673,10 +692,13 @@ export function useModelSettings(onClose: () => void) {
     catalog,
     catalogThinkingLevels,
     chooseProvider,
+    clearCompanyModel,
     cloudflareRoutingReady,
     codeCopied,
+    companyConnection,
     compatibleRows,
     confirmDisconnect,
+    connectCompanyModel,
     connectKey,
     connectedGroups,
     contextWindow,

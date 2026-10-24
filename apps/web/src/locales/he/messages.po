@@ -665,6 +665,7 @@ msgstr "ה-API חזר לפעול, אבל העדכון לא הושלם. יש לב
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/lib/localized-provider-hint.ts
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
@@ -1272,6 +1273,11 @@ msgstr "תגובה"
 msgid "Compact"
 msgstr "צפוף"
 
+#: src/pages/model-settings/company-model.tsx
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Company"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "הושלם"
@@ -1353,6 +1359,7 @@ msgstr "חיבור"
 msgid "Connect a model"
 msgstr "חיבור מודל"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Connect API key"
 msgstr "חיבור מפתח API"
@@ -1364,6 +1371,10 @@ msgstr "חיבור אפליקציות"
 #: src/pages/PluginsOverlay.tsx
 msgid "Connect Executor"
 msgstr "חיבור Executor"
+
+#: src/pages/model-settings/company-model.tsx
+msgid "Connect for the company"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Connect MCP server “{name}”"
@@ -1516,6 +1527,7 @@ msgstr "לא ניתן להתחבר"
 msgid "Could not connect {0}"
 msgstr "לא ניתן לחבר את {0}"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not connect this provider"
 msgstr "לא ניתן לחבר את הספק הזה"
@@ -1599,6 +1611,7 @@ msgstr "לא ניתן לנתק את ספק הזיכרון"
 msgid "Could not disconnect OAuth"
 msgstr "לא ניתן לנתק את OAuth"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not disconnect this provider"
 msgstr "לא ניתן לנתק את הספק הזה"
@@ -3196,6 +3209,7 @@ msgid "Missed call"
 msgstr ""
 
 #: src/pages/model-settings/catalog-model-fields.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3845,6 +3859,7 @@ msgid "Protected input"
 msgstr "קלט מוגן"
 
 #: src/pages/MemorySettingsOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/Onboarding.tsx
 msgid "Provider"
 msgstr "ספק"
@@ -4009,6 +4024,7 @@ msgstr "טעינה מחדש"
 #: src/components/ApprovalRulesSettings.tsx
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4363,6 +4379,7 @@ msgstr "שומר..."
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx

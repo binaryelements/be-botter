@@ -665,6 +665,7 @@ msgstr "API가 다시 작동하지만 업데이트가 완료되지 않았습니�
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/lib/localized-provider-hint.ts
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
@@ -1272,6 +1273,11 @@ msgstr ""
 msgid "Compact"
 msgstr ""
 
+#: src/pages/model-settings/company-model.tsx
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Company"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "완료"
@@ -1353,6 +1359,7 @@ msgstr "연결"
 msgid "Connect a model"
 msgstr "AI 모델 연결"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Connect API key"
 msgstr "API 키 연결"
@@ -1364,6 +1371,10 @@ msgstr "앱 연결"
 #: src/pages/PluginsOverlay.tsx
 msgid "Connect Executor"
 msgstr "Executor 연결"
+
+#: src/pages/model-settings/company-model.tsx
+msgid "Connect for the company"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Connect MCP server “{name}”"
@@ -1516,6 +1527,7 @@ msgstr "연결하지 못했습니다."
 msgid "Could not connect {0}"
 msgstr "{0}에 연결하지 못했습니다."
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not connect this provider"
 msgstr "AI 서비스에 연결하지 못했습니다."
@@ -1599,6 +1611,7 @@ msgstr "기억 서비스 연결을 해제하지 못했습니다."
 msgid "Could not disconnect OAuth"
 msgstr "OAuth 연결을 해제하지 못했습니다."
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not disconnect this provider"
 msgstr ""
@@ -3196,6 +3209,7 @@ msgid "Missed call"
 msgstr ""
 
 #: src/pages/model-settings/catalog-model-fields.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3845,6 +3859,7 @@ msgid "Protected input"
 msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/Onboarding.tsx
 msgid "Provider"
 msgstr "서비스"
@@ -4009,6 +4024,7 @@ msgstr "새로고침"
 #: src/components/ApprovalRulesSettings.tsx
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4363,6 +4379,7 @@ msgstr ""
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
