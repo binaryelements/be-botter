@@ -224,6 +224,7 @@ function fixture({
         return { count: 1 };
       }),
     },
+    spaceMember: { findUnique: vi.fn(async () => ({ role: "owner" })) },
     bot: {
       findUniqueOrThrow: vi.fn(async () => ({
         ...instructionState,
