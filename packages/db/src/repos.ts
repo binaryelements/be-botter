@@ -589,6 +589,7 @@ export function createRepos(
               userId: actor.userId,
             },
           });
+          await tx.bot.update({ where: { id: created.id }, data: { homeThreadId: thread.id } });
           if (input.initialMessage) {
             await createThreadMessageInTransaction(tx, {
               threadId: thread.id,

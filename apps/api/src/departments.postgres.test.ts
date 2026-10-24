@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComposioConnector, FakeComposioClient } from "@rakazo/adapters";
 import type { Department, Me, SpaceNavigation } from "@rakazo/contracts";
-import { asSystem } from "@rakazo/db";
+import { asSystem, homeThread } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { createApp } from "./app.js";
 
@@ -114,9 +114,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       const bot = await db.bot.create({
         data: { spaceId: companySpaceId, userId: owner.userId, name, color: "#3B82F6" },
       });
-      await db.thread.create({
-        data: { spaceId: companySpaceId, userId: owner.userId, botId: bot.id },
-      });
+      await homeThread(db, bot);
       return bot.id;
     };
     itBotId = await createBot("IT Support");
@@ -237,7 +235,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
 
   it("lets the member use what belongs to the shared bot and nothing of the private one", async () => {
     const seed = async (botId: string, label: string) => {
-      const thread = await db.thread.findUniqueOrThrow({ where: { botId } });
+      const thread = await db.thread.findFirstOrThrow({ where: { homeOf: { id: botId } } });
       const base = { spaceId: companySpaceId, botId, userId: owner.userId };
       const routine = await db.routine.create({
         data: { ...base, name: `${label} routine`, prompt: `Check ${label}`, crons: [] },

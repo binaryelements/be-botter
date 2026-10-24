@@ -265,7 +265,9 @@ async function seedFixture(app: App, prisma: PrismaClient) {
     notify: true,
   });
 
-  const botThread = await prisma.thread.findUniqueOrThrow({ where: { botId: researcher.id } });
+  const botThread = await prisma.thread.findFirstOrThrow({
+    where: { homeOf: { id: researcher.id } },
+  });
   const groupThread = await prisma.thread.findUniqueOrThrow({ where: { groupId: group.id } });
   const question = await createThreadMessage(prisma, {
     threadId: botThread.id,

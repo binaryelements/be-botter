@@ -6,6 +6,7 @@ import {
   asSystem,
   createDb,
   createThreadMessage,
+  homeThread,
   provisionMessagingIdentity,
   runAsSystem,
   runAsTenant,
@@ -60,17 +61,10 @@ describe.skipIf(!enabled)("typed replies to waiting cards (PostgreSQL)", () => {
     ({ botId, threadId } = identity);
     actor = { spaceId: identity.spaceId, userId: identity.userId } as Actor;
     const peer = await system.bot.create({
-      data: {
-        spaceId: actor.spaceId,
-        userId: actor.userId,
-        name: "Beta",
-        color: "primary",
-        thread: { create: { spaceId: actor.spaceId, userId: actor.userId } },
-      },
-      include: { thread: true },
+      data: { spaceId: actor.spaceId, userId: actor.userId, name: "Beta", color: "primary" },
     });
     peerBotId = peer.id;
-    peerThreadId = peer.thread!.id;
+    peerThreadId = (await homeThread(system, peer)).id;
     const group = await system.chatGroup.create({
       data: {
         spaceId: actor.spaceId,
