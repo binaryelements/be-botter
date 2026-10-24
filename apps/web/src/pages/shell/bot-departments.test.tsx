@@ -18,6 +18,13 @@ vi.mock("@lingui/react/macro", () => {
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
 vi.mock("@rakazo/ui-web", () => ({
+  Button: ({
+    variant: _variant,
+    size: _size,
+    ...props
+  }: ComponentProps<"button"> & { variant?: string; size?: string }) => (
+    <button type="button" {...props} />
+  ),
   Switch: ({
     onCheckedChange,
     checked,
@@ -46,13 +53,15 @@ const departments: Department[] = [
 let container: HTMLDivElement;
 let root: Root;
 
+const onOpenDepartments = vi.fn();
+
 async function render(list: Department[]) {
   rpc.departments.list.mockResolvedValue(list);
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
-    root.render(<BotDepartmentsSection botId="bot-1" />);
+    root.render(<BotDepartmentsSection botId="bot-1" onOpenDepartments={onOpenDepartments} />);
   });
   await act(async () => {});
 }
@@ -104,8 +113,12 @@ describe("BotDepartmentsSection", () => {
     );
   });
 
-  it("renders nothing when the space has no departments", async () => {
+  it("offers the Departments settings when the space has none yet", async () => {
     await render([]);
-    expect(container.textContent).toBe("");
+    expect(container.querySelector('[role="switch"]')).toBeNull();
+    const open = container.querySelector<HTMLButtonElement>("button");
+    expect(open?.textContent).toBe("Departments");
+    await act(async () => open?.click());
+    expect(onOpenDepartments).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,7 +4,6 @@ import {
   completeOnboarding,
   createNamedBot,
   expandAdvancedSection,
-  openUserSettings,
   signup,
 } from "./helpers";
 
@@ -25,7 +24,14 @@ test("an owner shares a bot with a department and its member can reach it", asyn
   const botName = `IT Support ${stamp}`;
   await createNamedBot(page, botName);
 
-  const settings = await openUserSettings(page, "departments");
+  // Departments start from a bot's page: the owner wants to share this bot with a team.
+  await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
+  const botSettings = page.getByTestId("bot-settings");
+  await expect(botSettings).toBeVisible();
+  await expandAdvancedSection(botSettings.getByTestId("bot-settings-advanced"));
+  await botSettings.getByRole("button", { name: "Departments", exact: true }).click();
+  const settings = page.getByTestId("user-settings");
+  await expect(settings).toHaveAttribute("data-settings-section", "departments");
   const panel = settings.getByTestId("departments-settings");
   await panel.getByLabel("New department").fill("IT");
   await panel.getByRole("button", { name: "Add department", exact: true }).click();
@@ -37,11 +43,7 @@ test("an owner shares a bot with a department and its member can reach it", asyn
   await captureScreenshot(page, testInfo, "departments-settings");
   await settings.getByRole("button", { name: "Close user settings" }).click();
 
-  // The bot joins IT from its own settings; the switch only exists once a department does.
-  await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
-  const botSettings = page.getByTestId("bot-settings");
-  await expect(botSettings).toBeVisible();
-  await expandAdvancedSection(botSettings.getByTestId("bot-settings-advanced"));
+  // Back on the bot page, the new department shows up as a switch.
   const departments = botSettings.getByTestId("bot-departments");
   const itSwitch = departments.getByRole("switch", { name: "IT", exact: true });
   await expect(itSwitch).not.toBeChecked();
