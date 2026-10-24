@@ -532,6 +532,7 @@ describe("thread answer delivery", () => {
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: null,
         }),
       },
@@ -600,6 +601,7 @@ describe("secret request dismissal", () => {
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: null,
         }),
       },
@@ -721,6 +723,7 @@ describe("thread stream authorization", () => {
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: null,
         }),
       },
@@ -2674,6 +2677,7 @@ describe("computer screen url", () => {
           id: "bot-1",
           screenGeneration: 2,
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: computerRow,
         }),
       },
@@ -2806,6 +2810,7 @@ describe("computer terminal and file transfer", () => {
           id: "bot-1",
           screenGeneration: 2,
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: {
             id: "computer-1",
             screenGeneration: 3,
@@ -4819,6 +4824,7 @@ describe("bot model auth on save", () => {
       webhookSecretId: null,
       spawnKey: null,
       thread: { id: "thread-1", unread: false, messages: [], runs: [] },
+      threads: [{ id: "thread-1", unread: false, messages: [], runs: [] }],
       computer: null,
       runs: [],
     };
@@ -5003,6 +5009,8 @@ describe("bot restore computer quota", () => {
           computerId: "computer-archived",
           computer: { id: "computer-archived" },
           userId: "user-1",
+          thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
         }
       : null;
     const botApi = {
@@ -5189,7 +5197,13 @@ describe("routine live Codex model validation", () => {
       const client = createRouterClient(
         createRouter({
           prisma: {
-            bot: { findFirst: vi.fn(async () => ({ id: "bot-1", computer: null })) },
+            bot: {
+              findFirst: vi.fn(async () => ({
+                id: "bot-1",
+                threads: [{ id: "thread-1" }],
+                computer: null,
+              })),
+            },
             routine: { findFirst: vi.fn(async () => row), create: save, update: save },
             spaceModelPreference: { findMany: vi.fn(async () => []) },
             userModelCredential: {
@@ -5219,6 +5233,8 @@ describe("routine live Codex model validation", () => {
             ),
           },
           jobs: { cancel: vi.fn(async () => undefined) },
+          // The actor's thread exists, so saving a routine posts its card there.
+          events: { append: vi.fn(async () => ({ seq: 1 })) },
           codexCatalog: { read },
           env: { sandboxProvider: "fake" },
         } as unknown as RouterDeps),
@@ -5331,7 +5347,14 @@ describe("routines.update", () => {
       },
       bot: {
         findFirst: vi.fn(async () =>
-          botArchived ? null : { id: "bot-1", thread: { id: "thread-1" }, computer: null },
+          botArchived
+            ? null
+            : {
+                id: "bot-1",
+                thread: { id: "thread-1" },
+                threads: [{ id: "thread-1" }],
+                computer: null,
+              },
         ),
       },
     };
@@ -5583,6 +5606,7 @@ describe("openai-compatible enabled models", () => {
       webhookSecretId: null,
       spawnKey: null,
       thread: { id: "thread-1", unread: false, messages: [], runs: [] },
+      threads: [{ id: "thread-1", unread: false, messages: [], runs: [] }],
       computer: null,
       runs: [],
     };
@@ -6307,9 +6331,12 @@ describe("threads.answerCall and threads.declineCall", () => {
     const tx = {
       $queryRaw: vi.fn(async () => []),
       bot: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({ id: "bot-1", thread: { id: "thread-1" }, computer: null }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: "bot-1",
+          thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
+          computer: null,
+        }),
       },
       message: {
         findUnique: vi.fn().mockResolvedValue({
@@ -6463,9 +6490,12 @@ describe("threads.endCall", () => {
     } as never;
     const prisma = {
       bot: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({ id: "bot-1", thread: { id: "thread-1" }, computer: null }),
+        findFirst: vi.fn().mockResolvedValue({
+          id: "bot-1",
+          thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
+          computer: null,
+        }),
       },
       // No bot-placed call behind this one: only the caller's own hang-up runs.
       message: { findUnique: vi.fn().mockResolvedValue(null) },
@@ -6590,6 +6620,7 @@ describe("groups.archive", () => {
         findFirst: vi.fn().mockResolvedValue({
           archivedAt,
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
         }),
         update: groupUpdate,
       },
@@ -6872,6 +6903,7 @@ describe("export.bot", () => {
           description: "",
           instructions: "",
           thread: { id: "thread-1" },
+          threads: [{ id: "thread-1" }],
           computer: { id: "computer-1", scope, homeKey: "home-1" },
         }),
       },
@@ -7116,7 +7148,11 @@ describe("routine watch creation boundaries", () => {
   function fixture() {
     const create = vi.fn();
     const update = vi.fn();
-    const findBot = vi.fn(async () => ({ id: "bot-1", computer: { scope: "team" } }));
+    const findBot = vi.fn(async () => ({
+      id: "bot-1",
+      threads: [{ id: "thread-1" }],
+      computer: { scope: "team" },
+    }));
     const findRoutine = vi.fn(async () => ({
       id: "routine-1",
       botId: "bot-1",

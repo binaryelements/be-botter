@@ -41,9 +41,8 @@ import {
   teachRecordingTtlMs,
 } from "@rakazo/core";
 import {
-  botAccessWhere,
   botOwnedWhere,
-  type createRepos,
+  createRepos,
   expireComputerExecutionLeases,
   IsolationError,
   type PrismaClient,
@@ -179,10 +178,7 @@ async function ensureGraphicalComputer(
     } finally {
       await releaseComputerExecutionLease(deps.prisma, lease);
     }
-    bot = await deps.prisma.bot.findUniqueOrThrow({
-      where: { id: bot.id },
-      include: { thread: true, computer: true },
-    });
+    bot = await createRepos(deps.prisma).getBot(actor, bot.id);
   }
   if (!bot.computer?.providerRef || bot.computer.state !== "running") {
     throw new ORPCError("BAD_REQUEST", { message: "Computer must be running to teach" });
@@ -351,11 +347,7 @@ export function createTaughtSkillsService(deps: TaughtSkillsDeps) {
     },
 
     async start(actor: Actor, botId: string, goal: string): Promise<TaughtSkill> {
-      let bot = await deps.prisma.bot.findFirst({
-        where: { id: botId, spaceId: actor.spaceId, ...botAccessWhere(actor) },
-        include: { thread: true, computer: true },
-      });
-      if (!bot) throw new IsolationError();
+      let bot = await createRepos(deps.prisma).getBot(actor, botId);
       const alreadyRecording = await deps.prisma.taughtSkill.findFirst({
         where: { botId, status: "recording" },
         select: { id: true },

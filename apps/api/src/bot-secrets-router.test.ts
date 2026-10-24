@@ -74,7 +74,7 @@ function botSecretDeps(seed: Row[] = [], caller: Actor = actor) {
     bot: {
       findFirst: vi.fn(async (args: { where: Row }) => {
         const bot = bots.find((entry) => matches(entry, args.where));
-        return bot ? { ...bot, thread: null, computer: null } : null;
+        return bot ? { ...bot, thread: null, threads: [{ id: "thread-1" }], computer: null } : null;
       }),
     },
     botSecret,

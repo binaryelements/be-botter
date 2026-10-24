@@ -220,7 +220,18 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     expect(await status(app, staff.cookie, "bots/get", { botId: chiefBotId }, companySpaceId)).toBe(
       404,
     );
-    await rpc(app, staff.cookie, "threads/get", { botId: itBotId }, companySpaceId);
+    // The owner's conversation stays theirs; the member gets a private thread of their own.
+    const home = await db.thread.findFirstOrThrow({ where: { homeOf: { id: itBotId } } });
+    await rpc(app, owner.cookie, "threads/send", { botId: itBotId, text: "Owner note" });
+    const mine = await rpc<{ threadId: string; messages: unknown[] }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(mine.threadId).not.toBe(home.id);
+    expect(mine.messages).toEqual([]);
     const sent = await rpc<{ runId: string }>(
       app,
       staff.cookie,
@@ -231,6 +242,31 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     const run = await db.run.findUniqueOrThrow({ where: { id: sent.runId } });
     expect(run.userId).toBe(staff.userId);
     expect(run.botId).toBe(itBotId);
+    expect(run.threadId).toBe(mine.threadId);
+    const ownerView = await rpc<{ threadId: string; messages: unknown[] }>(
+      app,
+      owner.cookie,
+      "threads/get",
+      { botId: itBotId },
+    );
+    expect(ownerView.threadId).toBe(home.id);
+    expect(JSON.stringify(ownerView.messages)).not.toContain("Hello from IT");
+    const staffBot = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "bots/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(staffBot.threadId).toBe(mine.threadId);
+    const again = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(again.threadId).toBe(mine.threadId);
   });
 
   it("lets the member use what belongs to the shared bot and nothing of the private one", async () => {
