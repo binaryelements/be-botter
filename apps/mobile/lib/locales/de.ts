@@ -414,6 +414,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Active model": "Aktives Modell",
   "Authorization code": "Autorisierungscode",
   "Configured by deployment": "Durch die Bereitstellung konfiguriert",
+  Company: "Unternehmen",
   "Use your own key": "Eigenen Schlüssel verwenden",
   "Uses this server's own {source} credentials to access {provider}.":
     "Verwendet die eigenen {source}-Zugangsdaten dieses Servers für den Zugriff auf {provider}.",
