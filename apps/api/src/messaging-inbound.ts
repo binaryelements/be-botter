@@ -13,6 +13,7 @@ import type {
 import {
   createThreadMessage,
   normalizeMessagingLinkCode,
+  privateThread,
   redeemMessagingLinkCode,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -109,8 +110,11 @@ async function handleDirectEvent(
 
   let ids: ProvisionedMessagingIdentity;
   if (existing) {
-    const thread = await deps.prisma.thread.findFirst({ where: { botId: existing.botId } });
-    if (!thread) throw new Error(`messaging identity ${existing.id} has no thread`);
+    const thread = await privateThread(
+      deps.prisma,
+      { id: existing.botId, spaceId: existing.spaceId },
+      existing.userId,
+    );
     ids = {
       provider: existing.provider,
       address: existing.address,
@@ -622,8 +626,11 @@ async function handleChannelEvent(
       where: { id: member.identityId! },
     });
     if (!identity) continue;
-    const thread = await deps.prisma.thread.findFirst({ where: { botId: identity.botId } });
-    if (!thread) continue;
+    const thread = await privateThread(
+      deps.prisma,
+      { id: identity.botId, spaceId: identity.spaceId },
+      identity.userId,
+    );
     const target = {
       spaceId: identity.spaceId,
       userId: identity.userId,
@@ -672,8 +679,12 @@ async function inviteMember(
     ],
     skipDuplicates: true,
   });
-  const thread = await deps.prisma.thread.findFirst({ where: { botId: identity.botId } });
-  if (thread) {
+  const thread = await privateThread(
+    deps.prisma,
+    { id: identity.botId, spaceId: identity.spaceId },
+    identity.userId,
+  );
+  {
     const note = await createThreadMessage(deps.prisma, {
       threadId: thread.id,
       role: "system",
