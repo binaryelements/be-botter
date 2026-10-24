@@ -165,6 +165,25 @@ describe("runFailureError", () => {
 });
 
 describe("projectMessages", () => {
+  it("keeps who sent a user message, for threads several people write in", () => {
+    const [message] = projectMessages([
+      {
+        id: "e1",
+        threadId: "t1",
+        seq: 0,
+        type: "thread.message.created",
+        payload: {
+          messageId: "m1",
+          role: "user",
+          userId: "user-2",
+          blocks: [{ kind: "text", text: "hi" }],
+        },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+    expect(message?.userId).toBe("user-2");
+  });
+
   it("replays durable messages and trailing live tokens from progress events", () => {
     const messages = projectMessages([
       {

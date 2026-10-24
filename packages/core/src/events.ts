@@ -72,6 +72,7 @@ export function projectMessages(
         role,
         blocks,
         botId: event.botId ?? undefined,
+        userId: (payload.userId as string | undefined) ?? undefined,
         runId: event.runId ?? undefined,
         createdAt,
       });

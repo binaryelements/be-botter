@@ -751,6 +751,7 @@ export async function sendThreadMessage(
         const message = await createThreadMessageInTransaction(tx, {
           threadId: target.threadId,
           role: "user",
+          userId: actor.userId,
           blocks,
           replyToMessageId,
           replyQuote,
@@ -800,6 +801,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               seq: message.seq,
               role: "user",
+              userId: actor.userId,
               blocks,
               callId,
               runIds: answered.map((run) => run.id),
@@ -834,6 +836,7 @@ export async function sendThreadMessage(
               messageId: message.id,
               seq: message.seq,
               role: "user",
+              userId: actor.userId,
               blocks,
               callId,
               replyToMessageId,
@@ -882,6 +885,7 @@ export async function sendThreadMessage(
             messageId: message.id,
             seq: message.seq,
             role: "user",
+            userId: actor.userId,
             blocks,
             callId,
             runIds: [run.id],
@@ -917,6 +921,7 @@ export async function sendThreadMessage(
       const message = await createThreadMessageInTransaction(tx, {
         threadId: target.threadId,
         role: "user",
+        userId: actor.userId,
         blocks,
         replyToMessageId,
         replyQuote,
@@ -1035,6 +1040,7 @@ export async function sendThreadMessage(
           messageId: message.id,
           seq: message.seq,
           role: "user",
+          userId: actor.userId,
           blocks,
           callId,
           runIds: runs.map((run) => run.id),
@@ -1132,6 +1138,7 @@ export async function reactToThreadMessage(
     const message = await createThreadMessageInTransaction(tx, {
       threadId: target.threadId,
       role: "user",
+      userId: actor.userId,
       blocks,
       replyToMessageId: parent.id,
       clientNonce: input.clientNonce,
@@ -1152,6 +1159,7 @@ export async function reactToThreadMessage(
       payload: {
         messageId: message.id,
         role: "user",
+        userId: actor.userId,
         blocks,
         replyToMessageId: parent.id,
         ...(runs.length ? { runIds: runs.map((run) => run.id) } : {}),

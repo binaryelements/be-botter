@@ -47,6 +47,8 @@ export interface CreateThreadMessageInput {
   role: "user" | "bot" | "system";
   blocks: MessageBlock[];
   botId?: string;
+  /** The person who wrote a user message. */
+  userId?: string;
   replyToMessageId?: string;
   replyQuote?: string;
   runId?: string;
@@ -84,6 +86,7 @@ export async function createThreadMessageInTransaction(
       role: input.role,
       blocks: input.blocks as Prisma.InputJsonValue,
       botId: input.botId,
+      userId: input.userId,
       replyToMessageId: input.replyToMessageId,
       replyQuote: input.replyQuote,
       runId: input.runId,

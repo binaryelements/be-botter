@@ -583,6 +583,18 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       companySpaceId,
     );
     expect(channelEntry(staffBefore)?.unread).toBe(true);
+    // Several people write here, so each message says who sent it.
+    const seen = await rpc<{ messages: { userId?: string; blocks: unknown[] }[] }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      channel,
+      companySpaceId,
+    );
+    const update = seen.messages.find((message) =>
+      JSON.stringify(message.blocks).includes("Owner update"),
+    );
+    expect(update?.userId).toBe(owner.userId);
     const roster = await rpc<{ id: string; unread: boolean; preview: string }[]>(
       app,
       staff.cookie,

@@ -2691,6 +2691,7 @@ export function createRouter(deps: RouterDeps) {
           const message = await createThreadMessageInTransaction(tx, {
             threadId: target.threadId,
             role: "user",
+            userId: context.actor.userId,
             blocks,
             clientNonce: input.clientNonce,
           });
@@ -2745,7 +2746,7 @@ export function createRouter(deps: RouterDeps) {
             botId,
             type: "thread.message.created",
             runId: run?.id ?? active?.id,
-            payload: { messageId: message.id, role: "user", blocks },
+            payload: { messageId: message.id, role: "user", userId: context.actor.userId, blocks },
           });
           await touchGroupUpdatedAt(tx, target.groupId);
           return { runId: run?.id, eventSeq: event.seq };
@@ -2819,6 +2820,7 @@ export function createRouter(deps: RouterDeps) {
               where: {
                 threadId,
                 role: "user",
+                userId: context.actor.userId,
                 clientNonce: { startsWith: `${CALL_CLIENT_NONCE_PREFIX}${input.callId}:` },
               },
               select: { id: true },

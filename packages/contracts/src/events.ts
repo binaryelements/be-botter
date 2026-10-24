@@ -391,6 +391,8 @@ export const ThreadMessageSchema = z.object({
   role: MessageRole,
   blocks: z.array(MessageBlock),
   botId: Id.optional(),
+  /** Who sent a user message; shown where several people write, as in a department channel. */
+  userId: Id.optional(),
   replyToMessageId: Id.optional(),
   replyQuote: z.string().optional(),
   replyPreview: ReplyPreviewSchema.nullable().optional(),
