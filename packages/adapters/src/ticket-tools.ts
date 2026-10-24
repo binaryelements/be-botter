@@ -9,6 +9,7 @@ import {
 import type { PrismaClient } from "@rakazo/db";
 import {
   allocateTicketNumber,
+  botAccessWhereFor,
   ensureBoard,
   findTicket,
   listTicketComments,
@@ -28,9 +29,8 @@ function coerceInputStatus(value: string) {
   return parsed.success ? parsed.data : undefined;
 }
 /**
- * An assignee must be one of the acting user's own bots, as the HTTP API
- * requires through `repos.getBot`. Assigning wakes the bot, which runs as its
- * owner, so another member's bot in the same space is not a valid target.
+ * An assignee must be a bot the acting user may use, as the HTTP API requires
+ * through `repos.getBot`: their own, or one shared with their departments.
  */
 async function ownBotInSpace(
   deps: TicketToolDeps,
@@ -39,7 +39,12 @@ async function ownBotInSpace(
 ) {
   return Boolean(
     await deps.prisma.bot.findFirst({
-      where: { id: botId, spaceId: input.spaceId, userId: input.userId, archivedAt: null },
+      where: {
+        id: botId,
+        spaceId: input.spaceId,
+        ...(await botAccessWhereFor(deps.prisma, input)),
+        archivedAt: null,
+      },
       select: { id: true },
     }),
   );

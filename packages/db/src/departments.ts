@@ -79,6 +79,22 @@ export function botOrOwnWhere(actor: Actor): {
     : { OR: [{ userId: actor.userId }, { bot: departmentBotAccessWhere(actor.userId) }] };
 }
 
+/**
+ * Bot access for a run or job that knows only the acting user's id: space owners
+ * see every bot, everyone else their own and their departments'.
+ * shortcut: the deployment owner outside a space they own counts as a member, upgrade when runs carry the actor's role
+ */
+export async function botAccessWhereFor(
+  prisma: Pick<PrismaClient, "spaceMember"> | Prisma.TransactionClient,
+  scope: { spaceId: string; userId: string },
+): Promise<Prisma.BotWhereInput> {
+  const member = await prisma.spaceMember.findUnique({
+    where: { spaceId_userId: { spaceId: scope.spaceId, userId: scope.userId } },
+    select: { role: true },
+  });
+  return member?.role === "owner" ? {} : departmentBotAccessWhere(scope.userId);
+}
+
 /** Ids of the bots the actor may use in the active space, for raw SQL filters. */
 export async function accessibleBotIds(
   prisma: Pick<PrismaClient, "bot"> | Prisma.TransactionClient,

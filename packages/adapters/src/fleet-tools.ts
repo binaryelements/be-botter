@@ -22,6 +22,7 @@ import {
 } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
+  botAccessWhereFor,
   commitBotUpdate,
   createGroupRepos,
   createRepos,
@@ -490,7 +491,7 @@ export async function listFleet(
   if (detail) return { bot: detail, bots: [], groups: [], sections: [], truncated: false };
   const [bots, groups, sections] = await Promise.all([
     prisma.bot.findMany({
-      where: activeBotsWhere(run),
+      where: await activeBotsWhere(prisma, run),
       select: {
         id: true,
         name: true,
@@ -1101,8 +1102,11 @@ const botSelect = {
   thread: { select: { id: true } },
 } satisfies Prisma.BotSelect;
 
-function activeBotsWhere(run: FleetRun): Prisma.BotWhereInput {
-  return { spaceId: run.spaceId, userId: run.userId, archivedAt: null };
+async function activeBotsWhere(
+  prisma: Pick<PrismaClient, "spaceMember">,
+  run: FleetRun,
+): Promise<Prisma.BotWhereInput> {
+  return { spaceId: run.spaceId, ...(await botAccessWhereFor(prisma, run)), archivedAt: null };
 }
 
 /** Exact ids or exact names, in the order given; every one must match exactly one active bot. */
@@ -1115,7 +1119,7 @@ async function resolveBots(
   const names = input.names ?? [];
   const rows = await prisma.bot.findMany({
     where: {
-      ...activeBotsWhere(run),
+      ...(await activeBotsWhere(prisma, run)),
       ...(ids.length ? { id: { in: ids } } : { name: { in: names } }),
     },
     select: { id: true, name: true },
@@ -1156,7 +1160,7 @@ async function resolveBot(
         ...createdByWhere({ botId: run.botId, userId: run.userId, spaceId: run.spaceId }),
         archivedAt: null,
       }
-    : activeBotsWhere(run);
+    : await activeBotsWhere(prisma, run);
   const bots = await prisma.bot.findMany({
     where: { ...scope, ...target },
     select: botSelect,
@@ -1170,7 +1174,7 @@ async function resolveBot(
   if (bots[0]) return bots[0];
   if (options.createdByCaller) {
     const other = await prisma.bot.findMany({
-      where: { ...activeBotsWhere(run), ...target },
+      where: { ...(await activeBotsWhere(prisma, run)), ...target },
       select: { id: true },
       take: 1,
     });

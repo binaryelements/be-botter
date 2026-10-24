@@ -1,7 +1,12 @@
 import type { Actor } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
-import { accessibleBotIds, botOrOwnWhere, botOwnedWhere } from "./departments.js";
+import {
+  accessibleBotIds,
+  botAccessWhereFor,
+  botOrOwnWhere,
+  botOwnedWhere,
+} from "./departments.js";
 
 const member: Actor = {
   userId: "user-m",
@@ -38,6 +43,21 @@ describe("department access helpers", () => {
     expect(findMany).toHaveBeenCalledWith({
       where: { spaceId: "space-1", ...viaDepartment },
       select: { id: true },
+    });
+  });
+
+  it("gives a run the access of its user: owners everything, members their departments' bots", async () => {
+    const findUnique = vi.fn().mockResolvedValueOnce({ role: "owner" }).mockResolvedValueOnce(null);
+    const prisma = { spaceMember: { findUnique } } as unknown as PrismaClient;
+    await expect(
+      botAccessWhereFor(prisma, { spaceId: "space-1", userId: "user-o" }),
+    ).resolves.toEqual({});
+    await expect(
+      botAccessWhereFor(prisma, { spaceId: "space-1", userId: "user-m" }),
+    ).resolves.toEqual(viaDepartment);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { spaceId_userId: { spaceId: "space-1", userId: "user-m" } },
+      select: { role: true },
     });
   });
 });

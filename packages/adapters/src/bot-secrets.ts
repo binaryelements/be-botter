@@ -19,9 +19,13 @@ import { createPrivateNetworkFetch, createSafeRemoteFetch } from "./remote-mcp.j
 import { persistPreparedSecret } from "./secret-persistence.js";
 import { readBodyCapped, withAbort } from "./web-ssrf.js";
 
+/** userId is who stores a credential; a bot's credentials are read by everyone who may use the bot. */
 export type BotSecretScope = { userId: string; spaceId: string; botId: string };
-function scopeFields({ userId, spaceId, botId }: BotSecretScope): BotSecretScope {
-  return { userId, spaceId, botId };
+function scopeFields({
+  spaceId,
+  botId,
+}: BotSecretScope): Pick<BotSecretScope, "spaceId" | "botId"> {
+  return { spaceId, botId };
 }
 
 const metadata = { name: true, origin: true, auth: true } as const;
@@ -429,7 +433,13 @@ export async function prepareBotSecret(input: {
         await tx.botSecret.update({ where: { id }, data: { ciphertext: stored.ciphertext } });
       else
         await tx.botSecret.create({
-          data: { id, ...scopeFields(scope), ...destination, ciphertext: stored.ciphertext },
+          data: {
+            id,
+            userId: scope.userId,
+            ...scopeFields(scope),
+            ...destination,
+            ciphertext: stored.ciphertext,
+          },
         });
     },
   };

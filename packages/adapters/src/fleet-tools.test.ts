@@ -18,6 +18,8 @@ type FakeBot = {
   name: string;
   spaceId?: string;
   userId?: string;
+  /** Another member's bot shared with the caller through a department. */
+  shared?: boolean;
   parentBotId?: string | null;
   archivedAt?: Date | null;
   modelProvider?: string | null;
@@ -57,6 +59,12 @@ function matches(value: unknown, condition: unknown): boolean {
   return value === condition;
 }
 
+/** The `botAccessWhereFor` shape: absent for owners, else own bots or department-shared ones. */
+function botAccessMatches(bot: FakeBot, where: Record<string, unknown>): boolean {
+  const access = where.OR as Array<{ userId?: string }> | undefined;
+  return !access || bot.userId === access[0]?.userId || bot.shared === true;
+}
+
 function fakeFleet(input: {
   bots?: FakeBot[];
   groups?: FakeGroup[];
@@ -64,10 +72,13 @@ function fakeFleet(input: {
   sections?: string[];
   effects?: Array<{ request: unknown; result: unknown }>;
   routines?: Array<Record<string, unknown>>;
+  /** The caller's space role; owners see every bot in the space. */
+  role?: "owner" | "member";
 }) {
   const bots = (input.bots ?? []).map((bot) => ({
     spaceId: "space-1",
     userId: "user-1",
+    shared: false,
     parentBotId: null,
     archivedAt: null,
     modelProvider: null,
@@ -83,12 +94,15 @@ function fakeFleet(input: {
   }));
   const groups = input.groups ?? [];
   const prisma = {
+    spaceMember: { findUnique: vi.fn(async () => ({ role: input.role ?? "member" })) },
     bot: {
-      findMany: vi.fn(async ({ where }: { where: Record<string, unknown> }) =>
-        bots.filter((bot) =>
-          Object.entries(where).every(([key, condition]) =>
-            matches(bot[key as keyof typeof bot], condition),
-          ),
+      findMany: vi.fn(async ({ where: { OR, ...where } }: { where: Record<string, unknown> }) =>
+        bots.filter(
+          (bot) =>
+            botAccessMatches(bot, { OR }) &&
+            Object.entries(where).every(([key, condition]) =>
+              matches(bot[key as keyof typeof bot], condition),
+            ),
         ),
       ),
       findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) =>
@@ -258,6 +272,25 @@ describe("prepareFleetRequest create_group", () => {
         bot_names: ["Scout", "Ghost"],
       }),
     ).toMatchObject({ ok: false });
+  });
+
+  it("resolves another user's bot when a department shares it or the caller owns the space", async () => {
+    const shared = fakeFleet({
+      bots: fleet.bots.map((bot) => (bot.id === "bot-foreign" ? { ...bot, shared: true } : bot)),
+    });
+    expect(
+      await prepareFleetRequest(shared.deps, run, "create_group", {
+        name: "Crew",
+        bot_ids: ["bot-scout", "bot-foreign"],
+      }),
+    ).toMatchObject({ ok: true });
+    const owner = fakeFleet({ ...fleet, role: "owner" });
+    expect(
+      await prepareFleetRequest(owner.deps, run, "create_group", {
+        name: "Crew",
+        bot_ids: ["bot-scout", "bot-foreign"],
+      }),
+    ).toMatchObject({ ok: true });
   });
 });
 

@@ -548,7 +548,8 @@ describe("schedule tool persistence", () => {
 });
 
 describe("schedule_create with a watch", () => {
-  function deps() {
+  /** The bot under `botAccessWhereFor`: owners see any bot, members their own or a shared one. */
+  function deps(bot = { userId: "user-1", shared: false }, role: "owner" | "member" = "member") {
     const create = vi.fn(async (args: { data: Record<string, unknown> }) => ({
       id: "routine-w",
       ...args.data,
@@ -560,7 +561,14 @@ describe("schedule_create with a watch", () => {
       deps: {
         prisma: {
           connection: { findMany: vi.fn(async () => []) },
-          bot: { findFirst: vi.fn(async () => ({ computer: null })) },
+          spaceMember: { findUnique: vi.fn(async () => ({ role })) },
+          bot: {
+            findFirst: vi.fn(async ({ where }: { where: { OR?: [{ userId: string }] } }) =>
+              !where.OR || bot.userId === where.OR[0].userId || bot.shared
+                ? { computer: null }
+                : null,
+            ),
+          },
           routine: { create },
         },
         events: { append: vi.fn(async () => undefined) },
@@ -620,20 +628,28 @@ describe("schedule_create with a watch", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("rejects a caller outside the bot owner boundary", async () => {
-    const { deps: d, create } = deps();
-    vi.mocked(d.prisma.bot.findFirst).mockResolvedValue(null);
-    const result = await createScheduleFromTool(d, {
-      ...base,
-      schedule: { watch: { kind: "command", command: "echo changed" } },
+  it("rejects another member's bot unless a department shares it or the caller owns the space", async () => {
+    const schedule = { watch: { kind: "command" as const, command: "echo changed" } };
+    const foreign = { userId: "user-2", shared: false };
+    const { deps: d, create } = deps(foreign);
+    expect(await createScheduleFromTool(d, { ...base, schedule })).toMatchObject({
+      error: "Bot not found.",
     });
-    expect(result).toMatchObject({ error: "Bot not found." });
     expect(d.prisma.bot.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: base.botId, spaceId: base.spaceId, userId: base.userId, archivedAt: null },
+        where: expect.objectContaining({ id: base.botId, spaceId: base.spaceId, archivedAt: null }),
       }),
     );
     expect(create).not.toHaveBeenCalled();
+
+    const shared = deps({ ...foreign, shared: true });
+    expect(await createScheduleFromTool(shared.deps, { ...base, schedule })).toMatchObject({
+      ok: true,
+    });
+    const owner = deps(foreign, "owner");
+    expect(await createScheduleFromTool(owner.deps, { ...base, schedule })).toMatchObject({
+      ok: true,
+    });
   });
 
   it("accepts the watch sent as JSON text", async () => {
