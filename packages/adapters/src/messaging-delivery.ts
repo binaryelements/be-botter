@@ -13,6 +13,7 @@ import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
   createThreadMessageInTransaction,
+  privateThread,
   runAsSystem,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -244,10 +245,11 @@ async function fanOutToPeers(
         where: { id: peer.identityId! },
       });
       if (!peerIdentity) continue;
-      const peerThread = await deps.prisma.thread.findFirst({
-        where: { botId: peerIdentity.botId },
-      });
-      if (!peerThread) continue;
+      const peerThread = await privateThread(
+        deps.prisma,
+        { id: peerIdentity.botId, spaceId: peerIdentity.spaceId },
+        peerIdentity.userId,
+      );
       const peerBot = await deps.prisma.bot.findUnique({
         where: { id: peerIdentity.botId },
         select: { name: true },

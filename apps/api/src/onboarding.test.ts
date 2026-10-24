@@ -23,7 +23,7 @@ function fixture(catalog: unknown[]) {
   };
   const deps = {
     prisma: {
-      bot: { findFirst: vi.fn(async () => ({ id: "bot", thread: { id: "thread" } })) },
+      bot: { findFirst: vi.fn(async () => ({ id: "bot", threads: [{ id: "thread" }] })) },
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(tx)),
     },
     events: { notify: vi.fn() },
@@ -171,7 +171,7 @@ it("rejects another user's group even in the same space", async () => {
   expect(tx.message.update).not.toHaveBeenCalled();
   expect(deps.prisma.bot.findFirst).toHaveBeenCalledWith(
     expect.objectContaining({
-      where: { id: "bot", spaceId: actor.spaceId, ...botAccessWhere(actor) },
+      where: { id: "bot", spaceId: actor.spaceId, ...botAccessWhere(actor), archivedAt: null },
     }),
   );
 });

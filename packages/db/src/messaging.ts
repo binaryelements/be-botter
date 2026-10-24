@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { displayName } from "@rakazo/core";
 import { bootstrapUserSpace, type SignupPolicyEnv } from "./bootstrap-user.js";
+import { privateThread } from "./bot-threads.js";
 import type { PrismaClient } from "./client.js";
 import { createRepos } from "./repos.js";
 
@@ -58,8 +59,11 @@ export async function provisionMessagingIdentity(
   const where = { provider_address: { provider, address } } as const;
   const existing = await prisma.messagingIdentity.findUnique({ where });
   if (existing) {
-    const thread = await prisma.thread.findFirst({ where: { botId: existing.botId } });
-    if (!thread) throw new Error(`messaging identity ${existing.id} has no thread`);
+    const thread = await privateThread(
+      prisma,
+      { id: existing.botId, spaceId: existing.spaceId },
+      existing.userId,
+    );
     return {
       provider,
       address,
@@ -130,8 +134,7 @@ export async function provisionMessagingIdentity(
     botId = bot.id;
   }
 
-  const thread = await prisma.thread.findFirst({ where: { botId } });
-  if (!thread) throw new Error(`bot ${botId} has no thread after createBot`);
+  const thread = await privateThread(prisma, { id: botId, spaceId }, user.id);
 
   try {
     await prisma.messagingIdentity.create({
@@ -156,8 +159,7 @@ export async function provisionMessagingIdentity(
     const winnerThread =
       winner.botId === botId
         ? thread
-        : await prisma.thread.findFirst({ where: { botId: winner.botId } });
-    if (!winnerThread) throw new Error(`bot ${winner.botId} has no thread`);
+        : await privateThread(prisma, { id: winner.botId, spaceId: winner.spaceId }, winner.userId);
     return {
       provider,
       address,

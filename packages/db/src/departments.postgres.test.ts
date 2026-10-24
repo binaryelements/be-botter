@@ -1,5 +1,6 @@
 import type { Actor } from "@rakazo/contracts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { homeThread } from "./bot-threads.js";
 import type { PrismaClient } from "./client.js";
 import { createDb } from "./client.js";
 import {
@@ -83,7 +84,7 @@ describePostgres("departments (PostgreSQL)", () => {
     });
     const createBot = async (name: string, color: string) => {
       const bot = await system.bot.create({ data: { spaceId, userId: ownerId, name, color } });
-      await system.thread.create({ data: { spaceId, userId: ownerId, botId: bot.id } });
+      await homeThread(system, bot);
       return bot.id;
     };
     itBotId = await createBot("IT Support", "#3B82F6");

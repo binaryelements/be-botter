@@ -477,7 +477,10 @@ model Bot {
   children          Bot[]             @relation("BotChildren")
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  thread            Thread?
+  /// The creator's private thread; background work (routines, messaging, computer, calls) lands here.
+  homeThreadId      String?           @unique
+  thread            Thread?           @relation("BotHomeThread", fields: [homeThreadId], references: [id], onDelete: SetNull)
+  threads           Thread[]          @relation("BotThreads")
   computerId        String?
   computer          Computer?         @relation(fields: [computerId], references: [id], onDelete: SetNull)
   computerSwitching Boolean           @default(false)
@@ -530,6 +533,7 @@ model Department {
   updatedAt DateTime         @updatedAt
   users     DepartmentUser[]
   bots      DepartmentBot[]
+  threads   Thread[]
 
   @@unique([spaceId, name])
   @@map("departments")
@@ -632,8 +636,14 @@ model Thread {
   id                          String     @id @default(cuid())
   spaceId                     String
   space                       Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  botId                       String?    @unique
-  bot                         Bot?       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  botId                       String?
+  bot                         Bot?       @relation("BotThreads", fields: [botId], references: [id], onDelete: Cascade)
+  /// The bot whose home thread this is (its creator's private thread).
+  homeOf                      Bot?       @relation("BotHomeThread")
+  /// Set on a department channel; null on a private thread. Partial unique indexes in the
+  /// migration keep one channel per bot per department and one private thread per bot per person.
+  departmentId                String?
+  department                  Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   groupId                     String?    @unique
   group                       ChatGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   externalConversationId      String?    @unique
@@ -653,9 +663,25 @@ model Thread {
   tasks                       Task[]
   runs                        Run[]
   routines                    Routine[]
+  reads                       ThreadRead[]
 
   @@index([spaceId])
+  @@index([botId])
+  @@index([departmentId])
   @@map("threads")
+}
+
+/// One reader's position in a thread several people share (a department channel).
+/// Private threads have one reader and keep `unread` and `lastReadSeq` on the thread.
+model ThreadRead {
+  threadId    String
+  thread      Thread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId      String
+  lastReadSeq Int     @default(-1)
+  unread      Boolean @default(false)
+
+  @@id([threadId, userId])
+  @@map("thread_reads")
 }
 
 model Message {

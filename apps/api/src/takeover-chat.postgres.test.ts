@@ -13,7 +13,14 @@ import {
 } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
-import { asSystem, createDb, createThreadEvents, runAsSystem, runAsTenant } from "@rakazo/db";
+import {
+  asSystem,
+  createDb,
+  createThreadEvents,
+  homeThread,
+  runAsSystem,
+  runAsTenant,
+} from "@rakazo/db";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
@@ -73,7 +80,7 @@ describePostgres("chat replies during screen takeover (PostgreSQL)", () => {
     const bot = await system.bot.create({
       data: { spaceId: id, userId: id, name: "Fixture", color: "test", computerId: computer.id },
     });
-    const thread = await system.thread.create({ data: { spaceId: id, userId: id, botId: bot.id } });
+    const thread = await homeThread(system, bot);
     const task = await system.task.create({
       data: {
         spaceId: id,

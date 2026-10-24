@@ -8,6 +8,7 @@ import {
   ringingCall,
   userVisibleMessages,
 } from "@rakazo/core";
+import { privateThread } from "./bot-threads.js";
 import type { PrismaClient } from "./client.js";
 import type { ComputerMode } from "./computers.js";
 import { ensureComputerRecord, parseComputerMode } from "./computers.js";
@@ -50,6 +51,11 @@ function rosterRunErrorId(
 
 // Roster rows show when the chat last moved. Bot.updatedAt also moves on settings, pin,
 // section and reorder writes, so the newest message's time wins when the chat has one.
+/** The actor's own thread with a bot, as a filtered include in place of the home thread. */
+function ownThread(actor: Actor) {
+  return { where: { userId: actor.userId, departmentId: null }, take: 1 } as const;
+}
+
 function rosterUpdatedAt(newestMessage: { createdAt: Date } | undefined, botUpdatedAt: Date) {
   return newestMessage?.createdAt ?? botUpdatedAt;
 }
@@ -179,7 +185,8 @@ export function createRepos(
         sectionId: true,
         updatedAt: true,
         parentBotId: true,
-        thread: {
+        threads: {
+          ...ownThread(actor),
           select: {
             unread: true,
             messages: {
@@ -195,7 +202,8 @@ export function createRepos(
       orderBy: [{ pinned: "desc" }, { position: "asc" }, { createdAt: "asc" }],
     });
     return bots.map((bot) => {
-      if (!bot.thread) throw new IsolationError("Bot is missing its thread");
+      // A bot the actor has not opened yet has no thread of theirs: nothing to preview.
+      const thread = bot.threads[0];
       return {
         id: bot.id,
         spaceId: bot.spaceId,
@@ -205,12 +213,12 @@ export function createRepos(
         notifyOnFinish: bot.notifyOnFinish,
         pinned: bot.pinned,
         sectionId: bot.sectionId,
-        unread: bot.thread.unread,
+        unread: thread?.unread ?? false,
         parentBotId: bot.parentBotId,
-        preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
+        preview: previewFromBlocks(thread?.messages[0]?.blocks),
         status: bot.runs[0]?.status ?? "idle",
-        runErrorId: rosterRunErrorId(bot.thread.runs[0], bot.runs[0]),
-        updatedAt: rosterUpdatedAt(bot.thread.messages[0], bot.updatedAt).toISOString(),
+        runErrorId: rosterRunErrorId(thread?.runs[0], bot.runs[0]),
+        updatedAt: rosterUpdatedAt(thread?.messages[0], bot.updatedAt).toISOString(),
       };
     });
   }
@@ -347,25 +355,32 @@ export function createRepos(
     },
 
     async listBots(actor: Actor, options: { archived?: boolean } = {}): Promise<Bot[]> {
+      const rows = await prisma.bot.findMany({
+        where: {
+          spaceId: actor.spaceId,
+          ...botAccessWhere(actor),
+          archivedAt: options.archived ? { not: null } : null,
+        },
+        include: {
+          threads: { ...ownThread(actor), include: { runs: latestBotRunSelection } },
+          runs: activeRunSelection,
+          computer: { select: { scope: true } },
+        },
+        orderBy: [{ pinned: "desc" }, { position: "asc" }, { createdAt: "asc" }],
+      });
       const bots = await withNewestThreadMessages(
         prisma,
-        await prisma.bot.findMany({
-          where: {
-            spaceId: actor.spaceId,
-            ...botAccessWhere(actor),
-            archivedAt: options.archived ? { not: null } : null,
-          },
-          include: {
-            thread: {
-              include: {
-                runs: latestBotRunSelection,
-              },
-            },
-            runs: activeRunSelection,
-            computer: { select: { scope: true } },
-          },
-          orderBy: [{ pinned: "desc" }, { position: "asc" }, { createdAt: "asc" }],
-        }),
+        await Promise.all(
+          rows.map(async ({ threads, ...bot }) => ({
+            ...bot,
+            thread:
+              threads[0] ??
+              (await prisma.thread.findUniqueOrThrow({
+                where: await privateThread(prisma, bot, actor.userId),
+                include: { runs: latestBotRunSelection },
+              })),
+          })),
+        ),
         SIDEBAR_PREVIEW_MESSAGE_WINDOW,
       );
       const callThreadIds = capabilities.phoneCallsEnabled
@@ -482,10 +497,18 @@ export function createRepos(
           ...botAccessWhere(actor),
           ...(options.includeArchived ? {} : { archivedAt: null }),
         },
-        include: { thread: true, computer: true },
+        include: { threads: ownThread(actor), computer: true },
       });
       if (!bot) throw new IsolationError();
-      return bot;
+      const { threads, ...rest } = bot;
+      return {
+        ...rest,
+        thread:
+          threads[0] ??
+          (await prisma.thread.findUniqueOrThrow({
+            where: await privateThread(prisma, bot, actor.userId),
+          })),
+      };
     },
 
     async createBot(
@@ -589,6 +612,7 @@ export function createRepos(
               userId: actor.userId,
             },
           });
+          await tx.bot.update({ where: { id: created.id }, data: { homeThreadId: thread.id } });
           if (input.initialMessage) {
             await createThreadMessageInTransaction(tx, {
               threadId: thread.id,

@@ -1331,7 +1331,7 @@ describeIntegration("run executor lifecycle", () => {
       notifyOnFinish: false,
     });
     if (computerMode) await rpc(cookie, "bots/setComputer", { botId: bot.id, mode: computerMode });
-    const thread = await db.thread.findUniqueOrThrow({ where: { botId: bot.id } });
+    const thread = await db.thread.findFirstOrThrow({ where: { homeOf: { id: bot.id } } });
     const task = await db.task.create({
       data: {
         spaceId: me.spaceId,

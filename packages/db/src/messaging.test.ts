@@ -58,7 +58,7 @@ describe("provisionMessagingIdentity", () => {
     expect(prisma.messagingIdentity.findUnique).not.toHaveBeenCalled();
   });
 
-  it("throws instead of returning an empty thread id when the thread is missing", async () => {
+  it("creates the texter's private thread with the bot when none exists yet", async () => {
     const existing = {
       id: "mi-1",
       provider: "sendblue",
@@ -75,15 +75,21 @@ describe("provisionMessagingIdentity", () => {
     };
     const prisma = {
       messagingIdentity: { findUnique: vi.fn(async () => existing) },
-      thread: { findFirst: vi.fn(async () => null) },
+      thread: {
+        findFirst: vi.fn(async () => null),
+        create: vi.fn(async () => ({ id: "thread-new" })),
+      },
     };
-    await expect(
-      provisionMessagingIdentity(
-        prisma as unknown as PrismaClient,
-        { provider: "sendblue", address: "+15551234567" },
-        { signupsEnabled: undefined, signupAllowlist: undefined },
-      ),
-    ).rejects.toThrow(/thread/i);
+    const result = await provisionMessagingIdentity(
+      prisma as unknown as PrismaClient,
+      { provider: "sendblue", address: "+15551234567" },
+      { signupsEnabled: undefined, signupAllowlist: undefined },
+    );
+    expect(result.threadId).toBe("thread-new");
+    expect(prisma.thread.create).toHaveBeenCalledWith({
+      data: { spaceId: "ws-1", botId: "bot-1", userId: "user-1", departmentId: null },
+      select: { id: true },
+    });
   });
 });
 

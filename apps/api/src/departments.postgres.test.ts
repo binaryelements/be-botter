@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComposioConnector, FakeComposioClient } from "@rakazo/adapters";
 import type { Department, Me, SpaceNavigation } from "@rakazo/contracts";
-import { asSystem } from "@rakazo/db";
+import { asSystem, homeThread } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { createApp } from "./app.js";
 
@@ -114,9 +114,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       const bot = await db.bot.create({
         data: { spaceId: companySpaceId, userId: owner.userId, name, color: "#3B82F6" },
       });
-      await db.thread.create({
-        data: { spaceId: companySpaceId, userId: owner.userId, botId: bot.id },
-      });
+      await homeThread(db, bot);
       return bot.id;
     };
     itBotId = await createBot("IT Support");
@@ -222,7 +220,18 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     expect(await status(app, staff.cookie, "bots/get", { botId: chiefBotId }, companySpaceId)).toBe(
       404,
     );
-    await rpc(app, staff.cookie, "threads/get", { botId: itBotId }, companySpaceId);
+    // The owner's conversation stays theirs; the member gets a private thread of their own.
+    const home = await db.thread.findFirstOrThrow({ where: { homeOf: { id: itBotId } } });
+    await rpc(app, owner.cookie, "threads/send", { botId: itBotId, text: "Owner note" });
+    const mine = await rpc<{ threadId: string; messages: unknown[] }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(mine.threadId).not.toBe(home.id);
+    expect(mine.messages).toEqual([]);
     const sent = await rpc<{ runId: string }>(
       app,
       staff.cookie,
@@ -233,11 +242,36 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     const run = await db.run.findUniqueOrThrow({ where: { id: sent.runId } });
     expect(run.userId).toBe(staff.userId);
     expect(run.botId).toBe(itBotId);
+    expect(run.threadId).toBe(mine.threadId);
+    const ownerView = await rpc<{ threadId: string; messages: unknown[] }>(
+      app,
+      owner.cookie,
+      "threads/get",
+      { botId: itBotId },
+    );
+    expect(ownerView.threadId).toBe(home.id);
+    expect(JSON.stringify(ownerView.messages)).not.toContain("Hello from IT");
+    const staffBot = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "bots/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(staffBot.threadId).toBe(mine.threadId);
+    const again = await rpc<{ threadId: string }>(
+      app,
+      staff.cookie,
+      "threads/get",
+      { botId: itBotId },
+      companySpaceId,
+    );
+    expect(again.threadId).toBe(mine.threadId);
   });
 
   it("lets the member use what belongs to the shared bot and nothing of the private one", async () => {
     const seed = async (botId: string, label: string) => {
-      const thread = await db.thread.findUniqueOrThrow({ where: { botId } });
+      const thread = await db.thread.findFirstOrThrow({ where: { homeOf: { id: botId } } });
       const base = { spaceId: companySpaceId, botId, userId: owner.userId };
       const routine = await db.routine.create({
         data: { ...base, name: `${label} routine`, prompt: `Check ${label}`, crons: [] },
