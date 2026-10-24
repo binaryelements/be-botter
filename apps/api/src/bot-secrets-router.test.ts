@@ -368,7 +368,7 @@ describe("botSecrets router", () => {
     expect(removed.status).toBe(200);
     expect(removed.body.json).toEqual({ ok: true });
     expect(owned.prisma.botSecret.deleteMany).toHaveBeenCalledWith({
-      where: { userId: "user-1", spaceId: "space-1", botId: "bot-1", name: "Legacy Name" },
+      where: { spaceId: "space-1", botId: "bot-1", name: "Legacy Name" },
     });
 
     const foreign = botSecretDeps([], member);
@@ -383,7 +383,7 @@ describe("botSecrets router", () => {
     expect(result.status).toBe(200);
     expect(result.body.json).toEqual({ ok: true });
     expect(prisma.botSecret.deleteMany).toHaveBeenCalledWith({
-      where: { userId: "user-1", spaceId: "space-1", botId: "bot-1", name: "router" },
+      where: { spaceId: "space-1", botId: "bot-1", name: "router" },
     });
   });
   it("stores a command variable with no origin and lists it with its type", async () => {

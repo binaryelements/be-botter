@@ -143,7 +143,17 @@ describe("ticket tools", () => {
   });
 });
 
-function mutationDeps(ticketBoardEnabled = true) {
+/** Bots in the space: the acting user's own, and another member's that a department may share. */
+const spaceBots = [
+  { id: "bot-1", spaceId: "ws", userId: "user-1", shared: false },
+  { id: "bot-2", spaceId: "ws", userId: "user-1", shared: false },
+  { id: "other-members-bot", spaceId: "ws", userId: "user-2", shared: false },
+];
+
+function mutationDeps(
+  ticketBoardEnabled = true,
+  access: { role?: "owner" | "member"; sharedBotIds?: string[] } = {},
+) {
   let current = ticket();
   const changes = vi.fn(async (_change: { wakeAssignee: boolean }) => {});
   const tx = {
@@ -173,7 +183,21 @@ function mutationDeps(ticketBoardEnabled = true) {
   };
   const prisma = {
     ...boardSpace(),
-    bot: { findFirst: vi.fn(async () => ({ id: "bot-2" })) },
+    spaceMember: { findUnique: vi.fn(async () => ({ role: access.role ?? "member" })) },
+    bot: {
+      // `botAccessWhereFor` shape: no OR for owners, else own bots or department-shared ones.
+      findFirst: vi.fn(
+        async ({ where }: { where: { id: string; spaceId: string; OR?: [{ userId: string }] } }) =>
+          spaceBots.find(
+            (bot) =>
+              bot.id === where.id &&
+              bot.spaceId === where.spaceId &&
+              (!where.OR ||
+                bot.userId === where.OR[0].userId ||
+                access.sharedBotIds?.includes(bot.id)),
+          ) ?? null,
+      ),
+    },
     ticket: tx.ticket,
     ticketComment: { findMany: vi.fn(async () => []) },
     $transaction: vi.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)),
@@ -287,9 +311,8 @@ describe("ticket mutations", () => {
       where: { number: 1, spaceId: "ws", boardId: "board-1" },
     });
   });
-  it("only assigns the acting user's own bots", async () => {
+  it("refuses another member's bot unless a department shares it or the caller owns the space", async () => {
     const s = mutationDeps();
-    s.prisma.bot.findFirst.mockResolvedValue(null as never);
     await expect(
       createTicket(s.deps, {
         spaceId: "ws",
@@ -307,22 +330,31 @@ describe("ticket mutations", () => {
         ownerBotId: "other-members-bot",
       }),
     ).resolves.toEqual({ error: "Unknown bot." });
-    for (const [query] of s.prisma.bot.findFirst.mock.calls as unknown as [unknown][]) {
-      expect(query).toEqual({
-        where: { id: "other-members-bot", spaceId: "ws", userId: "user-1", archivedAt: null },
-        select: { id: true },
-      });
-    }
     expect(s.prisma.bot.findFirst).toHaveBeenCalledTimes(2);
     expect(s.prisma.$transaction).not.toHaveBeenCalled();
     expect(s.changes).not.toHaveBeenCalled();
+
+    for (const access of [{ sharedBotIds: ["other-members-bot"] }, { role: "owner" as const }]) {
+      const allowed = mutationDeps(true, access);
+      await expect(
+        createTicket(allowed.deps, {
+          spaceId: "ws",
+          botId: "bot-1",
+          userId: "user-1",
+          title: "Ship",
+          ownerBotId: "other-members-bot",
+        }),
+      ).resolves.toEqual({
+        ticket: expect.objectContaining({ assigneeBotId: "other-members-bot" }),
+      });
+      expect(allowed.changes).toHaveBeenCalledWith(expect.objectContaining({ wakeAssignee: true }));
+    }
   });
   it("rejects invalid input and foreign owners before a write", async () => {
     const s = mutationDeps();
     await expect(
       createTicket(s.deps, { spaceId: "ws", userId: "user-1", botId: "bot-1", title: " " }),
     ).resolves.toHaveProperty("error");
-    s.prisma.bot.findFirst.mockResolvedValueOnce(null as never);
     await expect(
       updateTicket(s.deps, { spaceId: "ws", userId: "user-1", id: "t1", ownerBotId: "foreign" }),
     ).resolves.toHaveProperty("error");

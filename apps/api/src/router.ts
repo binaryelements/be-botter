@@ -199,6 +199,9 @@ import type {
 import {
   appendEventInTransaction,
   BotSectionNameConflictError,
+  botAccessWhere,
+  botOrOwnWhere,
+  botOwnedWhere,
   botProfileLabelsChanged,
   CannotDeleteDefaultSpaceError,
   CannotDeleteLastSpaceError,
@@ -3081,14 +3084,14 @@ export function createRouter(deps: RouterDeps) {
             status: { in: ["queued", "running", "interrupted", "failed"] },
             computer: {
               spaceId: context.actor.spaceId,
-              bots: { some: { userId: context.actor.userId, archivedAt: null } },
+              bots: { some: { ...botAccessWhere(context.actor), archivedAt: null } },
             },
           },
           include: {
             computer: {
               include: {
                 bots: {
-                  where: { userId: context.actor.userId, archivedAt: null },
+                  where: { ...botAccessWhere(context.actor), archivedAt: null },
                   select: { id: true, name: true },
                 },
               },
@@ -3109,7 +3112,7 @@ export function createRouter(deps: RouterDeps) {
               status: "interrupted",
               computer: {
                 spaceId: context.actor.spaceId,
-                bots: { some: { userId: context.actor.userId, archivedAt: null } },
+                bots: { some: { ...botAccessWhere(context.actor), archivedAt: null } },
               },
             },
           });
@@ -3134,7 +3137,7 @@ export function createRouter(deps: RouterDeps) {
             status: "failed",
             computer: {
               spaceId: context.actor.spaceId,
-              bots: { some: { userId: context.actor.userId, archivedAt: null } },
+              bots: { some: { ...botAccessWhere(context.actor), archivedAt: null } },
             },
           },
           data: { status: "dismissed" },
@@ -3636,7 +3639,7 @@ export function createRouter(deps: RouterDeps) {
         const docs = await deps.prisma.memoryDocument.findMany({
           where: {
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOrOwnWhere(context.actor),
             ...(input.botId ? { botId: input.botId } : {}),
             ...(input.scope ? { scope: input.scope } : {}),
           },
@@ -3656,7 +3659,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.documentId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOrOwnWhere(context.actor),
           },
         });
         if (!doc) throw new IsolationError();
@@ -3698,7 +3701,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.documentId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOrOwnWhere(context.actor),
           },
         });
         if (!doc) throw new IsolationError();
@@ -3728,7 +3731,7 @@ export function createRouter(deps: RouterDeps) {
         const docs = await deps.prisma.memoryDocument.findMany({
           where: {
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOrOwnWhere(context.actor),
             ...(input.botId ? { botId: input.botId } : {}),
           },
         });
@@ -3832,7 +3835,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.routineId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOwnedWhere(context.actor),
             bot: { archivedAt: null },
           },
         });
@@ -4006,7 +4009,7 @@ export function createRouter(deps: RouterDeps) {
                   where: {
                     id: existing.id,
                     spaceId: context.actor.spaceId,
-                    userId: context.actor.userId,
+                    ...botOwnedWhere(context.actor),
                     bot: { archivedAt: null },
                   },
                   select: { id: true },
@@ -4056,7 +4059,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.routineId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOwnedWhere(context.actor),
           },
         });
         if (!routine) throw new IsolationError();
@@ -4165,7 +4168,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.itemId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOwnedWhere(context.actor),
           },
         });
         if (!existing) throw new IsolationError();
@@ -4187,7 +4190,7 @@ export function createRouter(deps: RouterDeps) {
           where: {
             id: input.itemId,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOwnedWhere(context.actor),
           },
         });
         if (!existing) throw new IsolationError();
@@ -4946,7 +4949,7 @@ export function createRouter(deps: RouterDeps) {
             where: {
               id: input.botId,
               spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
+              ...botAccessWhere(context.actor),
             },
             select: { id: true },
           });
@@ -4978,7 +4981,7 @@ export function createRouter(deps: RouterDeps) {
                   where: {
                     id: input.botId,
                     spaceId: context.actor.spaceId,
-                    userId: context.actor.userId,
+                    ...botAccessWhere(context.actor),
                   },
                   select: { id: true },
                 }),
@@ -5028,7 +5031,7 @@ export function createRouter(deps: RouterDeps) {
               where: {
                 id: input.botId,
                 spaceId: context.actor.spaceId,
-                userId: context.actor.userId,
+                ...botAccessWhere(context.actor),
               },
               select: { id: true },
             });
@@ -6126,7 +6129,7 @@ export function createRouter(deps: RouterDeps) {
             where: {
               id: input.botId,
               spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
+              ...botAccessWhere(context.actor),
               archivedAt: null,
             },
             select: { id: true },
@@ -6166,7 +6169,7 @@ export function createRouter(deps: RouterDeps) {
             where: {
               id: input.botId,
               spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
+              ...botAccessWhere(context.actor),
               archivedAt: null,
             },
             select: { id: true },
@@ -6527,7 +6530,7 @@ export function createRouter(deps: RouterDeps) {
             botId: input.botId,
             groupId: null,
             spaceId: context.actor.spaceId,
-            userId: context.actor.userId,
+            ...botOrOwnWhere(context.actor),
           },
         });
         return rows.map((row) => ({

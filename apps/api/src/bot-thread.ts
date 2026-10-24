@@ -1,6 +1,6 @@
 import type { Actor, MessageBlock } from "@rakazo/contracts";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
-import { appendEventInTransaction, IsolationError } from "@rakazo/db";
+import { appendEventInTransaction, botAccessWhere, IsolationError } from "@rakazo/db";
 
 /** Minimal dependency surface for helpers that update a bot's thread cards. */
 export type BotThreadDeps = {
@@ -10,7 +10,7 @@ export type BotThreadDeps = {
 
 export async function requireBotThread(deps: BotThreadDeps, actor: Actor, botId: string) {
   const bot = await deps.prisma.bot.findFirst({
-    where: { id: botId, spaceId: actor.spaceId, userId: actor.userId },
+    where: { id: botId, spaceId: actor.spaceId, ...botAccessWhere(actor) },
     include: { thread: true },
   });
   if (!bot?.thread) throw new IsolationError();

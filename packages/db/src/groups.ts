@@ -10,6 +10,7 @@ import { displayName } from "@rakazo/core";
 import { cancelRunsInTransaction } from "./cancel-runs.js";
 import type { Prisma, PrismaClient } from "./client.js";
 import { expireComputerExecutionLeases, restoreBotUnderComputerQuota } from "./computers.js";
+import { botAccessWhere } from "./departments.js";
 import { withNewestThreadMessages } from "./preview-messages.js";
 import { IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
@@ -113,7 +114,7 @@ async function assertOwnedBots(
     where: {
       id: { in: unique },
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botAccessWhere(actor),
       archivedAt: null,
     },
     select: { id: true, name: true, color: true },

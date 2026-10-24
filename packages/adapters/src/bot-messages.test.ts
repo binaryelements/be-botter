@@ -62,6 +62,7 @@ function deps(
   };
   let transactionAttempts = 0;
   const prisma = {
+    spaceMember: { findUnique: vi.fn().mockResolvedValue({ role: "member" }) },
     bot: {
       findMany: vi
         .fn()

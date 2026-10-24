@@ -8,7 +8,15 @@ import {
   snippetAroundMatch,
 } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
-import { contentEncryptionOf, INDEXED_MESSAGE, Prisma, UNINDEXED_MESSAGE } from "@rakazo/db";
+import {
+  accessibleBotIds,
+  botAccessWhere,
+  botOwnedWhere,
+  contentEncryptionOf,
+  INDEXED_MESSAGE,
+  Prisma,
+  UNINDEXED_MESSAGE,
+} from "@rakazo/db";
 
 const SEARCH_LIMIT = 25;
 /** Cap name matches so content hits (messages/files/links/routines) keep most of the budget. */
@@ -58,6 +66,9 @@ async function findArtifactMessages(
 ): Promise<Map<string, { id: string; seq: number }>> {
   if (artifacts.length === 0) return new Map();
   const targetColumn = target === "bot" ? Prisma.sql`t."botId"` : Prisma.sql`t."groupId"`;
+  // Group threads are the actor's own; a bot's thread is shared with its departments.
+  const ownerFilter =
+    target === "bot" ? Prisma.empty : Prisma.sql`AND t."userId" = ${actor.userId}`;
   const candidates = Prisma.join(
     artifacts.map(({ id, targetId }) => Prisma.sql`(${id}, ${targetId})`),
   );
@@ -69,8 +80,7 @@ async function findArtifactMessages(
         SELECT m.id, m.seq
         FROM messages m
         INNER JOIN threads t ON t.id = m."threadId"
-        WHERE t."spaceId" = ${actor.spaceId}
-          AND t."userId" = ${actor.userId}
+        WHERE t."spaceId" = ${actor.spaceId} ${ownerFilter}
           AND ${targetColumn} = candidate."targetId"
           AND m.blocks::text ILIKE ('%' || candidate."artifactId" || '%')
         ORDER BY m."createdAt" DESC
@@ -115,7 +125,7 @@ export async function querySpaceSearch(
   const bots = await prisma.bot.findMany({
     where: {
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botAccessWhere(actor),
       archivedAt: null,
       OR: [
         { name: { contains: likeQuery, mode: "insensitive" } },
@@ -244,7 +254,7 @@ export async function querySpaceSearch(
   const routines = await prisma.routine.findMany({
     where: {
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOwnedWhere(actor),
       OR: [
         { name: { contains: likeQuery, mode: "insensitive" } },
         { prompt: { contains: likeQuery, mode: "insensitive" } },
@@ -271,7 +281,8 @@ export async function querySpaceSearch(
 
   const match = await messageMatch(prisma, actor.spaceId, query);
   const full = () => contentHits.length >= contentBudget;
-  for (let page = 0; page < match.pages && !full(); page += 1) {
+  const botIds = await accessibleBotIds(prisma, actor);
+  for (let page = 0; botIds.length > 0 && page < match.pages && !full(); page += 1) {
     const messageRows = await openMessages(
       prisma,
       await prisma.$queryRaw<
@@ -289,7 +300,7 @@ export async function querySpaceSearch(
       INNER JOIN threads t ON t.id = m."threadId"
       INNER JOIN bots b ON b.id = t."botId"
       WHERE t."spaceId" = ${actor.spaceId}
-        AND t."userId" = ${actor.userId}
+        AND b.id IN (${Prisma.join(botIds)})
         AND b."archivedAt" IS NULL
         AND ${match.sql}
       ORDER BY m."createdAt" DESC, m.id DESC

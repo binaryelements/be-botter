@@ -27,6 +27,7 @@ import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   answerWaitingRunWithTextInTransaction,
   appendEventInTransaction,
+  botOrOwnWhere,
   createGroupRepos,
   createRepos,
   createThreadMessageInTransaction,
@@ -1420,7 +1421,7 @@ export async function markThreadRead(
   actor: Actor,
   target: ThreadTarget,
 ): Promise<number | null> {
-  const where = { id: target.threadId, spaceId: actor.spaceId, userId: actor.userId };
+  const where = { id: target.threadId, spaceId: actor.spaceId, ...botOrOwnWhere(actor) };
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const thread = await prisma.thread.findFirst({
       where,
@@ -1470,7 +1471,7 @@ export async function setThreadUnreadState(
     where: {
       id: target.threadId,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
       unread: { not: unread },
     },
     data: { unread },

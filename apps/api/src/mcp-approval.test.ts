@@ -94,7 +94,7 @@ describe("resolveMcpApprovalCards", () => {
       where: {
         id: "group-thread",
         spaceId: "space",
-        userId: "user",
+        AND: {},
         OR: [{ botId: "bot" }, { group: { members: { some: { botId: "bot" } } } }],
       },
       select: { id: true, botId: true },
@@ -126,7 +126,6 @@ describe("resolveMcpApprovalCards", () => {
       where: {
         id: "group-thread",
         spaceId: "space",
-        userId: "user",
         groupId: { not: null },
       },
       select: { id: true, botId: true },
@@ -216,7 +215,7 @@ describe("resolveMcpApprovalCards", () => {
     expect(deps.prisma.thread.findMany).toHaveBeenCalledWith({
       where: {
         spaceId: "space",
-        userId: "user",
+        AND: {},
         OR: [{ botId: "bot" }, { groupId: { not: null }, messages: { some: { botId: "bot" } } }],
       },
       select: { id: true, botId: true },
@@ -270,7 +269,7 @@ describe("resolveMcpApprovalCards", () => {
     expect(deps.prisma.thread.findMany).not.toHaveBeenCalled();
     expect(tx.message.findMany).toHaveBeenCalledWith({
       where: {
-        thread: { spaceId: "space", userId: "user" },
+        thread: { spaceId: "space" },
         blocks: { array_contains: [{ kind: "mcp_approval", serverId: "srv-a" }] },
       },
       select: {

@@ -233,7 +233,7 @@ export function createRepos(
               where: {
                 id: input.botId,
                 spaceId: actor.spaceId,
-                userId: actor.userId,
+                ...botAccessWhere(actor),
                 archivedAt: null,
               },
               select: { id: true },
@@ -676,7 +676,7 @@ export function createRepos(
         const bots = await tx.bot.findMany({
           where: {
             spaceId: actor.spaceId,
-            userId: actor.userId,
+            ...botAccessWhere(actor),
             archivedAt: null,
           },
           select: { id: true },

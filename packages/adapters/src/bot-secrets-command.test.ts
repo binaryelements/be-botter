@@ -493,8 +493,12 @@ describe("shell command environment", () => {
     expect(await loadBotCommandEnvironment(db.prisma, secretStore, scope)).toEqual({
       CLI_TOKEN: "fake-cli-token-1",
     });
+    // A run started by someone else who may use this bot gets the bot's variables; another space gets nothing.
     expect(
       await loadBotCommandEnvironment(db.prisma, secretStore, { ...scope, userId: "user-2" }),
+    ).toEqual({ CLI_TOKEN: "fake-cli-token-1" });
+    expect(
+      await loadBotCommandEnvironment(db.prisma, secretStore, { ...scope, spaceId: "space-2" }),
     ).toEqual({});
   });
 });

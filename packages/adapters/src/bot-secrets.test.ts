@@ -112,7 +112,15 @@ describe("authenticated secret requests", () => {
     },
   );
 
-  it.each(["userId", "spaceId", "botId"] as const)(
+  it("lets another person who may use the bot send with its credential", async () => {
+    const { input, fetch } = await fixture();
+    fetch.mockImplementation(async () => Response.json({ ok: true }));
+    const result = await requestWithBotSecret({ ...input, scope: { ...scope, userId: "other" } });
+    expect(result).toMatchObject({ status: 200 });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["spaceId", "botId"] as const)(
     "denies a different %s before decrypting or sending",
     async (key) => {
       const { input, fetch } = await fixture();

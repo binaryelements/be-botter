@@ -1,6 +1,11 @@
 import type { Actor, MessageBlock } from "@rakazo/contracts";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
-import { appendEventInTransaction, IsolationError, withTransactionRetry } from "@rakazo/db";
+import {
+  appendEventInTransaction,
+  botOrOwnWhere,
+  IsolationError,
+  withTransactionRetry,
+} from "@rakazo/db";
 import { requireBotThread } from "./bot-thread.js";
 
 /** Dependencies for resolving pending MCP approval cards in a bot's threads. */
@@ -47,7 +52,7 @@ async function threadsForDecision(
     where: {
       id: input.threadId,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOrOwnWhere(actor),
       OR: [{ botId: input.botId }, { group: { members: { some: { botId: input.botId } } } }],
     },
     select: { id: true, botId: true },
@@ -65,7 +70,7 @@ async function threadsForDecision(
     where: {
       id: input.threadId,
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      ...botOrOwnWhere(actor),
       groupId: { not: null },
     },
     select: { id: true, botId: true },
@@ -82,7 +87,7 @@ async function threadsForBot(
   return db.thread.findMany({
     where: {
       spaceId: actor.spaceId,
-      userId: actor.userId,
+      AND: botOrOwnWhere(actor),
       OR: [{ botId }, { groupId: { not: null }, messages: { some: { botId } } }],
     },
     select: { id: true, botId: true },
@@ -210,7 +215,7 @@ async function closeServerCards(
 ): Promise<ThreadSeq[]> {
   const messages = await client.message.findMany({
     where: {
-      thread: { spaceId: actor.spaceId, userId: actor.userId },
+      thread: { spaceId: actor.spaceId, ...botOrOwnWhere(actor) },
       blocks: { array_contains: [{ kind: "mcp_approval", serverId }] },
     },
     select: {

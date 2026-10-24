@@ -9,6 +9,7 @@ import {
   ONCE_ROUTINE_CRON,
 } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
+import { botAccessWhereFor } from "@rakazo/db";
 
 import { validateRoutineWatch } from "./routine-watch.js";
 
@@ -323,7 +324,12 @@ async function createWatchFromTool(
   try {
     // Match routine editing's owner/space boundary before creating unattended work.
     const bot = await deps.prisma.bot.findFirst({
-      where: { id: input.botId, spaceId: input.spaceId, userId: input.userId, archivedAt: null },
+      where: {
+        id: input.botId,
+        spaceId: input.spaceId,
+        ...(await botAccessWhereFor(deps.prisma, input)),
+        archivedAt: null,
+      },
       include: { computer: true },
     });
     if (!bot) return { error: "Bot not found." };

@@ -1,5 +1,6 @@
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
+import { botOrOwnWhere } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import type { ThreadTarget } from "./thread-target.js";
 import { markThreadRead } from "./thread-target.js";
@@ -28,8 +29,9 @@ function threadStore(initial: Row, beforeWrite?: (row: Row) => void) {
     row = { ...row, ...data };
     return { count: 1 };
   });
-  const findFirst = vi.fn(async ({ where }: { where: Record<string, string> }) =>
-    where.userId === actor.userId && where.spaceId === actor.spaceId ? { ...row } : null,
+  const access = JSON.stringify(botOrOwnWhere(actor).OR);
+  const findFirst = vi.fn(async ({ where }: { where: Record<string, unknown> }) =>
+    JSON.stringify(where.OR) === access && where.spaceId === actor.spaceId ? { ...row } : null,
   );
   const prisma = { thread: { findFirst, updateMany } } as unknown as PrismaClient;
   return { prisma, updateMany, row: () => row };
@@ -44,7 +46,7 @@ describe("markThreadRead", () => {
       where: {
         id: "thread-1",
         spaceId: "space-1",
-        userId: "user-1",
+        ...botOrOwnWhere(actor),
         lastReadSeq: 3,
         nextMessageSeq: 7,
       },

@@ -23,7 +23,11 @@ function fixture(count: number) {
     group: { name: "Group" },
   }));
   const prisma = {
-    bot: { findMany: vi.fn().mockResolvedValue([]) },
+    bot: {
+      findMany: vi.fn(async ({ select }: { select?: Record<string, boolean> }) =>
+        select && Object.keys(select).join() === "id" ? [{ id: "bot-0" }] : [],
+      ),
+    },
     chatGroup: { findMany: vi.fn().mockResolvedValue([]) },
     artifact: {
       findMany: vi.fn().mockResolvedValueOnce(artifacts).mockResolvedValueOnce(groupArtifacts),
@@ -44,9 +48,11 @@ describe("artifact search batching", () => {
     const group = prisma.$queryRaw.mock.calls[1]?.[0];
     expect(direct.text).toContain('t."botId" = candidate."targetId"');
     expect(group.text).toContain('t."groupId" = candidate."targetId"');
+    // A bot's thread is shared with its departments; a group thread is the actor's own.
+    expect(direct.values).not.toContain(actor.userId);
+    expect(group.values).toContain(actor.userId);
     for (const query of [direct, group]) {
       expect(query.values).toContain(actor.spaceId);
-      expect(query.values).toContain(actor.userId);
       expect(query.text).toContain('ORDER BY m."createdAt" DESC');
     }
   });

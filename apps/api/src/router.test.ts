@@ -26,6 +26,7 @@ import type { Actor, Bot, ProductEvent } from "@rakazo/contracts";
 import { REPLY_QUOTE_MAX_LENGTH } from "@rakazo/contracts";
 import { openScreenCapability } from "@rakazo/core/node/screen-capability";
 import type { PrismaClient } from "@rakazo/db";
+import { botOrOwnWhere, botOwnedWhere } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
@@ -3183,7 +3184,7 @@ describe("interrupted computer reservation release", () => {
       where: {
         id: "update-1",
         status: "interrupted",
-        computer: { spaceId: "space-1", bots: { some: { userId: "user-1", archivedAt: null } } },
+        computer: { spaceId: "space-1", bots: { some: { archivedAt: null } } },
       },
     });
     expect(computerUpdate.updateMany).toHaveBeenCalledWith({
@@ -7057,7 +7058,11 @@ describe("memory documents", () => {
     });
     await expect(client.memory.remove({ documentId: "doc-1" })).resolves.toEqual({ ok: true });
     expect(memoryDocument.findFirst).toHaveBeenCalledWith({
-      where: { id: "doc-1", spaceId: "space-1", userId: "user-1" },
+      where: {
+        id: "doc-1",
+        spaceId: "space-1",
+        ...botOrOwnWhere({ isDeploymentOwner: false, ...actor }),
+      },
     });
     expect(memory.remove).toHaveBeenCalledWith(
       { id: "doc-1", scope: "bot", botId: "bot-1", path: "projects/retired.md" },
@@ -7172,7 +7177,11 @@ describe("routine watch creation boundaries", () => {
     });
     expect(findRoutine).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ spaceId: actor.spaceId, userId: actor.userId }),
+        where: expect.objectContaining({
+          id: "routine-1",
+          spaceId: actor.spaceId,
+          ...botOwnedWhere({ isDeploymentOwner: false, ...actor }),
+        }),
       }),
     );
     expect(create).not.toHaveBeenCalled();
