@@ -50,6 +50,7 @@ model User {
   agentSecrets               AgentSecret[]
   createdTickets              Ticket[]                     @relation("TicketCreatorUser")
   ticketComments              TicketComment[]              @relation("TicketCommentAuthorUser")
+  departmentMemberships       DepartmentUser[]
 
   @@unique([email])
   @@map("user")
@@ -266,6 +267,7 @@ model Space {
   board                       Board?
   tickets                     Ticket[]
   ticketComments              TicketComment[]
+  departments                 Department[]
 
   @@unique([id, organizationId])
   @@index([organizationId, createdAt])
@@ -507,6 +509,7 @@ model Bot {
   ticketComments    TicketComment[]   @relation("TicketCommentAuthorBot")
 
   externalConversations ExternalConversation[]
+  departments       DepartmentBot[]
 
   @@unique([spaceId, spawnKey])
   @@index([spaceId, userId, archivedAt, pinned, updatedAt])
@@ -514,6 +517,50 @@ model Bot {
   @@index([computerId])
   @@index([parentBotId])
   @@map("bots")
+}
+
+/// A department of the company that owns the space: people and bots belong to any
+/// number of them, and a person may use a bot when they share a department with it.
+model Department {
+  id        String           @id @default(cuid())
+  spaceId   String
+  space     Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  users     DepartmentUser[]
+  bots      DepartmentBot[]
+
+  @@unique([spaceId, name])
+  @@map("departments")
+}
+
+model DepartmentUser {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "member" or "head"; heads manage who is in the department.
+  role         String     @default("member")
+  createdAt    DateTime   @default(now())
+
+  @@unique([departmentId, userId])
+  @@index([userId])
+  @@map("department_users")
+}
+
+model DepartmentBot {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  botId        String
+  bot          Bot        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([departmentId, botId])
+  @@index([botId])
+  @@map("department_bots")
 }
 
 model BotSection {

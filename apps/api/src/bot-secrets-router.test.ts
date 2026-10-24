@@ -1,6 +1,7 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
+import { botAccessWhere } from "@rakazo/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
 import { createRouter } from "./router.js";
@@ -17,6 +18,9 @@ const actor = {
   isDeploymentOwner: true,
 } satisfies Actor;
 
+/** Someone in the space who is neither an owner nor in a department with the bots. */
+const member = { ...actor, userId: "user-3", isDeploymentOwner: false } satisfies Actor;
+
 const FAKE_VALUE = "fake-value-SENTINEL-1";
 
 function matches(row: Row, where: Row = {}) {
@@ -28,7 +32,7 @@ function pick(row: Row, select?: Record<string, boolean>) {
   return Object.fromEntries(Object.keys(select).map((key) => [key, row[key]]));
 }
 
-function botSecretDeps(seed: Row[] = []) {
+function botSecretDeps(seed: Row[] = [], caller: Actor = actor) {
   const now = new Date("2026-09-01T00:00:00.000Z");
   const bots: Row[] = [
     { id: "bot-1", userId: "user-1", spaceId: "space-1", archivedAt: null },
@@ -106,7 +110,7 @@ function botSecretDeps(seed: Row[] = []) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ json: input }),
       }),
-      { prefix: "/rpc", context: { actor } },
+      { prefix: "/rpc", context: { actor: caller } },
     );
     if (!response) throw new Error("Procedure did not match");
     const text = await response.text();
@@ -154,9 +158,9 @@ describe("botSecrets router", () => {
     expect(prisma.botSecret.create).toHaveBeenCalledOnce();
   });
 
-  it("rejects another user's bot and a missing bot before any secret access", async () => {
+  it("rejects a bot outside the caller's departments and a missing bot before any secret access", async () => {
     vi.stubEnv("RAKAZO_SECRETS_ALLOW_PRIVATE_HTTP", "1");
-    const { prisma, secrets, call } = botSecretDeps();
+    const { prisma, secrets, call } = botSecretDeps([], member);
     for (const botId of ["bot-other", "missing-bot"]) {
       const results = [
         await call("list", { botId }),
@@ -170,7 +174,11 @@ describe("botSecrets router", () => {
     }
     expect(prisma.bot.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ userId: "user-1", spaceId: "space-1", archivedAt: null }),
+        where: expect.objectContaining({
+          spaceId: "space-1",
+          archivedAt: null,
+          ...botAccessWhere(member),
+        }),
       }),
     );
     expect(secrets.put).not.toHaveBeenCalled();
@@ -354,7 +362,7 @@ describe("botSecrets router", () => {
     ]);
   });
 
-  it("removes a non-regex stored name for the owned bot and rejects another user's bot", async () => {
+  it("removes a non-regex stored name for the owned bot and rejects a bot the caller may not use", async () => {
     const owned = botSecretDeps();
     const removed = await owned.call("remove", { botId: "bot-1", name: "Legacy Name" });
     expect(removed.status).toBe(200);
@@ -363,7 +371,7 @@ describe("botSecrets router", () => {
       where: { userId: "user-1", spaceId: "space-1", botId: "bot-1", name: "Legacy Name" },
     });
 
-    const foreign = botSecretDeps();
+    const foreign = botSecretDeps([], member);
     const denied = await foreign.call("remove", { botId: "bot-other", name: "Legacy Name" });
     expect(denied.status).toBeGreaterThanOrEqual(400);
     expect(foreign.prisma.botSecret.deleteMany).not.toHaveBeenCalled();

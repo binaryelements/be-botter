@@ -40,6 +40,7 @@ export async function requireMembership(
     spaceId: membership.spaceId,
     email: membership.member.user.email,
     isDeploymentOwner: settings?.ownerUserId === membership.userId,
+    spaceRole: membership.role,
   };
 }
 

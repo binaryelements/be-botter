@@ -445,6 +445,10 @@ msgstr "הוספת מודל גיבוי"
 msgid "Add credential"
 msgstr "הוספת פרטי גישה"
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Add department"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "הוספת Executor"
@@ -474,6 +478,10 @@ msgstr "הוספת OpenAPI"
 #: src/components/PasskeySettings.tsx
 msgid "Add passkey"
 msgstr "הוספת מפתח גישה"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Add person"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
@@ -961,6 +969,7 @@ msgstr "לא ניתן לקרוא תמונות"
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -1653,6 +1662,10 @@ msgstr "לא ניתן לטעון את הבוטים. יש לטעון מחדש כ�
 msgid "Could not load credentials."
 msgstr "לא ניתן לטעון את פרטי הגישה."
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Could not load departments"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
@@ -1775,9 +1788,11 @@ msgstr "לא ניתן לבטל את החיבור"
 msgid "Could not run routine"
 msgstr "לא ניתן להריץ את הרוטינה"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "השמירה נכשלה"
@@ -2121,6 +2136,11 @@ msgstr "נדחה"
 msgid "Deny"
 msgstr "דחייה"
 
+#: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/bot-departments.tsx
+msgid "Departments"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Deployment default"
 msgstr "ברירת המחדל של ההתקנה"
@@ -2296,6 +2316,7 @@ msgstr "עריכה קודם"
 msgid "Edit Profile"
 msgstr "עריכת פרופיל"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "אימייל"
@@ -2612,6 +2633,10 @@ msgstr "יש לנתק קודם את השיחה ואז להזין את הקוד �
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "יש לנתק את השיחה ואז להזין את הקוד שעל המסך."
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Head"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -3060,6 +3085,7 @@ msgstr "בינוני"
 msgid "Medium"
 msgstr "בינוני"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/lib/identity-display.ts
 msgid "Member"
 msgstr "חבר"
@@ -3305,6 +3331,10 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "בוט חדש"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "New department"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -3976,6 +4006,7 @@ msgid "Reload"
 msgstr "טעינה מחדש"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -3984,6 +4015,8 @@ msgid "Remove"
 msgstr "הסרה"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "הסרת {0}"
@@ -3991,6 +4024,11 @@ msgstr "הסרת {0}"
 #. placeholder {0}: bot.name
 #: src/pages/GroupPanel.tsx
 msgid "Remove {0} from the group"
+msgstr ""
+
+#. placeholder {0}: department.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Remove {0}? Its people lose access to its bots."
 msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
@@ -4204,6 +4242,15 @@ msgstr "ביטול הרשאה"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "רובוט"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Role"
+msgstr ""
+
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Role of {0}"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

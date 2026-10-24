@@ -21,6 +21,7 @@ describe("bot settings layout", () => {
       "knowledge",
       "disabledTools",
       "credentials",
+      "departments",
     ]);
     expect(new Set(BOT_SETTINGS_ADVANCED_ORDER).size).toBe(BOT_SETTINGS_ADVANCED_ORDER.length);
   });

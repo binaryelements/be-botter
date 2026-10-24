@@ -145,6 +145,8 @@ async function renderSettings(onSave: (patch: SavePatch) => Promise<void>, curre
   await act(async () => {
     root.render(
       <BotSettings
+        settingsOpen={false}
+        onOpenDepartments={() => undefined}
         bot={currentBot}
         memoryProviderConfigured={false}
         onSkillsChange={() => undefined}

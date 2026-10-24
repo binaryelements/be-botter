@@ -445,6 +445,10 @@ msgstr "Back-upmodel toevoegen"
 msgid "Add credential"
 msgstr "Gegeven toevoegen"
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Add department"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Add Executor"
 msgstr "Executor toevoegen"
@@ -474,6 +478,10 @@ msgstr "OpenAPI toevoegen"
 #: src/components/PasskeySettings.tsx
 msgid "Add passkey"
 msgstr "Passkey toevoegen"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Add person"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Add remote MCP server"
@@ -961,6 +969,7 @@ msgstr "Kan afbeeldingen niet lezen"
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/PasskeySettings.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -1653,6 +1662,10 @@ msgstr "Bots laden mislukt. Herlaad om het opnieuw te proberen."
 msgid "Could not load credentials."
 msgstr "Gegevens laden mislukt."
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Could not load departments"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not load integrations"
@@ -1775,9 +1788,11 @@ msgstr "Verbinding intrekken mislukt"
 msgid "Could not run routine"
 msgstr "Routine uitvoeren mislukt"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Could not save"
 msgstr "Opslaan mislukt"
@@ -2121,6 +2136,11 @@ msgstr "Geweigerd"
 msgid "Deny"
 msgstr "Weigeren"
 
+#: src/pages/SettingsOverlay.tsx
+#: src/pages/shell/bot-departments.tsx
+msgid "Departments"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Deployment default"
 msgstr "Standaard van de implementatie"
@@ -2296,6 +2316,7 @@ msgstr "Eerst bewerken"
 msgid "Edit Profile"
 msgstr "Profiel bewerken"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "E-mail"
@@ -2612,6 +2633,10 @@ msgstr "Hang eerst op en voer daarna de code op het scherm in."
 #: src/lib/call-session.ts
 msgid "Hang up, then enter the code on screen."
 msgstr "Hang op en voer daarna de code op het scherm in."
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Head"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "header"
@@ -3060,6 +3085,7 @@ msgstr "Gemiddeld"
 msgid "Medium"
 msgstr "Gemiddeld"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/lib/identity-display.ts
 msgid "Member"
 msgstr "Lid"
@@ -3305,6 +3331,10 @@ msgstr "Nieuw"
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "Nieuwe bot"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "New department"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -3976,6 +4006,7 @@ msgid "Reload"
 msgstr "Herladen"
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -3984,6 +4015,8 @@ msgid "Remove"
 msgstr "Verwijderen"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
 msgid "Remove {0}"
 msgstr "{0} verwijderen"
@@ -3992,6 +4025,11 @@ msgstr "{0} verwijderen"
 #: src/pages/GroupPanel.tsx
 msgid "Remove {0} from the group"
 msgstr "{0} uit de groep verwijderen"
+
+#. placeholder {0}: department.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Remove {0}? Its people lose access to its bots."
+msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Remove {full}"
@@ -4204,6 +4242,15 @@ msgstr "Intrekken"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "Robot"
+
+#: src/components/DepartmentsSettings.tsx
+msgid "Role"
+msgstr ""
+
+#. placeholder {0}: user.name
+#: src/components/DepartmentsSettings.tsx
+msgid "Role of {0}"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"

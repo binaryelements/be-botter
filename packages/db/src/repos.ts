@@ -11,6 +11,7 @@ import {
 import type { PrismaClient } from "./client.js";
 import type { ComputerMode } from "./computers.js";
 import { ensureComputerRecord, parseComputerMode } from "./computers.js";
+import { botAccessWhere, departmentBotAccessWhere } from "./departments.js";
 import { createThreadMessageInTransaction } from "./messages.js";
 import { withNewestThreadMessages } from "./preview-messages.js";
 import { BotSectionNameConflictError, IsolationError } from "./scope.js";
@@ -162,7 +163,9 @@ export function createRepos(
     const bots = await prisma.bot.findMany({
       where: {
         spaceId: { in: spaceIds },
-        userId: actor.userId,
+        // The actor's role in those spaces is unknown here; owners of another space still
+        // see the bots they created, and department members theirs.
+        ...(actor.isDeploymentOwner ? {} : departmentBotAccessWhere(actor.userId)),
         archivedAt: null,
       },
       select: {
@@ -349,7 +352,7 @@ export function createRepos(
         await prisma.bot.findMany({
           where: {
             spaceId: actor.spaceId,
-            userId: actor.userId,
+            ...botAccessWhere(actor),
             archivedAt: options.archived ? { not: null } : null,
           },
           include: {
@@ -476,7 +479,7 @@ export function createRepos(
         where: {
           id: botId,
           spaceId: actor.spaceId,
-          userId: actor.userId,
+          ...botAccessWhere(actor),
           ...(options.includeArchived ? {} : { archivedAt: null }),
         },
         include: { thread: true, computer: true },

@@ -101,6 +101,12 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["bots/archive", { botId: "missing-bot" }],
       ["bots/restore", { botId: "missing-bot" }],
       ["bots/remove", { botId: "missing-bot" }],
+      ["bots/setDepartments", { botId: "missing-bot", departmentIds: [] }],
+      ["departments/list"],
+      ["departments/create", { name: "IT" }],
+      ["departments/update", { departmentId: "missing-department", name: "IT" }],
+      ["departments/remove", { departmentId: "missing-department" }],
+      ["departments/setUsers", { departmentId: "missing-department", users: [] }],
       ["groups/create", { name: "Nope", botIds: ["missing-a", "missing-b"] }],
       ["groups/list"],
       ["groups/get", { groupId: "missing-group" }],
@@ -891,8 +897,12 @@ describeWithDatabase("API authorization and resource isolation", () => {
         }),
       ]),
     );
-    expect(navigation.spaces).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: otherWorkspaceId })]),
+    // Navigation lists every space the person belongs to, whatever organization owns
+    // it: a company adds people to its space by department from their own organization.
+    expect(navigation.spaces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: otherWorkspaceId, name: "Other company space" }),
+      ]),
     );
     const supportNavigation = await rpc<SpaceNavigation>(
       app,
@@ -914,7 +924,9 @@ describeWithDatabase("API authorization and resource isolation", () => {
       {},
       otherWorkspaceId,
     );
-    expect(otherOrganizationNavigation.spaces.map((space) => space.id)).toEqual([otherWorkspaceId]);
+    expect(otherOrganizationNavigation.spaces.map((space) => space.id).sort()).toEqual(
+      [original.spaceId, support.id, otherWorkspaceId].sort(),
+    );
 
     const storedBots = await asSystem(handles.prisma).bot.findMany({
       where: { id: { in: [originalBot.id, supportBot.id] } },

@@ -8,6 +8,8 @@ export const ActorSchema = z.object({
   spaceId: Id,
   email: z.string().email(),
   isDeploymentOwner: z.boolean(),
+  /** The actor's role in the active space ("owner" or "member"); unset where unknown. */
+  spaceRole: z.string().optional(),
 });
 export type Actor = z.infer<typeof ActorSchema>;
 

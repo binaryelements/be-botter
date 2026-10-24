@@ -1,6 +1,7 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
+import { botAccessWhere } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import type { RouterDeps } from "./router.js";
 import { createRouter } from "./router.js";
@@ -24,10 +25,10 @@ function fixture() {
     async ({
       where,
     }: {
-      where: { id: string; userId: string; spaceId: string; archivedAt?: null };
+      where: { id: string; OR?: Array<{ userId?: string }>; spaceId: string; archivedAt?: null };
     }) => {
       return where.id === bot.id &&
-        where.userId === bot.userId &&
+        (where.OR ?? []).some((branch) => branch.userId === bot.userId) &&
         where.spaceId === bot.spaceId &&
         where.archivedAt === undefined
         ? bot
@@ -80,12 +81,14 @@ describe("archived thread read authorization", () => {
   it.each(["threads/get", "threads/messages"])(
     "%s reads the owned archived history",
     async (proc) => {
-      const { call, findBot } = fixture();
+      const { actor, call, findBot } = fixture();
       const result = await call(proc, { botId: "bot-1" });
       expect(result.status).toBe(200);
       expect(result.body.json.messages).toEqual([expect.objectContaining({ id: "message-1" })]);
       expect(findBot).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: "bot-1", userId: "user-1", spaceId: "space-1" } }),
+        expect.objectContaining({
+          where: { id: "bot-1", spaceId: "space-1", ...botAccessWhere(actor) },
+        }),
       );
     },
   );

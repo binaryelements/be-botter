@@ -132,6 +132,8 @@ async function render(description = "Billing", overrides: Partial<Bot> = {}) {
   await act(async () => {
     root.render(
       <BotSettings
+        settingsOpen={false}
+        onOpenDepartments={() => undefined}
         bot={bot(description, overrides)}
         memoryProviderConfigured={false}
         onSkillsChange={() => undefined}

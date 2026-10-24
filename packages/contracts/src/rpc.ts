@@ -51,6 +51,9 @@ import {
   CreateGroupInput,
   CreateRoutineInput,
   CreateScratchpadItemInput,
+  DepartmentName,
+  DepartmentRoleSchema,
+  DepartmentSchema,
   DeploymentSettingsSchema,
   ExportManifestSchema,
   ExternalConversationPolicySchema,
@@ -313,6 +316,9 @@ export const appContract = {
   },
   bots: {
     list: oc.output(z.array(BotSchema)),
+    setDepartments: oc
+      .input(z.object({ botId: Id, departmentIds: z.array(Id).max(100) }))
+      .output(z.object({ departmentIds: z.array(Id) })),
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
     create: oc.input(CreateBotInput).output(BotSchema),
@@ -342,6 +348,22 @@ export const appContract = {
         webhookConfigured: z.literal(true),
       }),
     ),
+  },
+  departments: {
+    list: oc.output(z.array(DepartmentSchema)),
+    create: oc.input(z.object({ name: DepartmentName })).output(DepartmentSchema),
+    update: oc.input(z.object({ departmentId: Id, name: DepartmentName })).output(DepartmentSchema),
+    remove: oc.input(z.object({ departmentId: Id })).output(z.object({ ok: z.literal(true) })),
+    setUsers: oc
+      .input(
+        z.object({
+          departmentId: Id,
+          users: z
+            .array(z.object({ email: z.string().trim().email(), role: DepartmentRoleSchema }))
+            .max(500),
+        }),
+      )
+      .output(DepartmentSchema),
   },
   groups: {
     create: oc.input(CreateGroupInput).output(GroupSchema),

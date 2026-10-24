@@ -46,6 +46,7 @@ import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 import { AvatarStudioPopover } from "./avatar-studio-popover";
 import { BotCredentialsSection } from "./bot-credentials";
+import { BotDepartmentsSection } from "./bot-departments";
 import { ChatModelPicker } from "./chat-model-picker";
 
 const ScratchpadSection = lazyComponent(() =>
@@ -209,6 +210,8 @@ export function CreateBotForm({
 export function BotSettings({
   bot,
   memoryProviderConfigured,
+  settingsOpen,
+  onOpenDepartments,
   onSkillsChange,
   onSave,
   onExport,
@@ -217,6 +220,8 @@ export function BotSettings({
   bot: Bot;
   onSkillsChange: (skills: AgentSkillCatalogEntry[]) => void;
   memoryProviderConfigured: boolean;
+  settingsOpen: boolean;
+  onOpenDepartments: () => void;
   onSave: (patch: {
     name?: string;
     title?: string;
@@ -749,6 +754,13 @@ export function BotSettings({
           </label>
         ))}
         {advancedOpened ? <BotCredentialsSection botId={bot.id} /> : null}
+        {advancedOpened && me?.isSpaceOwner ? (
+          <BotDepartmentsSection
+            botId={bot.id}
+            settingsOpen={settingsOpen}
+            onOpenDepartments={onOpenDepartments}
+          />
+        ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void onExport()}>
             <Trans>Export</Trans>
