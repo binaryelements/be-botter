@@ -22,6 +22,9 @@ const models = vi.hoisted(() => ({
   completeOAuth: vi.fn(),
   finishOAuth: vi.fn(),
   submitOAuthCode: vi.fn(),
+  companyConnection: vi.fn(),
+  setCompanyConnection: vi.fn(),
+  clearCompanyConnection: vi.fn(),
 }));
 
 vi.mock("../lib/rpc", () => ({
@@ -250,6 +253,7 @@ beforeEach(() => {
   models.credentials.mockResolvedValue([]);
   models.connect.mockResolvedValue({});
   models.disconnect.mockResolvedValue(undefined);
+  models.companyConnection.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -783,5 +787,105 @@ it("drops the saved ticks and rows when the server URL changes, and restores the
     expect(modelCheckbox(view.container, "model-b").checked).toBe(true);
   } finally {
     await view.unmount();
+  }
+});
+
+const companyDeepseek = {
+  provider: "deepseek",
+  modelId: "deepseek-chat",
+  thinkingLevel: null,
+  label: "DeepSeek",
+  supportsImages: true,
+  canManage: true,
+};
+
+function companyBlock(container: HTMLElement) {
+  return container.querySelector('[data-testid="company-model"]');
+}
+
+it("lets an owner connect a model for the company and remove it again", async () => {
+  vi.mocked(rpc.me).mockResolvedValue({
+    ...account("deepseek", "deepseek-chat"),
+    isSpaceOwner: true,
+  });
+  models.setCompanyConnection.mockResolvedValue(companyDeepseek);
+  models.clearCompanyConnection.mockResolvedValue({ ok: true });
+
+  const view = await renderSettings();
+  try {
+    const block = companyBlock(view.container);
+    if (!block) throw new Error("Missing company block");
+    expect(block.textContent).toContain("Company");
+    await act(async () => {
+      block.querySelector<HTMLButtonElement>('[data-testid="company-model-connect"]')?.click();
+    });
+    const key = view.container.querySelector("#company-model-api-key");
+    if (!(key instanceof HTMLInputElement)) throw new Error("Missing company key field");
+    await typeInto(key, "sk-company-key");
+    models.companyConnection.mockResolvedValue(companyDeepseek);
+    await act(async () => {
+      buttons(block as HTMLElement, "Connect API key")[0]?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(models.setCompanyConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "deepseek",
+        apiKey: "sk-company-key",
+        modelId: "deepseek-chat",
+      }),
+    );
+    const connected = companyBlock(view.container);
+    expect(connected?.textContent).toContain("DeepSeek");
+    expect(connected?.textContent).toContain("deepseek-chat");
+    expect(connected?.querySelector("#company-model-api-key")).toBeNull();
+
+    models.companyConnection.mockResolvedValue(null);
+    await act(async () => {
+      connected?.querySelector<HTMLButtonElement>('[data-testid="company-model-remove"]')?.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(models.clearCompanyConnection).toHaveBeenCalledTimes(1);
+    expect(
+      companyBlock(view.container)?.querySelector('[data-testid="company-model-connect"]'),
+    ).not.toBeNull();
+  } finally {
+    await view.unmount();
+  }
+});
+
+it("shows a member the company as the active model source without the owner block", async () => {
+  models.companyConnection.mockResolvedValue({ ...companyDeepseek, canManage: false });
+
+  const view = await renderSettings();
+  try {
+    expect(companyBlock(view.container)).toBeNull();
+    expect(view.container.querySelector('[data-testid="company-model-source"]')?.textContent).toBe(
+      "Company",
+    );
+  } finally {
+    await view.unmount();
+  }
+
+  // An own default key wins over the company connection.
+  models.credentials.mockResolvedValue([
+    {
+      id: "cred-deepseek",
+      provider: "deepseek",
+      label: "DeepSeek",
+      hasKey: true,
+      isDefault: true,
+      modelId: "deepseek-chat",
+    },
+  ]);
+  const own = await renderSettings();
+  try {
+    expect(own.container.querySelector('[data-testid="company-model-source"]')).toBeNull();
+    expect(own.container.textContent).toContain("DeepSeek");
+  } finally {
+    await own.unmount();
   }
 });

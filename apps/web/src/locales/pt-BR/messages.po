@@ -665,6 +665,7 @@ msgstr ""
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/lib/localized-provider-hint.ts
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
@@ -1272,6 +1273,11 @@ msgstr ""
 msgid "Compact"
 msgstr ""
 
+#: src/pages/model-settings/company-model.tsx
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Company"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "Concluir"
@@ -1353,6 +1359,7 @@ msgstr "Conectar"
 msgid "Connect a model"
 msgstr "Conectar um modelo"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Connect API key"
 msgstr "Conecte-se com a chave API"
@@ -1364,6 +1371,10 @@ msgstr "Conectar aplicativos"
 #: src/pages/PluginsOverlay.tsx
 msgid "Connect Executor"
 msgstr "Conectar Executor"
+
+#: src/pages/model-settings/company-model.tsx
+msgid "Connect for the company"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Connect MCP server “{name}”"
@@ -1516,6 +1527,7 @@ msgstr "Não foi possível conectar"
 msgid "Could not connect {0}"
 msgstr "Não foi possível conectar o {0}"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not connect this provider"
 msgstr "Não foi possível conectar este provedor"
@@ -1599,6 +1611,7 @@ msgstr "Não foi possível desconectar o provedor de memória"
 msgid "Could not disconnect OAuth"
 msgstr "Não foi possível desconectar o OAuth"
 
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/use-model-settings.ts
 msgid "Could not disconnect this provider"
 msgstr ""
@@ -3196,6 +3209,7 @@ msgid "Missed call"
 msgstr ""
 
 #: src/pages/model-settings/catalog-model-fields.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/model-settings/model-picker.tsx
 #: src/pages/Onboarding.tsx
@@ -3845,6 +3859,7 @@ msgid "Protected input"
 msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/Onboarding.tsx
 msgid "Provider"
 msgstr "Provedor"
@@ -4009,6 +4024,7 @@ msgstr "Recarregar"
 #: src/components/ApprovalRulesSettings.tsx
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
 #: src/pages/shell/bot-credentials.tsx
@@ -4363,6 +4379,7 @@ msgstr ""
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/GroupPanel.tsx
+#: src/pages/model-settings/company-model.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx

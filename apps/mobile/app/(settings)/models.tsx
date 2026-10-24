@@ -1,5 +1,10 @@
 import { MenuView } from "@expo/ui/community/menu";
-import type { ModelBackupChoice, ModelOAuthBegin, ThinkingLevel } from "@rakazo/contracts";
+import type {
+  CompanyModelConnection,
+  ModelBackupChoice,
+  ModelOAuthBegin,
+  ThinkingLevel,
+} from "@rakazo/contracts";
 import {
   backupChoiceKey,
   CLOUDFLARE_AI_GATEWAY_PROVIDER_ID,
@@ -61,6 +66,7 @@ import type {
 } from "../../lib/api";
 import { captureApiRequestContext, rpc, selectedSpaceId } from "../../lib/api";
 import { mobileTokens } from "../../lib/appearance";
+import { activeModelSourceLabel } from "../../lib/company-model";
 import { useI18n } from "../../lib/i18n";
 import { presentMessageActionSheet } from "../../lib/message-action-sheet";
 import {
@@ -129,6 +135,7 @@ export default function Models() {
   const [catalog, setCatalog] = useState<MobileModel[]>([]);
   const [credentials, setCredentials] = useState<MobileModelCredential[]>([]);
   const [me, setMe] = useState<MobileMe | null>(null);
+  const [companyConnection, setCompanyConnection] = useState<CompanyModelConnection | null>(null);
   const [provider, setProvider] = useState("");
   // The provider whose optional personal-key form is open.
   const [ownKeyProvider, setOwnKeyProvider] = useState<string | null>(null);
@@ -235,10 +242,12 @@ export default function Models() {
 
   const load = useCallback(async (preferred: ModelSelection = {}) => {
     setError(null);
-    const [nextMe, nextCatalog, nextCredentials] = await Promise.all([
+    const [nextMe, nextCatalog, nextCredentials, nextCompanyConnection] = await Promise.all([
       rpc<MobileMe>("me"),
       rpc<MobileModel[]>("models/list"),
       rpc<MobileModelCredential[]>("models/credentials"),
+      // An API without this procedure yet just means no company connection to show.
+      rpc<CompanyModelConnection | null>("models/companyConnection").catch(() => null),
     ]);
     const nextProvider =
       (preferred.provider && nextCatalog.some((entry) => entry.provider === preferred.provider)
@@ -262,6 +271,7 @@ export default function Models() {
     setMe(nextMe);
     setCatalog(nextCatalog);
     setCredentials(nextCredentials);
+    setCompanyConnection(nextCompanyConnection);
     resetOpenAiCompatibleProbe();
     setProvider(nextProvider);
     setModelId(nextModel);
@@ -1633,7 +1643,13 @@ export default function Models() {
             {currentEntry?.label ?? me?.defaultModel ?? t("Deployment default")}
           </Text>
           <Text style={styles.secondary}>
-            {currentEntry?.providerName ?? me?.defaultProvider ?? t("Configured by deployment")}
+            {activeModelSourceLabel(
+              me,
+              credentials,
+              companyConnection,
+              currentEntry?.providerName,
+              t,
+            )}
             {activeThinkingLabel
               ? ` · ${t("Thinking: {level}", { level: activeThinkingLabel })}`
               : ""}

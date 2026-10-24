@@ -273,6 +273,7 @@ export const RU_MESSAGES: Record<string, string> = {
     "Компьютер спит. Возьмите под свой контроль, чтобы разбудить его.",
   "Computer is stopped": "Компьютер остановлен",
   "Configured by deployment": "Настроено развёртыванием",
+  Company: "Компания",
   Connect: "Подключить",
   "Allow speech recognition in Settings, or connect ElevenLabs, OpenAI, or Fish Audio.":
     "Разрешите распознавание речи в Настройках или подключите ElevenLabs, OpenAI или Fish Audio.",

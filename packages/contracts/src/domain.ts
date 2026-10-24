@@ -1335,6 +1335,21 @@ export const ModelConnectInputSchema = z
   });
 export type ModelConnectInput = z.infer<typeof ModelConnectInputSchema>;
 
+/**
+ * The company's model connection: one per space, set by owners, used for members' runs when
+ * they have no model connection of their own.
+ */
+export const CompanyModelConnectionSchema = z.object({
+  provider: z.string(),
+  modelId: z.string().nullable(),
+  thinkingLevel: ThinkingLevelSchema.nullable(),
+  label: z.string(),
+  supportsImages: z.boolean(),
+  /** True for space owners, who may change or remove it. */
+  canManage: z.boolean(),
+});
+export type CompanyModelConnection = z.infer<typeof CompanyModelConnectionSchema>;
+
 export const ModelOAuthSignInModeSchema = z.enum(["device-code", "auth-url"]);
 export type ModelOAuthSignInMode = z.infer<typeof ModelOAuthSignInModeSchema>;
 

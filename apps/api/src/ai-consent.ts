@@ -142,6 +142,7 @@ export async function aiConsentStatus(
           isDefault: preference.isDefault,
           defaultModel: preference.modelId,
           thinkingLevel: preference.thinkingLevel,
+          scope: "user" as const,
         },
         thinkingLevel: null,
       });

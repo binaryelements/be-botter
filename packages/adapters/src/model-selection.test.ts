@@ -43,6 +43,7 @@ function credential(
     isDefault: false,
     defaultModel,
     thinkingLevel,
+    scope: "user" as const,
   };
 }
 

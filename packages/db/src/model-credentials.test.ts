@@ -5,6 +5,7 @@ import {
   defaultModelCredentialCandidates,
   findDefaultModelCredential,
   findModelCredential,
+  modelSecretWhere,
   newestModelCredentialOrder,
   selectSpaceModelPreference,
 } from "./model-credentials.js";
@@ -44,6 +45,111 @@ describe("findDefaultModelCredential", () => {
     ).resolves.toEqual(
       expect.objectContaining({ id: "credential", provider: "anthropic", defaultModel: null }),
     );
+  });
+});
+
+const companyRow = {
+  id: "company-1",
+  spaceId: "ws-1",
+  provider: "openrouter",
+  modelId: "qwen/qwen3-vl-8b-instruct",
+  thinkingLevel: null,
+  label: "Company OpenRouter",
+  supportsImages: true,
+  secretId: "secret-company",
+  createdByUserId: "owner-1",
+  createdAt: new Date("2026-10-24T00:00:00.000Z"),
+  updatedAt: new Date("2026-10-24T00:00:00.000Z"),
+};
+
+describe("the company's model connection", () => {
+  it("serves as the default for a member without a connection of their own", async () => {
+    const prisma = {
+      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+      spaceModelConnection: { findUnique: vi.fn().mockResolvedValue(companyRow) },
+    } as unknown as PrismaClient;
+    await expect(
+      findDefaultModelCredential(prisma, { userId: "member-1", spaceId: "ws-1" }),
+    ).resolves.toMatchObject({
+      id: "company-1",
+      provider: "openrouter",
+      secretId: "secret-company",
+      defaultModel: "qwen/qwen3-vl-8b-instruct",
+      isDefault: true,
+      scope: "space",
+    });
+    expect(prisma.spaceModelConnection.findUnique).toHaveBeenCalledWith({
+      where: { spaceId: "ws-1" },
+    });
+  });
+
+  it("yields to the member's own default", async () => {
+    const prisma = {
+      spaceModelPreference: {
+        findFirst: vi.fn().mockResolvedValue({
+          credential: {
+            id: "cred-1",
+            userId: "member-1",
+            provider: "anthropic",
+            label: "Mine",
+            secretId: "secret-mine",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          isDefault: true,
+          modelId: "claude-sonnet-5",
+          thinkingLevel: null,
+        }),
+      },
+      spaceModelConnection: { findUnique: vi.fn().mockResolvedValue(companyRow) },
+    } as unknown as PrismaClient;
+    await expect(
+      findDefaultModelCredential(prisma, { userId: "member-1", spaceId: "ws-1" }),
+    ).resolves.toMatchObject({ id: "cred-1", scope: "user" });
+    expect(prisma.spaceModelConnection.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("answers for its provider when the member has none, and for no other", async () => {
+    const prisma = {
+      spaceModelPreference: { findMany: vi.fn().mockResolvedValue([]) },
+      userModelCredential: { findMany: vi.fn().mockResolvedValue([]) },
+      spaceModelConnection: { findUnique: vi.fn().mockResolvedValue(companyRow) },
+    } as unknown as PrismaClient;
+    const scope = { userId: "member-1", spaceId: "ws-1" };
+    await expect(findModelCredential(prisma, scope, "openrouter")).resolves.toMatchObject({
+      id: "company-1",
+      scope: "space",
+    });
+    await expect(findModelCredential(prisma, scope, "anthropic")).resolves.toBeNull();
+  });
+
+  it("is absent when the client has no such table (older fakes)", async () => {
+    const prisma = {
+      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaClient;
+    await expect(
+      findDefaultModelCredential(prisma, { userId: "member-1", spaceId: "ws-1" }),
+    ).resolves.toBeNull();
+  });
+});
+
+describe("modelSecretWhere", () => {
+  it("reads a member's secret by owner and the company's by space", () => {
+    const owner = { userId: "member-1", spaceId: "ws-1" };
+    expect(modelSecretWhere({ secretId: "s1", scope: "user" }, owner)).toEqual({
+      id: "s1",
+      userId: "member-1",
+      spaceId: null,
+    });
+    expect(modelSecretWhere({ secretId: "s1" }, owner)).toEqual({
+      id: "s1",
+      userId: "member-1",
+      spaceId: null,
+    });
+    expect(modelSecretWhere({ secretId: "s2", scope: "space" }, owner)).toEqual({
+      id: "s2",
+      spaceId: "ws-1",
+    });
   });
 });
 
@@ -98,6 +204,7 @@ describe("findModelCredential", () => {
       ),
     ).resolves.toEqual({
       ...matching.credential,
+      scope: "user",
       isDefault: false,
       defaultModel: "other-model",
     });
@@ -165,6 +272,7 @@ describe("findModelCredential", () => {
       ),
     ).resolves.toEqual({
       ...older,
+      scope: "user",
       isDefault: false,
       defaultModel: "gpt-5.3-codex-spark",
       thinkingLevel: null,
@@ -178,6 +286,7 @@ describe("findModelCredential", () => {
       ),
     ).resolves.toEqual({
       ...newer,
+      scope: "user",
       isDefault: true,
       defaultModel: "gpt-6-luna",
       thinkingLevel: null,

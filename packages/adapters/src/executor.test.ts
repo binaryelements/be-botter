@@ -3582,6 +3582,47 @@ description: Prepare standup notes
     );
   });
 
+  it("serves a member without a connection from the company's model connection", async () => {
+    const prisma = {
+      bot: { findFirst: vi.fn(async () => null) },
+      spaceModelPreference: { findFirst: vi.fn(async () => null) },
+      userModelCredential: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
+      spaceModelConnection: {
+        findUnique: vi.fn(async () => ({
+          id: "company-1",
+          spaceId: "ws-1",
+          provider: "openrouter",
+          modelId: "qwen/qwen3-vl-8b-instruct",
+          thinkingLevel: null,
+          label: "Company",
+          supportsImages: true,
+          secretId: "secret-company",
+          createdByUserId: "owner-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })),
+      },
+      deploymentSettings: {
+        findUnique: vi.fn(async () => ({
+          defaultModelProvider: "anthropic",
+          defaultModelId: "claude-sonnet-5",
+        })),
+      },
+      secret: { findFirst: vi.fn(async () => null), findUnique: vi.fn(async () => null) },
+    } as unknown as PrismaClient;
+    const executor = createRunExecutor({
+      prisma,
+      secretStore: { load: vi.fn(), put: vi.fn() },
+      deploymentModelKey: "deployment-openrouter-key",
+      deploymentModelConfigured: true,
+    } as unknown as Parameters<typeof createRunExecutor>[0]);
+
+    // The company's connection comes before the deployment's settings and key.
+    await expect(
+      executor.resolveModel({ userId: "member-1", spaceId: "ws-1" }),
+    ).resolves.toMatchObject({ provider: "openrouter", id: "qwen/qwen3-vl-8b-instruct" });
+  });
+
   it("withholds the deployment key when settings name a different provider", async () => {
     const prisma = {
       bot: { findFirst: vi.fn(async () => null) },

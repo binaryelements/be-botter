@@ -259,6 +259,7 @@ model Space {
   actionApprovalRules         ActionApprovalRule[]
   actionAutoReviewPreferences ActionAutoReviewPreference[]
   memoryConfig                SpaceMemoryConfig?
+  modelConnection             SpaceModelConnection?
   secrets                     Secret[]
   chatGroups                  ChatGroup[]
   botSecrets BotSecret[]
@@ -1282,6 +1283,26 @@ model SpaceMemoryConfig {
   @@map("space_memory_configs")
 }
 
+/// The company's model connection: one API-key provider per Space that every member's runs
+/// use when they have no model connection of their own. Set by space owners.
+model SpaceModelConnection {
+  id              String   @id @default(cuid())
+  spaceId         String   @unique
+  space           Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  provider        String
+  modelId         String?
+  thinkingLevel   String?
+  label           String
+  supportsImages  Boolean  @default(true)
+  secretId        String   @unique
+  secret          Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("space_model_connections")
+}
+
 model Secret {
   id                String             @id @default(cuid())
   userId            String
@@ -1293,6 +1314,7 @@ model Secret {
   createdAt         DateTime           @default(now())
   mcpServers        McpServer[]
   spaceMemoryConfig SpaceMemoryConfig?
+  spaceModelConnection SpaceModelConnection?
   agentSecret       AgentSecret?
 
   @@index([userId, spaceId])

@@ -251,6 +251,7 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Computer is asleep. Take control to wake it.": "电脑已休眠。接管控制即可唤醒。",
   "Computer is stopped": "电脑已停止",
   "Configured by deployment": "由部署配置",
+  Company: "公司",
   Connect: "连接",
   "Connect a voice provider first.": "请先连接语音提供商。",
   "Allow speech recognition in Settings, or connect ElevenLabs, OpenAI, or Fish Audio.":

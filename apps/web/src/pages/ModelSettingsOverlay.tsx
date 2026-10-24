@@ -21,6 +21,7 @@ import { X } from "lucide-react";
 import { ModelBackupsSettings } from "./ModelBackupsSettings";
 
 import { CatalogModelFields } from "./model-settings/catalog-model-fields";
+import { CompanyModel } from "./model-settings/company-model";
 import { CompatibleModelFields } from "./model-settings/compatible-model-fields";
 import {
   CompatibleKeyControls,
@@ -46,6 +47,7 @@ export function ModelSettingsOverlay({
     activeThinkingLabel,
     busy,
     catalog,
+    companyConnection,
     confirmDisconnect,
     credential,
     credentials,
@@ -116,8 +118,13 @@ export function ModelSettingsOverlay({
                 {currentEntry?.label ?? me?.defaultModel ?? t`Deployment default`}
               </span>
               <span className="truncate text-[13px] leading-[1.5] text-muted-foreground">
-                {currentEntry?.providerName ?? me?.defaultProvider ?? (
-                  <Trans>Configured by deployment</Trans>
+                {companyConnection && !credentials.some((entry) => entry.isDefault) ? (
+                  <span data-testid="company-model-source">
+                    <Trans>Company</Trans>
+                  </span>
+                ) : (
+                  (currentEntry?.providerName ??
+                  me?.defaultProvider ?? <Trans>Configured by deployment</Trans>)
                 )}
                 {activeThinkingLabel ? (
                   <>
@@ -132,6 +139,12 @@ export function ModelSettingsOverlay({
           </div>
         </div>
       )}
+
+      {me?.isSpaceOwner ? (
+        <div className="mx-6 mt-4 sm:mx-8">
+          <CompanyModel {...model} />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
         <ProviderList {...model} />

@@ -41,6 +41,7 @@ import {
   BotSectionSchema,
   BotThreadSchema,
   CapabilityInstallSchema,
+  CompanyModelConnectionSchema,
   ComputerModeSchema,
   ComputerReleaseReasonSchema,
   ComputerStatusSchema,
@@ -274,6 +275,10 @@ export const appContract = {
     backups: oc.output(z.array(ModelBackupChoiceSchema)),
     setBackups: oc.input(ModelBackupListSchema).output(z.object({ ok: z.literal(true) })),
     connect: oc.input(ModelConnectInputSchema).output(ModelCredentialSchema),
+    /** The company's connection, used by members with none of their own; owners set and clear it. */
+    companyConnection: oc.output(CompanyModelConnectionSchema.nullable()),
+    setCompanyConnection: oc.input(ModelConnectInputSchema).output(CompanyModelConnectionSchema),
+    clearCompanyConnection: oc.output(z.object({ ok: z.literal(true) })),
     probeOpenAiCompatible: oc
       .input(
         z.object({

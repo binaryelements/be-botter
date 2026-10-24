@@ -398,6 +398,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Active model": "Actief model",
   "Authorization code": "Autorisatiecode",
   "Configured by deployment": "Geconfigureerd door de implementatie",
+  Company: "Bedrijf",
   "Use your own key": "Gebruik je eigen sleutel",
   "Uses this server's own {source} credentials to access {provider}.":
     "Gebruikt de eigen {source}-gegevens van deze server om toegang te krijgen tot {provider}.",

@@ -1,5 +1,6 @@
 import { canonicalPiProviderId, storedPiProviderIds, usableModelId } from "@rakazo/contracts";
 import type { PrismaClient } from "./client.js";
+import type { Prisma } from "./generated/prisma/client.js";
 
 export const newestCredentialOrder = [
   { updatedAt: "desc" as const },
@@ -15,6 +16,44 @@ export function modelCredentialProviderFilter(provider: string): string | { in: 
 }
 
 type ModelCredentialScope = { userId: string; spaceId: string };
+
+/** Where a credential's key row lives: the member's own secret, or the company's shared one. */
+export function modelSecretWhere(
+  credential: { secretId: string; scope?: "user" | "space" },
+  owner: ModelCredentialScope,
+): Prisma.SecretWhereInput {
+  return credential.scope === "space"
+    ? { id: credential.secretId, spaceId: owner.spaceId }
+    : { id: credential.secretId, userId: owner.userId, spaceId: null };
+}
+
+/**
+ * The company's model connection shaped as a credential, for members with none of their own.
+ * Older unit fakes have no such table; they get null.
+ */
+export async function findSpaceModelConnectionCredential(
+  prisma: PrismaClient,
+  spaceId: string,
+  provider?: string,
+) {
+  if (typeof prisma.spaceModelConnection?.findUnique !== "function") return null;
+  const row = await prisma.spaceModelConnection.findUnique({ where: { spaceId } });
+  if (!row) return null;
+  if (provider && !storedPiProviderIds(provider).includes(row.provider)) return null;
+  return {
+    id: row.id,
+    userId: row.createdByUserId,
+    provider: row.provider,
+    label: row.label,
+    secretId: row.secretId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    isDefault: true,
+    defaultModel: usableModelId(row.modelId),
+    thinkingLevel: row.thinkingLevel,
+    scope: "space" as const,
+  };
+}
 
 export async function selectSpaceModelPreference(
   prisma: Pick<PrismaClient, "spaceModelPreference">,
@@ -81,6 +120,7 @@ function withModelPreference<
     isDefault: preference.isDefault,
     defaultModel: usableModelId(preference.modelId),
     thinkingLevel: preference.thinkingLevel,
+    scope: "user" as const,
   };
 }
 
@@ -93,7 +133,8 @@ export async function findDefaultModelCredential(
     include: { credential: true },
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
   });
-  return preference ? withModelPreference(preference) : null;
+  if (preference) return withModelPreference(preference);
+  return findSpaceModelConnectionCredential(prisma, scope.spaceId);
 }
 
 export function findNewestUserModelCredential(
@@ -263,10 +304,27 @@ function credentialFromChoice<
 >(choice: ReturnType<typeof chooseModelCredential<C>>) {
   if (!choice) return null;
   if (choice.source === "preference") return withModelPreference(choice.preference);
-  return { ...choice.credential, isDefault: false, defaultModel: null, thinkingLevel: null };
+  return {
+    ...choice.credential,
+    isDefault: false,
+    defaultModel: null,
+    thinkingLevel: null,
+    scope: "user" as const,
+  };
 }
 
+/** The member's own credential for a provider, else the company's connection when it matches. */
 export async function findModelCredential(
+  prisma: PrismaClient,
+  scope: ModelCredentialScope,
+  provider: string,
+  modelId?: string | null,
+) {
+  const own = await findOwnModelCredential(prisma, scope, provider, modelId);
+  return own ?? findSpaceModelConnectionCredential(prisma, scope.spaceId, provider);
+}
+
+async function findOwnModelCredential(
   prisma: PrismaClient,
   scope: ModelCredentialScope,
   provider: string,
