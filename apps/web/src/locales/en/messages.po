@@ -544,6 +544,10 @@ msgstr "Agent connections"
 msgid "Agents:"
 msgstr "Agents:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr "All"
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "All bots"
@@ -774,6 +778,10 @@ msgstr "Attach file"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "Attachment"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr "Audit"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2935,7 @@ msgstr "Listening…"
 msgid "Load earlier messages"
 msgstr "Load earlier messages"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr "Load more"

@@ -544,6 +544,10 @@ msgstr "חיבורי סוכנים"
 msgid "Agents:"
 msgstr "סוכנים:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "כל הבוטים"
@@ -774,6 +778,10 @@ msgstr "צירוף קובץ"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "קובץ מצורף"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2935,7 @@ msgstr ""
 msgid "Load earlier messages"
 msgstr "טעינת הודעות קודמות"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr "טעינת עוד"

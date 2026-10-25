@@ -544,6 +544,10 @@ msgstr ""
 msgid "Agents:"
 msgstr "एजेंट:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr ""
@@ -774,6 +778,10 @@ msgstr "फ़ाइल संलग्न करें"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "अटैचमेंट"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2935,7 @@ msgstr "सुन रहा है…"
 msgid "Load earlier messages"
 msgstr "पुराने संदेश लोड करें"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr ""
