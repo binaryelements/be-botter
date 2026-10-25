@@ -271,6 +271,8 @@ type ProviderOptions = {
   onPersisted?: (record: { id: string; ref: string; material: OAuthMaterial }) => void;
   /** Renews the grant under the server's credential lock and returns the grant now stored. */
   refresh?: (heldRefreshToken: string) => Promise<TokenGrant>;
+  /** The instance opt-in that lets OAuth URLs use plain HTTP on a private network. */
+  allowPrivateEndpoint?: boolean;
 };
 
 /** Refresh before expiry to cover clock skew and request time. */
@@ -297,10 +299,13 @@ function accessTokenExpired(oauth: OAuthState | undefined): boolean {
 // advertise an internal alias for their public origin, so cross-host
 // resources are allowed, but malformed or cleartext resources are rejected
 // and the SDK falls back to deriving the resource from the server URL.
-function canonicalResource(resource: string | undefined): URL | undefined {
+function canonicalResource(
+  resource: string | undefined,
+  allowPrivateEndpoint = false,
+): URL | undefined {
   if (!resource) return undefined;
   try {
-    return validateUrl(resource);
+    return validateUrl(resource, { allowPrivateEndpoint });
   } catch {
     return undefined;
   }
@@ -460,7 +465,10 @@ export class StoredMcpOAuthProvider implements OAuthClientProvider {
   async redirectToAuthorization(url: URL): Promise<void> {
     let authorizationUrl: URL;
     try {
-      authorizationUrl = validateUrl(url, { allowHttpLocalhost: true });
+      authorizationUrl = validateUrl(url, {
+        allowHttpLocalhost: true,
+        allowPrivateEndpoint: this.options.allowPrivateEndpoint,
+      });
     } catch (error) {
       if (!this.options.onAuthorization) {
         await this.invalidateCredentials("tokens");
@@ -491,7 +499,7 @@ export class StoredMcpOAuthProvider implements OAuthClientProvider {
     return verifier;
   }
   async validateResourceURL(_serverUrl: string | URL, resource?: string): Promise<URL | undefined> {
-    return canonicalResource(resource);
+    return canonicalResource(resource, this.options.allowPrivateEndpoint);
   }
   async saveDiscoveryState(value: OAuthDiscoveryState): Promise<void> {
     this.oauth().discoveryState = value;
@@ -797,6 +805,7 @@ async function requestRefresh(
   material: OAuthMaterial,
   refreshToken: string,
   fetchFn: typeof fetch,
+  allowPrivateEndpoint: boolean,
 ): Promise<OAuthTokens> {
   const discovery = material.oauth?.discoveryState;
   const clientInformation = material.oauthClient
@@ -808,7 +817,7 @@ async function requestRefresh(
     metadata: discovery.authorizationServerMetadata,
     clientInformation,
     refreshToken,
-    resource: canonicalResource(discovery.resourceMetadata?.resource),
+    resource: canonicalResource(discovery.resourceMetadata?.resource, allowPrivateEndpoint),
     fetchFn: (input, init) =>
       fetchFn(input, { ...init, signal: AbortSignal.timeout(REFRESH_REQUEST_TIMEOUT_MS) }),
   });
@@ -1207,6 +1216,7 @@ export class McpOAuthBroker {
                 this.refreshGrant(server.id, endpoint, target, context, held, options.onPersisted),
             }
           : {}),
+        allowPrivateEndpoint: this.allowPrivateEndpoint,
         ...options,
       },
     );
@@ -1255,7 +1265,14 @@ export class McpOAuthBroker {
                 return { grant: { tokens: oauth?.tokens, obtainedAt: oauth?.obtainedAt } };
               let grant: TokenGrant;
               try {
-                grant = { tokens: await requestRefresh(material, current, network.fetch) };
+                grant = {
+                  tokens: await requestRefresh(
+                    material,
+                    current,
+                    network.fetch,
+                    this.allowPrivateEndpoint,
+                  ),
+                };
                 grant.obtainedAt = Date.now();
               } catch (error) {
                 // Under the lock `current` is the stored token, so a rejection
