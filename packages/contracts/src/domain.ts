@@ -772,6 +772,13 @@ export const ActionApprovalRuleSchema = z.object({
 });
 export type ActionApprovalRule = z.infer<typeof ActionApprovalRuleSchema>;
 
+export const ApprovalPolicySchema = z.object({
+  writeApproval: z.enum(["ask", "rules"]),
+  /** Only space owners may change it. */
+  canManage: z.boolean(),
+});
+export type ApprovalPolicy = z.infer<typeof ApprovalPolicySchema>;
+
 export const ActionAutoReviewSettingsSchema = z.object({
   enabled: z.boolean(),
   checkerAvailable: z.boolean(),
@@ -1454,6 +1461,7 @@ export const DeploymentSettingsSchema = z.object({
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
+  companySpaceId: Id.nullable(),
 });
 
 export const ServerUpdateSourceSchema = z.object({

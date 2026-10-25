@@ -544,6 +544,10 @@ msgstr ""
 msgid "Agents:"
 msgstr "Agent'lar:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr ""
@@ -688,6 +692,10 @@ msgstr "Uygula"
 msgid "Approval boundaries"
 msgstr "Onay sınırları"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Approvals"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Approve"
@@ -753,6 +761,10 @@ msgstr "Satın almadan önce sor"
 msgid "Ask before sending external email"
 msgstr "Dışarıya e-posta göndermeden önce sor"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Ask before writes"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
 msgstr ""
@@ -774,6 +786,10 @@ msgstr "Dosya ekle"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "Ek"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2943,7 @@ msgstr ""
 msgid "Load earlier messages"
 msgstr "Önceki mesajları yükle"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr ""
@@ -3589,6 +3606,10 @@ msgstr "her ayın 1'inde saat {0}"
 
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
+msgstr ""
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Only when a rule says so"
 msgstr ""
 
 #: src/components/markdown-link-prompt.tsx

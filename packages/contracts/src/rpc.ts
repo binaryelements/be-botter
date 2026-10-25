@@ -30,6 +30,7 @@ import {
   AgentSkillCatalogEntrySchema,
   AgentSkillSchema,
   AppBootstrapSchema,
+  ApprovalPolicySchema,
   ArtifactSchema,
   ArtifactVersionSchema,
   ArtifactWithContentSchema,
@@ -251,6 +252,8 @@ export const appContract = {
           signupsEnabled: z.boolean().optional(),
           signupAllowlist: z.array(z.string()).optional(),
           computerHost: z.enum(["docker", "this-mac"]).nullable().optional(),
+          /** The Space people signing in through SSO join. */
+          companySpaceId: Id.nullable().optional(),
         }),
       )
       .output(DeploymentSettingsSchema),
@@ -968,6 +971,10 @@ export const appContract = {
       )
       .output(ActionApprovalRuleSchema),
     remove: oc.input(z.object({ id: Id })).output(z.object({ ok: z.literal(true) })),
+    policy: oc.output(ApprovalPolicySchema),
+    setPolicy: oc
+      .input(z.object({ writeApproval: z.enum(["ask", "rules"]) }))
+      .output(ApprovalPolicySchema),
   },
   autoReview: {
     get: oc.output(ActionAutoReviewSettingsSchema),

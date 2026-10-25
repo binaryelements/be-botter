@@ -215,6 +215,7 @@ async function runWithModel(
     scratchpadItem: { findMany: vi.fn(async () => []) },
     externalEffect: { findMany: vi.fn(async () => []) },
     actionApprovalRule: { findMany: vi.fn(async () => []) },
+    space: { findUnique: vi.fn(async () => ({ writeApproval: "rules" })) },
     actionAutoReviewPreference: { findUnique: vi.fn(async () => null) },
     artifact: {
       findMany: vi.fn(async () => [

@@ -1,7 +1,11 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { ActionApprovalRule, ActionAutoReviewSettings } from "@rakazo/contracts";
-import { Button, Label, Switch } from "@rakazo/ui-web";
+import type {
+  ActionApprovalRule,
+  ActionAutoReviewSettings,
+  ApprovalPolicy,
+} from "@rakazo/contracts";
+import { Button, Label, OptionSelect, Switch } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
@@ -29,7 +33,10 @@ export function ApprovalRulesSettings() {
   const rpc = useSpaceRpc();
   const { t } = useLingui();
   const autoReviewId = useId();
+  const policyId = useId();
   const [rules, setRules] = useState<ActionApprovalRule[]>([]);
+  const [policy, setPolicy] = useState<ApprovalPolicy | null>(null);
+  const [savingPolicy, setSavingPolicy] = useState(false);
   const [autoReview, setAutoReview] = useState<ActionAutoReviewSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingPreset, setSavingPreset] = useState<"email" | "purchase" | null>(null);
@@ -40,12 +47,14 @@ export function ApprovalRulesSettings() {
     setLoading(true);
     setError(null);
     try {
-      const [nextRules, nextAutoReview] = await Promise.all([
+      const [nextRules, nextAutoReview, nextPolicy] = await Promise.all([
         rpc.approvalRules.list(),
         rpc.autoReview.get(),
+        rpc.approvalRules.policy(),
       ]);
       setRules(nextRules);
       setAutoReview(nextAutoReview);
+      setPolicy(nextPolicy);
     } catch (err) {
       setError(errorText(err, t`Could not load approval rules`));
     } finally {
@@ -95,6 +104,19 @@ export function ApprovalRulesSettings() {
     }
   }
 
+  async function changePolicy(writeApproval: ApprovalPolicy["writeApproval"]) {
+    if (savingPolicy || writeApproval === policy?.writeApproval) return;
+    setSavingPolicy(true);
+    setError(null);
+    try {
+      setPolicy(await rpc.approvalRules.setPolicy({ writeApproval }));
+    } catch (err) {
+      setError(errorText(err, t`Could not save rule`));
+    } finally {
+      setSavingPolicy(false);
+    }
+  }
+
   async function toggleAutoReview(enabled: boolean) {
     if (loading || savingAutoReview) return;
     setSavingAutoReview(true);
@@ -110,6 +132,25 @@ export function ApprovalRulesSettings() {
 
   return (
     <div data-testid="action-confirmation-settings" className="pt-5">
+      {policy?.canManage ? (
+        <div className="mb-5 flex items-center gap-3">
+          <Label htmlFor={policyId} className="text-[14px] font-normal text-foreground/75">
+            <Trans>Approvals</Trans>
+          </Label>
+          <OptionSelect
+            id={policyId}
+            data-testid="approval-policy"
+            className="w-56"
+            value={policy.writeApproval}
+            disabled={savingPolicy}
+            options={[
+              { value: "ask", label: t`Ask before writes` },
+              { value: "rules", label: t`Only when a rule says so` },
+            ]}
+            onValueChange={(next) => void changePolicy(next)}
+          />
+        </div>
+      ) : null}
       <div className="flex flex-col items-start gap-2">
         <Button
           variant="outline"

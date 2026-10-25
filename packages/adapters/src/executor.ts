@@ -55,7 +55,7 @@ import {
   isAttachmentImageMimeType,
   OPENAI_COMPATIBLE_PROVIDER_ID,
 } from "@rakazo/contracts";
-import type { ActionApprovalRule, ToolCallStreak } from "@rakazo/core";
+import type { ActionApprovalRule, ToolCallStreak, WriteApprovalPolicy } from "@rakazo/core";
 import {
   appendTextSegment,
   appendToolCallSegment,
@@ -4237,6 +4237,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
             .then((rules) => rules as ActionApprovalRule[]);
           return approvalRulesPromise;
         };
+        let writeApprovalPromise: Promise<WriteApprovalPolicy> | undefined;
+        const loadWriteApproval = () => {
+          // Older fixtures have no space table; they keep the rules policy.
+          writeApprovalPromise ??=
+            typeof deps.prisma.space?.findUnique === "function"
+              ? deps.prisma.space
+                  .findUnique({ where: { id: run.spaceId }, select: { writeApproval: true } })
+                  .then((space) => (space?.writeApproval === "ask" ? "ask" : "rules"))
+              : Promise.resolve("rules" as WriteApprovalPolicy);
+          return writeApprovalPromise;
+        };
         let autoReviewPreferencePromise: Promise<boolean> | undefined;
         const loadAutoReviewPreference = () => {
           autoReviewPreferencePromise ??= deps.prisma.actionAutoReviewPreference
@@ -4984,6 +4995,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 autoReviewEnabled: autoReviewPref,
                 checkerConfigured,
                 newDestination: siteGate === "new",
+                policy: await loadWriteApproval(),
+                connectorWrite:
+                  viaConnector && connectorToolRequiresApproval(name, declaredReadOnly),
               });
           let reviewReason: string | undefined;
           let gateDecision: "ask" | "allow" = plan === "ask" ? "ask" : "allow";

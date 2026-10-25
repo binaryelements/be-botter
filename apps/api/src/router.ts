@@ -1392,6 +1392,7 @@ export function createRouter(deps: RouterDeps) {
             signupAllowlist: (input.signupAllowlist ?? []).join(","),
             signupPolicyInitialized: true,
             computerHost: input.computerHost ?? undefined,
+            companySpaceId: input.companySpaceId ?? undefined,
           },
           update: {
             ...(input.signupsEnabled === undefined ? {} : { signupsEnabled: input.signupsEnabled }),
@@ -1400,6 +1401,7 @@ export function createRouter(deps: RouterDeps) {
               ? {}
               : { signupPolicyInitialized: true }),
             ...(input.computerHost === undefined ? {} : { computerHost: input.computerHost }),
+            ...(input.companySpaceId === undefined ? {} : { companySpaceId: input.companySpaceId }),
           },
         });
         return deploymentDto(deps.prisma, deps.env.sandboxProvider);
@@ -6536,6 +6538,24 @@ export function createRouter(deps: RouterDeps) {
         });
         return { ok: true as const };
       }),
+      policy: authed.approvalRules.policy.handler(async ({ context }) => {
+        const space = await deps.prisma.space.findUniqueOrThrow({
+          where: { id: context.actor.spaceId },
+          select: { writeApproval: true },
+        });
+        return {
+          writeApproval: space.writeApproval === "ask" ? "ask" : "rules",
+          canManage: isSpaceOwner(context.actor),
+        };
+      }),
+      setPolicy: authed.approvalRules.setPolicy.handler(async ({ context, input }) => {
+        if (!isSpaceOwner(context.actor)) throw new ORPCError("FORBIDDEN");
+        await deps.prisma.space.update({
+          where: { id: context.actor.spaceId },
+          data: { writeApproval: input.writeApproval },
+        });
+        return { writeApproval: input.writeApproval, canManage: true };
+      }),
     },
     autoReview: {
       get: authed.autoReview.get.handler(async ({ context }) => {
@@ -7455,6 +7475,7 @@ async function deploymentDto(prisma: PrismaClient, sandboxProvider: string) {
     computerHost: computerHostFor(settings?.computerHost, sandboxProvider),
     canChooseHostComputer: sandboxProvider === "docker",
     sandboxProvider,
+    companySpaceId: settings?.companySpaceId ?? null,
   };
 }
 

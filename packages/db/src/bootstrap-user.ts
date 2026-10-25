@@ -102,9 +102,10 @@ export async function bootstrapUserSpace(
   });
   if (claimDeploymentOwner) {
     // Conditional claim: only the first concurrent claimant wins the seat.
+    // The owner's default Space is the company Space until the owner says otherwise.
     await prisma.deploymentSettings.updateMany({
       where: { id: "default", ownerUserId: null },
-      data: { ownerUserId: user.id },
+      data: { ownerUserId: user.id, companySpaceId: orgId },
     });
   }
   const hasMemory = await prisma.memoryDocument.findFirst({

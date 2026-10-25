@@ -17,7 +17,7 @@ import {
   signupPolicyFromEnv,
 } from "@rakazo/core";
 import type { PrismaClient, SecurityEventType } from "@rakazo/db";
-import { bootstrapUserSpace, recordSecurityEvent } from "@rakazo/db";
+import { bootstrapUserSpace, joinCompanySpace, recordSecurityEvent } from "@rakazo/db";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -727,6 +727,8 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                 });
               }
               await bootstrapUserSpace(prisma, user, env);
+              // Staff arriving through the company's identity provider belong to the company.
+              if (oidcSignIn) await joinCompanySpace(prisma, user.id);
             }
           },
           after: async (session, ctx) => {

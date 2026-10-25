@@ -326,6 +326,35 @@ returns a temporary error, and background retries recover without restarting. Di
 on first use, refreshed in the background, and failures back off up to one minute. Availability
 reflects discovery, not a guarantee that the provider's token endpoint is currently reachable.
 
+#### Microsoft Entra ID
+
+Entra works as a plain OpenID Connect provider. Register a web application in the tenant with
+the redirect URI above, then set the tenant-specific v2.0 issuer:
+
+```env
+OIDC_ISSUER=https://login.microsoftonline.com/replace-with-tenant-id/v2.0
+OIDC_CLIENT_ID=replace-with-application-id
+OIDC_CLIENT_SECRET=replace-with-client-secret
+OIDC_NAME=Microsoft
+AUTH_PASSWORD_ENABLED=false
+OIDC_ALLOW_SIGNUP_BYPASS=true
+SIGNUPS_ENABLED=true
+SIGNUP_ALLOWLIST=
+```
+
+Entra ID tokens carry no `email_verified` claim, so the bypass is required: without it every
+Entra identity stays unverified and the allowlist refuses it. With the bypass, who may sign in
+is decided in Entra, by requiring user assignment on the application, so leave the allowlist
+empty and let the tenant be the only gate. With passwords off there is no other way in.
+
+Create the deployment owner before enabling SSO: the first account admitted becomes the owner,
+through the `bootstrap-owner` command or an existing password account. The owner's default
+Space becomes the company Space (`deployment.update { companySpaceId }` changes it), and every
+person signing in through the provider for the first time becomes a member of it, next to the
+personal Space every account gets. Departments then decide which bots they may use. Removing a
+person from the tenant does not remove their Rakazo account or memberships; take them out of
+their departments and the Space as well.
+
 Account deletion keeps the existing password confirmation for password users. Users without a
 password may delete after explicit provider reauthentication within five minutes; **Sign in again** starts a fresh
 provider round-trip bound to the signed-in account. Choosing a different identity cannot confirm

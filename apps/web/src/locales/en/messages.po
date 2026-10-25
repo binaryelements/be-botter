@@ -544,6 +544,10 @@ msgstr "Agent connections"
 msgid "Agents:"
 msgstr "Agents:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr "All"
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "All bots"
@@ -688,6 +692,10 @@ msgstr "Apply"
 msgid "Approval boundaries"
 msgstr "Approval boundaries"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Approvals"
+msgstr "Approvals"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Approve"
@@ -753,6 +761,10 @@ msgstr "Ask before purchases"
 msgid "Ask before sending external email"
 msgstr "Ask before sending external email"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Ask before writes"
+msgstr "Ask before writes"
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
 msgstr "Ask the server owner to configure this provider."
@@ -774,6 +786,10 @@ msgstr "Attach file"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "Attachment"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr "Audit"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2943,7 @@ msgstr "Listening…"
 msgid "Load earlier messages"
 msgstr "Load earlier messages"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr "Load more"
@@ -3590,6 +3607,10 @@ msgstr "on the 1st at {0}"
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Only empty spaces can be deleted. Delete its bots and groups first."
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Only when a rule says so"
+msgstr "Only when a rule says so"
 
 #: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx

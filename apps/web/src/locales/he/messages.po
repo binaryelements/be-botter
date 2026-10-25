@@ -544,6 +544,10 @@ msgstr "חיבורי סוכנים"
 msgid "Agents:"
 msgstr "סוכנים:"
 
+#: src/components/AuditLog.tsx
+msgid "All"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "All bots"
 msgstr "כל הבוטים"
@@ -688,6 +692,10 @@ msgstr "החלה"
 msgid "Approval boundaries"
 msgstr "גבולות אישור"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Approvals"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Approve"
@@ -753,6 +761,10 @@ msgstr "לשאול לפני רכישות"
 msgid "Ask before sending external email"
 msgstr "לשאול לפני שליחת אימייל חיצוני"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Ask before writes"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
 msgstr "יש לבקש מבעלי השרת להגדיר את הספק הזה."
@@ -774,6 +786,10 @@ msgstr "צירוף קובץ"
 #: src/pages/shell/chat-shared.ts
 msgid "Attachment"
 msgstr "קובץ מצורף"
+
+#: src/components/AuditLog.tsx
+msgid "Audit"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -2927,6 +2943,7 @@ msgstr ""
 msgid "Load earlier messages"
 msgstr "טעינת הודעות קודמות"
 
+#: src/components/AuditLog.tsx
 #: src/pages/Artifacts.tsx
 msgid "Load more"
 msgstr "טעינת עוד"
@@ -3590,6 +3607,10 @@ msgstr "ב-1 לחודש בשעה {0}"
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "אפשר למחוק רק מרחבים ריקים. יש למחוק קודם את הבוטים והקבוצות שבו."
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Only when a rule says so"
+msgstr ""
 
 #: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx

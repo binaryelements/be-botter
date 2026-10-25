@@ -22,6 +22,7 @@ import type { RefObject } from "react";
 import { useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
 import { AccountAccess } from "../components/AccountAccess";
+import { AuditLog } from "../components/AuditLog";
 import { SuccessPop } from "../components/ai/primitives";
 import { ComputersUnavailableHint } from "../components/ComputersUnavailableHint";
 import { DesktopUpdateSection } from "../components/DesktopUpdates";
@@ -397,6 +398,7 @@ export function GeneralSettingsPanels({
       </Disclosure>
 
       <AccountAccess onSecurity={setAccountSecurity} />
+      <AuditLog isDeploymentOwner={isDeploymentOwner} />
     </div>
   );
 }

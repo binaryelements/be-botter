@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import type { Actor } from "@rakazo/contracts";
 import type { Prisma, PrismaClient } from "./client.js";
+import { joinSpace } from "./company-space.js";
 import { IsolationError } from "./scope.js";
 
 /** Unique (spaceId, name) collision when creating or renaming a department. */
@@ -239,37 +239,8 @@ export function createDepartmentRepos(prisma: PrismaClient) {
         if (!account) throw new UnknownAccountError(email);
         return { userId: account.id, role: roleByEmail.get(email) ?? "member" };
       });
-      const space = await prisma.space.findUniqueOrThrow({
-        where: { id: actor.spaceId },
-        select: { organizationId: true },
-      });
-      const now = new Date();
       await prisma.$transaction(async (tx) => {
-        for (const { userId } of members) {
-          await tx.member.upsert({
-            where: { organizationId_userId: { organizationId: space.organizationId, userId } },
-            update: {},
-            create: {
-              id: randomUUID(),
-              organizationId: space.organizationId,
-              userId,
-              role: "member",
-              createdAt: now,
-            },
-          });
-          await tx.spaceMember.upsert({
-            where: { spaceId_userId: { spaceId: actor.spaceId, userId } },
-            update: {},
-            create: {
-              id: randomUUID(),
-              spaceId: actor.spaceId,
-              organizationId: space.organizationId,
-              userId,
-              role: "member",
-              createdAt: now,
-            },
-          });
-        }
+        for (const { userId } of members) await joinSpace(tx, actor.spaceId, userId);
         await tx.departmentUser.deleteMany({
           where: {
             departmentId: department.id,

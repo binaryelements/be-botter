@@ -85,7 +85,10 @@ function fixture({
   fleetBots = [] as { id: string; name: string }[],
   secondResource = false,
   routines = [] as { name: string; prompt: string }[],
+  writeApproval = "rules",
 }: {
+  /** The space's `writeApproval` policy. */
+  writeApproval?: string;
   /** The bot's routines, as the owner wrote them. */
   routines?: { name: string; prompt: string }[];
   /** Adds `demo_get_other`, a read on a separate installed resource with the same name prefix. */
@@ -225,6 +228,7 @@ function fixture({
       }),
     },
     spaceMember: { findUnique: vi.fn(async () => ({ role: "owner" })) },
+    space: { findUnique: vi.fn(async () => ({ writeApproval })) },
     bot: {
       findUniqueOrThrow: vi.fn(async () => ({
         ...instructionState,
@@ -806,6 +810,37 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect(f.execute).toHaveBeenCalledOnce();
       expect(f.pauseRunForInput).not.toHaveBeenCalled();
       expect(reviewMock).not.toHaveBeenCalled();
+    });
+
+    it("pauses for approval on a connector write when the space asks before writes", async () => {
+      const f = fixture({ catalog, name: "demo_send_message", writeApproval: "ask" });
+      await f.run();
+      expect(f.execute).not.toHaveBeenCalled();
+      expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+      expect(isApprovalPausedResult(f.results[0])).toBe(true);
+    });
+
+    it("runs a connector write by default when the space only asks under rules", async () => {
+      const f = fixture({ catalog, name: "demo_send_message", writeApproval: "rules" });
+      await f.run();
+      expect(f.execute).toHaveBeenCalledOnce();
+      expect(f.pauseRunForInput).not.toHaveBeenCalled();
+    });
+
+    it("keeps reads and always-allowed writes free when the space asks before writes", async () => {
+      const read = fixture({ catalog, writeApproval: "ask" });
+      await read.run();
+      expect(read.execute).toHaveBeenCalledOnce();
+      expect(read.pauseRunForInput).not.toHaveBeenCalled();
+      const allowed = fixture({
+        catalog,
+        name: "demo_send_message",
+        writeApproval: "ask",
+        rules: [{ effect: "always_allow", matchKind: "tool", matchValue: "demo_send_message" }],
+      });
+      await allowed.run();
+      expect(allowed.execute).toHaveBeenCalledOnce();
+      expect(allowed.pauseRunForInput).not.toHaveBeenCalled();
     });
 
     it("forces owner approval for webhook-triggered writes despite an allow rule", async () => {

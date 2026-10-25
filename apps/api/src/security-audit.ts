@@ -66,6 +66,7 @@ export const AUDITED_PROCEDURES: Record<string, AuditedProcedure> = {
   },
   "approvalRules.set": { type: "approval.policy.changed", fields: ["effect", "matchKind"] },
   "approvalRules.remove": { type: "approval.policy.changed", fields: ["id"] },
+  "approvalRules.setPolicy": { type: "approval.policy.changed", fields: ["writeApproval"] },
   "autoReview.set": { type: "approval.policy.changed", fields: ["enabled"] },
   "departments.setUsers": {
     type: "access.changed",

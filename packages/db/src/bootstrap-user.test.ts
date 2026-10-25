@@ -91,7 +91,7 @@ describe("bootstrapUserSpace", () => {
     // claimant that already holds the seat is never overwritten.
     expect(prisma.deploymentSettings.updateMany).toHaveBeenCalledWith({
       where: { id: "default", ownerUserId: null },
-      data: { ownerUserId: "user-1" },
+      data: { ownerUserId: "user-1", companySpaceId: expect.any(String) },
     });
   });
 
@@ -105,7 +105,7 @@ describe("bootstrapUserSpace", () => {
     // that already have an owner.
     expect(prisma.deploymentSettings.updateMany).toHaveBeenCalledWith({
       where: { id: "default", ownerUserId: null },
-      data: { ownerUserId: "user-1" },
+      data: { ownerUserId: "user-1", companySpaceId: expect.any(String) },
     });
   });
 
