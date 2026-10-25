@@ -18,6 +18,13 @@ test("the deployment owner reads and filters the audit log", async ({ page }, te
     userAgent: null,
     metadata: {},
   }));
+  // The shell learns who it is from bootstrap; me serves later refreshes.
+  await page.route("**/rpc/bootstrap", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { json?: { me?: Record<string, unknown> } };
+    if (body.json?.me) body.json.me.isDeploymentOwner = true;
+    await route.fulfill({ response, json: body });
+  });
   await page.route("**/rpc/me", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as { json?: Record<string, unknown> };
