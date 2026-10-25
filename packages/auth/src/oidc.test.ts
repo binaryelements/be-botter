@@ -12,6 +12,7 @@ vi.mock("better-auth/adapters/prisma", () => ({ prismaAdapter: () => memoryAdapt
 vi.mock("@rakazo/db", async (original) => ({
   ...(await original<typeof Db>()),
   bootstrapUserSpace: vi.fn(),
+  joinCompanySpace: vi.fn(),
 }));
 
 const issuer = "https://identity.example.test";
@@ -527,9 +528,12 @@ describe("OIDC callbacks", () => {
     expect(rows("user")).toHaveLength(0);
     expect(rows("account")).toHaveLength(0);
   });
-  it("admits allowlisted verified identities", async () => {
-    setup({ signupAllowlist: "sso@example.test" });
+  it("admits allowlisted verified identities into the company space", async () => {
+    setup({ signupAllowlist: "sso@example.test" }, false);
     expect((await signIn()).headers.get("location")).toBe(`${origin}/app`);
+    const user = rows("user")[0] as { id: string };
+    const db = await import("@rakazo/db");
+    expect(vi.mocked(db.joinCompanySpace)).toHaveBeenCalledWith(expect.anything(), user.id);
   });
   it("redirects an unprovisioned identity when registration closes", async () => {
     setup();

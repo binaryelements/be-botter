@@ -1454,6 +1454,7 @@ export const DeploymentSettingsSchema = z.object({
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
+  companySpaceId: Id.nullable(),
 });
 
 export const ServerUpdateSourceSchema = z.object({

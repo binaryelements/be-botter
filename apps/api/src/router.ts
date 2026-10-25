@@ -1392,6 +1392,7 @@ export function createRouter(deps: RouterDeps) {
             signupAllowlist: (input.signupAllowlist ?? []).join(","),
             signupPolicyInitialized: true,
             computerHost: input.computerHost ?? undefined,
+            companySpaceId: input.companySpaceId ?? undefined,
           },
           update: {
             ...(input.signupsEnabled === undefined ? {} : { signupsEnabled: input.signupsEnabled }),
@@ -1400,6 +1401,7 @@ export function createRouter(deps: RouterDeps) {
               ? {}
               : { signupPolicyInitialized: true }),
             ...(input.computerHost === undefined ? {} : { computerHost: input.computerHost }),
+            ...(input.companySpaceId === undefined ? {} : { companySpaceId: input.companySpaceId }),
           },
         });
         return deploymentDto(deps.prisma, deps.env.sandboxProvider);
@@ -7455,6 +7457,7 @@ async function deploymentDto(prisma: PrismaClient, sandboxProvider: string) {
     computerHost: computerHostFor(settings?.computerHost, sandboxProvider),
     canChooseHostComputer: sandboxProvider === "docker",
     sandboxProvider,
+    companySpaceId: settings?.companySpaceId ?? null,
   };
 }
 
