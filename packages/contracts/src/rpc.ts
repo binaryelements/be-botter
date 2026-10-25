@@ -30,6 +30,7 @@ import {
   AgentSkillCatalogEntrySchema,
   AgentSkillSchema,
   AppBootstrapSchema,
+  ApprovalPolicySchema,
   ArtifactSchema,
   ArtifactVersionSchema,
   ArtifactWithContentSchema,
@@ -970,6 +971,10 @@ export const appContract = {
       )
       .output(ActionApprovalRuleSchema),
     remove: oc.input(z.object({ id: Id })).output(z.object({ ok: z.literal(true) })),
+    policy: oc.output(ApprovalPolicySchema),
+    setPolicy: oc
+      .input(z.object({ writeApproval: z.enum(["ask", "rules"]) }))
+      .output(ApprovalPolicySchema),
   },
   autoReview: {
     get: oc.output(ActionAutoReviewSettingsSchema),

@@ -357,6 +357,9 @@ export function resolveActionApproval(input: {
 
 export type AutoReviewJudgeDecision = "pass" | "ask" | "error";
 
+/** A space's default for connector writes: ask a person every time, or only when a rule says so. */
+export type WriteApprovalPolicy = "ask" | "rules";
+
 /**
  * Pure combiner for Auto Review after rule resolution.
  * Rules win: require_approval asks, always_allow runs. Only the default path may call a judge.
@@ -369,6 +372,9 @@ export function planActionGate(input: {
   checkerConfigured: boolean;
   /** A fetch to a site the run was not given (see outboundSiteGate). */
   newDestination?: boolean;
+  policy?: WriteApprovalPolicy;
+  /** A connector call that changes data (connectorToolRequiresApproval). */
+  connectorWrite?: boolean;
 }): "ask" | "allow" | "judge" {
   if (input.resolved.decision === "ask") return "ask";
   // A rule for the whole tool is not a choice of sites, so it never allows a new one; only a site
@@ -379,6 +385,7 @@ export function planActionGate(input: {
     return input.autoReviewEnabled && input.checkerConfigured ? "judge" : "ask";
   }
   if (input.resolved.source === "always_allow") return "allow";
+  if (input.policy === "ask" && input.connectorWrite) return "ask";
   if (
     input.consequential &&
     input.autoReviewEnabled &&

@@ -232,6 +232,7 @@ function fixture(runId = "run-1") {
       ),
     },
     actionApprovalRule: { findMany: vi.fn(async () => []) },
+    space: { findUnique: vi.fn(async () => ({ writeApproval: "rules" })) },
     actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: false })) },
     externalEffect,
   };

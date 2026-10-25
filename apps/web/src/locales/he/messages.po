@@ -692,6 +692,10 @@ msgstr "החלה"
 msgid "Approval boundaries"
 msgstr "גבולות אישור"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Approvals"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Approve"
@@ -756,6 +760,10 @@ msgstr "לשאול לפני רכישות"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Ask before sending external email"
 msgstr "לשאול לפני שליחת אימייל חיצוני"
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Ask before writes"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
@@ -3599,6 +3607,10 @@ msgstr "ב-1 לחודש בשעה {0}"
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "אפשר למחוק רק מרחבים ריקים. יש למחוק קודם את הבוטים והקבוצות שבו."
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Only when a rule says so"
+msgstr ""
 
 #: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx

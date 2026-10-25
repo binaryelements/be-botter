@@ -692,6 +692,10 @@ msgstr "Toepassen"
 msgid "Approval boundaries"
 msgstr "Goedkeuringsgrenzen"
 
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Approvals"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Approve"
@@ -756,6 +760,10 @@ msgstr "Vragen voor aankopen"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Ask before sending external email"
 msgstr "Vragen voor het versturen van externe e-mail"
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Ask before writes"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
@@ -3599,6 +3607,10 @@ msgstr "op de 1e om {0}"
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Alleen lege spaces kunnen worden verwijderd. Verwijder eerst de bots en groepen."
+
+#: src/components/ApprovalRulesSettings.tsx
+msgid "Only when a rule says so"
+msgstr ""
 
 #: src/components/markdown-link-prompt.tsx
 #: src/pages/ScratchpadSection.tsx

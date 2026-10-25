@@ -397,6 +397,50 @@ describe("planActionGate", () => {
     ).toBe("allow");
   });
 
+  it("asks before every connector write when the space policy is ask", () => {
+    const resolved = { decision: "allow" as const, source: "default" as const, matchingRules: [] };
+    expect(
+      planActionGate({
+        resolved,
+        consequential,
+        autoReviewEnabled: true,
+        checkerConfigured: true,
+        policy: "ask",
+        connectorWrite: true,
+      }),
+    ).toBe("ask");
+    expect(
+      planActionGate({
+        resolved,
+        consequential: false,
+        autoReviewEnabled: false,
+        checkerConfigured: false,
+        policy: "ask",
+        connectorWrite: false,
+      }),
+    ).toBe("allow");
+    expect(
+      planActionGate({
+        resolved: { ...resolved, source: "always_allow" },
+        consequential,
+        autoReviewEnabled: false,
+        checkerConfigured: false,
+        policy: "ask",
+        connectorWrite: true,
+      }),
+    ).toBe("allow");
+    expect(
+      planActionGate({
+        resolved,
+        consequential,
+        autoReviewEnabled: false,
+        checkerConfigured: false,
+        policy: "rules",
+        connectorWrite: true,
+      }),
+    ).toBe("allow");
+  });
+
   it("sends a new site to Auto Review, even with a rule for the whole tool", () => {
     const gate = (source: "default" | "always_allow") =>
       planActionGate({

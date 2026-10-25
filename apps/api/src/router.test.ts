@@ -1472,6 +1472,79 @@ describe("MCP pre-registered OAuth client", () => {
   });
 });
 
+describe("approval policy", () => {
+  function policyDeps(writeApproval = "rules") {
+    const update = vi.fn(async () => ({}));
+    const prisma = {
+      space: { findUniqueOrThrow: vi.fn(async () => ({ writeApproval })), update },
+      $transaction: vi.fn(async (run: (tx: unknown) => Promise<unknown>) => run(prisma)),
+    } as unknown as PrismaClient;
+    const deps = {
+      prisma,
+      env: {
+        defaultProvider: "fake",
+        defaultModel: "fake-model",
+        webOrigin: "http://127.0.0.1:5173",
+        screenProxySecret: "fake-test-secret",
+        sandboxProvider: "fake",
+      },
+      dataDir: "/tmp/rakazo-router-test",
+    } as unknown as RouterDeps;
+    return { update, handler: new RPCHandler(createRouter(deps)) };
+  }
+
+  function actor(spaceRole: "owner" | "member"): Actor {
+    return {
+      spaceId: "workspace-1",
+      userId: `${spaceRole}-1`,
+      email: "user@rakazo.test",
+      isDeploymentOwner: false,
+      spaceRole,
+    };
+  }
+
+  function rpc(path: string, json: unknown) {
+    return new Request(`http://127.0.0.1/rpc/${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ json }),
+    });
+  }
+
+  it("tells a member the policy without letting them change it", async () => {
+    const { handler, update } = policyDeps("ask");
+    const { response } = await handler.handle(rpc("approvalRules/policy", undefined), {
+      prefix: "/rpc",
+      context: { actor: actor("member") },
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { json: unknown };
+    expect(body.json).toEqual({ writeApproval: "ask", canManage: false });
+
+    const denied = await handler.handle(
+      rpc("approvalRules/setPolicy", { writeApproval: "rules" }),
+      { prefix: "/rpc", context: { actor: actor("member") } },
+    );
+    expect(denied.response.status).toBe(403);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("lets a space owner change the policy", async () => {
+    const { handler, update } = policyDeps();
+    const { response } = await handler.handle(
+      rpc("approvalRules/setPolicy", { writeApproval: "ask" }),
+      { prefix: "/rpc", context: { actor: actor("owner") } },
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { json: unknown };
+    expect(body.json).toEqual({ writeApproval: "ask", canManage: true });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "workspace-1" },
+      data: { writeApproval: "ask" },
+    });
+  });
+});
+
 describe("MCP loopback endpoints", () => {
   const LOOPBACK = "http://localhost:3100/api/auth/get-session";
 

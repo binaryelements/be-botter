@@ -6538,6 +6538,24 @@ export function createRouter(deps: RouterDeps) {
         });
         return { ok: true as const };
       }),
+      policy: authed.approvalRules.policy.handler(async ({ context }) => {
+        const space = await deps.prisma.space.findUniqueOrThrow({
+          where: { id: context.actor.spaceId },
+          select: { writeApproval: true },
+        });
+        return {
+          writeApproval: space.writeApproval === "ask" ? "ask" : "rules",
+          canManage: isSpaceOwner(context.actor),
+        };
+      }),
+      setPolicy: authed.approvalRules.setPolicy.handler(async ({ context, input }) => {
+        if (!isSpaceOwner(context.actor)) throw new ORPCError("FORBIDDEN");
+        await deps.prisma.space.update({
+          where: { id: context.actor.spaceId },
+          data: { writeApproval: input.writeApproval },
+        });
+        return { writeApproval: input.writeApproval, canManage: true };
+      }),
     },
     autoReview: {
       get: authed.autoReview.get.handler(async ({ context }) => {

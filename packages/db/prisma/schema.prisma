@@ -230,6 +230,7 @@ model Space {
   createdAt                   DateTime                     @default(now())
   deletingAt                  DateTime?
   deletionClaimId             String?
+  writeApproval               String                       @default("rules")
   memberships                 SpaceMember[]
   bots                        Bot[]
   botSections                 BotSection[]

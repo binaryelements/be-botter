@@ -11,6 +11,8 @@ import {
 test("actions run by default while optional confirmations live in space settings", async ({
   page,
 }, testInfo) => {
+  // Six runs, two of them paused for a person, do not fit the default budget.
+  test.slow();
   const stamp = Date.now();
   await signup(page, `action-confirmations-${stamp}@rakazo.test`, "password12", "Approval UI");
   await completeOnboarding(page, testInfo);
@@ -20,6 +22,21 @@ test("actions run by default while optional confirmations live in space settings
   await expectComposerReady(page);
   await expect(page.getByRole("button", { name: "Allow once", exact: true })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "50-actions-run-without-confirmation");
+
+  // The owner can make the whole space ask before every write, with no rule needed.
+  const policySettings = await openUserSettings(page);
+  await policySettings.getByTestId("settings-nav-confirmations").click();
+  await policySettings.getByTestId("approval-policy").click();
+  await page.getByRole("option", { name: "Ask before writes", exact: true }).click();
+  await expect(policySettings.getByTestId("approval-policy")).toHaveText("Ask before writes");
+  await captureScreenshot(page, testInfo, "50-ask-before-writes");
+  await policySettings.getByRole("button", { name: "Close user settings" }).click();
+  await requestDestinationWrite(page, "write this to the destination crm while asking first");
+  await page.getByRole("button", { name: "Deny", exact: true }).click();
+  await waitForRunIdle(page);
+  await expectComposerReady(page);
+  // Back to rules only, so the rest of the journey covers the optional confirmations.
+  await rpc(page, "approvalRules/setPolicy", { writeApproval: "rules" });
 
   await page.getByTestId("bot-settings-trigger").click();
   await expect(page.getByTestId("bot-settings")).toBeVisible();
