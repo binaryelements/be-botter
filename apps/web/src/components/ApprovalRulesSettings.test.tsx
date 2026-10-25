@@ -34,7 +34,11 @@ vi.mock("@rakazo/ui-web", () => ({
   }: ComponentProps<"button"> & { variant?: string; size?: string }) => (
     <button type="button" {...props} />
   ),
-  Label: ({ htmlFor, ...props }: ComponentProps<"label">) => <label htmlFor={htmlFor} {...props} />,
+  Label: ({ htmlFor, children, ...props }: ComponentProps<"label">) => (
+    <label htmlFor={htmlFor} {...props}>
+      {children}
+    </label>
+  ),
   Switch: ({
     checked,
     onCheckedChange: _onCheckedChange,
