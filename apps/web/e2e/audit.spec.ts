@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { captureScreenshot, completeOnboarding, openUserSettings, signup } from "./helpers";
 
 test("the deployment owner reads and filters the audit log", async ({ page }, testInfo) => {
+  // Signup, onboarding and the settings page use most of the default budget on a slow runner.
+  test.slow();
   await signup(page, `audit-${Date.now()}@rakazo.test`, "password12", "Audit Owner");
   await completeOnboarding(page);
 

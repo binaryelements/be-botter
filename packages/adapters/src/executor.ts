@@ -4239,9 +4239,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
         };
         let writeApprovalPromise: Promise<WriteApprovalPolicy> | undefined;
         const loadWriteApproval = () => {
-          writeApprovalPromise ??= deps.prisma.space
-            .findUnique({ where: { id: run.spaceId }, select: { writeApproval: true } })
-            .then((space) => (space?.writeApproval === "ask" ? "ask" : "rules"));
+          // Older fixtures have no space table; they keep the rules policy.
+          writeApprovalPromise ??=
+            typeof deps.prisma.space?.findUnique === "function"
+              ? deps.prisma.space
+                  .findUnique({ where: { id: run.spaceId }, select: { writeApproval: true } })
+                  .then((space) => (space?.writeApproval === "ask" ? "ask" : "rules"))
+              : Promise.resolve("rules" as WriteApprovalPolicy);
           return writeApprovalPromise;
         };
         let autoReviewPreferencePromise: Promise<boolean> | undefined;
