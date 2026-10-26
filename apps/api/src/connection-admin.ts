@@ -1,38 +1,18 @@
 import { ORPCError } from "@orpc/server";
 import type { Actor } from "@rakazo/contracts";
-import { isSpaceOwner, runAsSystem } from "@rakazo/db";
+import {
+  isSpaceOwner,
+  mayManageConnections as mayManageConnectionsIn,
+  readConnectionsSwitch,
+} from "@rakazo/db";
 import type { RouterDeps } from "./router.js";
 
 type Deps = Pick<RouterDeps, "prisma">;
 
-function readSwitch(deps: Deps) {
-  return runAsSystem("the admin-only connections switch", () =>
-    deps.prisma.deploymentSettings.findUnique({
-      where: { id: "default" },
-      select: { connectionsAdminOnly: true, companySpaceId: true },
-    }),
-  );
-}
+const readSwitch = (deps: Deps) => readConnectionsSwitch(deps.prisma);
 
-/**
- * Whether the actor may add access (servers, tokens, secrets, accounts). While the deployment's
- * admin-only switch is on, only the deployment owner and owners of the company space may, in
- * any space they are in.
- */
-export async function mayManageConnections(actor: Actor, deps: Deps): Promise<boolean> {
-  if (actor.isDeploymentOwner) return true;
-  const settings = await readSwitch(deps);
-  if (!settings?.connectionsAdminOnly) return true;
-  const companySpaceId = settings.companySpaceId;
-  if (!companySpaceId) return false;
-  if (companySpaceId === actor.spaceId) return actor.spaceRole === "owner";
-  const membership = await runAsSystem("company space ownership", () =>
-    deps.prisma.spaceMember.findUnique({
-      where: { spaceId_userId: { spaceId: companySpaceId, userId: actor.userId } },
-      select: { role: true },
-    }),
-  );
-  return membership?.role === "owner";
+export function mayManageConnections(actor: Actor, deps: Deps): Promise<boolean> {
+  return mayManageConnectionsIn(deps.prisma, actor);
 }
 
 export async function assertMayManageConnections(actor: Actor, deps: Deps): Promise<void> {

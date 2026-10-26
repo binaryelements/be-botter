@@ -21,6 +21,7 @@ import {
   createRepos,
   createThreadMessageInTransaction,
   expireComputerExecutionLeases,
+  mayManageConnections,
   type Prisma,
   type PrismaClient,
   withTransactionRetry,
@@ -79,6 +80,10 @@ export async function spawnBot(
     email: "",
     isDeploymentOwner: false,
   };
+  // The run acts for its member, who adds bots only while the admin-only switch allows it.
+  if (!(await mayManageConnections(deps.prisma, actor))) {
+    return { error: "Only admins add bots in this deployment." };
+  }
   let duplicate = false;
   let created: Pick<Bot, "id" | "name" | "title" | "threadId">;
   try {

@@ -123,8 +123,7 @@ test("sidebar footer opens integrations and the account menu", async ({ page }, 
   await expect(page.getByRole("button", { name: "Close integrations", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close integrations", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
-  await expect(page.getByRole("link", { name: "Get the mobile app", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Docs", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(footer.locator('span[aria-hidden="true"] > span')).toHaveCount(3);
   if (avatarBox && pillBox) {
     await expect

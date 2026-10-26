@@ -2009,6 +2009,7 @@ export function createRouter(deps: RouterDeps) {
         return found;
       }),
       create: authed.bots.create.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         let bot: Bot;
         try {
           bot = await repos.createBot(context.actor, input);
@@ -2021,6 +2022,7 @@ export function createRouter(deps: RouterDeps) {
         return bot;
       }),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         const source = await repos.getBot(context.actor, input.botId);
         const duplicate = await repos
           .createBot(context.actor, {

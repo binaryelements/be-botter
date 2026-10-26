@@ -1032,6 +1032,7 @@ export type MobileMe = Pick<
   | "needsModel"
   | "avatarStyle"
   | "isDeploymentOwner"
+  | "canManageConnections"
 >;
 
 export type MobileModel = ModelCatalogEntry;

@@ -385,6 +385,7 @@ msgstr "Actief model"
 msgid "Activity"
 msgstr "Activiteit"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -928,6 +929,7 @@ msgstr "Te koppelen bot"
 msgid "Bot's model"
 msgstr "Model van de bot"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "Bots"
 msgstr "Bots"
@@ -2271,10 +2273,6 @@ msgstr "Docker is geconfigureerd, maar computers reageren niet. Controleer of de
 msgid "Docker limits access to your computer for added security. Using {hostLabel} lets bots work with your local files and tools."
 msgstr "Docker beperkt de toegang tot je computer voor extra veiligheid. Met {hostLabel} kunnen bots met je lokale bestanden en tools werken."
 
-#: src/components/SidebarFooter.tsx
-msgid "Docs"
-msgstr "Documentatie"
-
 #: src/pages/KnowledgeSection.tsx
 msgid "Document changed. Reopen to edit the latest version."
 msgstr "Het document is gewijzigd. Open het opnieuw om de nieuwste versie te bewerken."
@@ -2625,10 +2623,6 @@ msgstr "Gegevens ophalen"
 #: src/pages/shell/bot-panel.tsx
 msgid "Get notified when this Bot finishes or needs input"
 msgstr "Laat je melden wanneer deze bot klaar is of input nodig heeft"
-
-#: src/components/SidebarFooter.tsx
-msgid "Get the mobile app"
-msgstr "De mobiele app downloaden"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3610,7 +3604,7 @@ msgid "on the 1st at {0}"
 msgstr "op de 1e om {0}"
 
 #: src/components/ConnectionsAdminOnlySetting.tsx
-msgid "Only admins add connections"
+msgid "Only admins add bots and connections"
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4062,6 +4056,7 @@ msgid "Remove"
 msgstr "Verwijderen"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: bot.name
 #. placeholder {0}: user.name
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
@@ -4478,6 +4473,7 @@ msgstr "Zoeken: {0}"
 msgid "Searching…"
 msgstr "Bezig met zoeken…"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Selecteer een bot"

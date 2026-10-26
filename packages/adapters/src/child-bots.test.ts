@@ -144,7 +144,9 @@ describe("spawned bot creation", () => {
 
     const result = await spawnBot(
       {
-        prisma: {} as PrismaClient,
+        prisma: {
+          deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        } as unknown as PrismaClient,
         jobs: { enqueue: vi.fn() } as unknown as JobPublisher,
       },
       {
@@ -180,6 +182,37 @@ describe("spawned bot creation", () => {
       title: "",
       threadId: "thread-2",
     });
+    createReposSpy.mockRestore();
+  });
+
+  it("refuses a member's run while only admins add bots", async () => {
+    const createBot = vi.fn();
+    const createReposSpy = vi.spyOn(await import("@rakazo/db"), "createRepos").mockReturnValue({
+      createBot,
+    } as unknown as ReturnType<typeof createRepos>);
+    const prisma = {
+      deploymentSettings: {
+        findUnique: vi.fn().mockResolvedValue({
+          ownerUserId: "owner-1",
+          companySpaceId: "company-1",
+          connectionsAdminOnly: true,
+        }),
+      },
+      spaceMember: { findUnique: vi.fn().mockResolvedValue({ role: "member" }) },
+    } as unknown as PrismaClient;
+
+    const result = await spawnBot(
+      { prisma, jobs: { enqueue: vi.fn() } as unknown as JobPublisher },
+      {
+        spawnedBy: { id: "parent-1", name: "Chief", spaceId: "company-1", userId: "user-1" },
+        runId: "run-1",
+        spawnKey: "tool-call-3",
+        name: "Painter",
+      },
+    );
+
+    expect(result).toMatchObject({ error: expect.any(String) });
+    expect(createBot).not.toHaveBeenCalled();
     createReposSpy.mockRestore();
   });
 });

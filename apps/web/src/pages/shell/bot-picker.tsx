@@ -32,7 +32,7 @@ export function BotCreatePicker({
   onShowSpaceInfo: () => void;
 }) {
   const { t } = useLingui();
-  // shortcut: hides for staff only; a company owner still sees it and gets refused while the switch is on.
+  // shortcut: Create new Space hides for staff only; a company owner still sees it and gets refused while the switch is on.
   const canManageConnections = useCanManageConnections();
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
@@ -43,9 +43,10 @@ export function BotCreatePicker({
     );
   }, [bots, needle]);
   const showCreate =
-    !needle ||
-    "create new bot".includes(needle) ||
-    needle.split(/\s+/).every((part) => "create new bot".includes(part));
+    canManageConnections &&
+    (!needle ||
+      "create new bot".includes(needle) ||
+      needle.split(/\s+/).every((part) => "create new bot".includes(part)));
 
   return (
     <div data-testid="bot-create-picker" className="w-[min(320px,calc(100vw-2rem))]">

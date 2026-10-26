@@ -97,7 +97,7 @@ export function SettingsOverlay({
   onVoiceStatusMaybeChanged,
 }: {
   /** The space the per-space sections act on; it need not be the selected space. */
-  space?: { id: string; name: string } | null;
+  space?: { id: string; name: string; canRename?: boolean } | null;
   spaces?: { id: string; name: string }[];
   /** The space the app is showing; its memory config comes from the shell. */
   currentSpaceId?: string | null;
@@ -129,7 +129,8 @@ export function SettingsOverlay({
 }) {
   const { t, i18n } = useLingui();
   const panelRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLElement>(null);
+  // State, not a ref: the dialog mounts the nav after the first effect run.
+  const [nav, setNav] = useState<HTMLElement | null>(null);
   const [navOverflow, setNavOverflow] = useState({ previous: false, next: false });
   const usageRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<SettingsSection>(initialSection);
@@ -144,7 +145,7 @@ export function SettingsOverlay({
   const panelBusy = memoryBusy || voiceBusy;
   const spaceScoped = SPACE_SECTIONS.has(section);
   const spaceId = spaceScoped ? (space?.id ?? null) : null;
-  // Departments appear in the nav once the space has one; the first is created from a bot's page.
+  // Owners always see Departments; members once the space has one. canRename marks a space owner.
   const [hasDepartments, setHasDepartments] = useState(false);
   useEffect(() => {
     if (!space?.id) return;
@@ -235,13 +236,16 @@ export function SettingsOverlay({
     }
   }, [section, onUsageOpen]);
 
+  const showDepartments = Boolean(
+    hasDepartments || isDeploymentOwner || space?.canRename || section === "departments",
+  );
   const navItems: NavItem[] = [
     { id: "general", label: t`General`, icon: Settings },
     { id: "models", label: t`Models`, icon: Cpu },
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
-    ...(hasDepartments || section === "departments"
+    ...(showDepartments
       ? [{ id: "departments" as const, label: t`Departments`, icon: Users }]
       : []),
     { id: "usage", label: t`Usage`, icon: Gauge },
@@ -251,7 +255,6 @@ export function SettingsOverlay({
   ];
 
   useEffect(() => {
-    const nav = navRef.current;
     if (!nav) return;
     const measure = () => {
       const offset = Math.abs(nav.scrollLeft);
@@ -274,14 +277,15 @@ export function SettingsOverlay({
     const observer =
       typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(revealSection);
     observer?.observe(nav);
+    // Tabs widen without resizing the nav (late fonts, a tab added after loading).
+    for (const tab of nav.children) observer?.observe(tab);
     return () => {
       nav.removeEventListener("scroll", measure);
       observer?.disconnect();
     };
-  }, [section, showComputer, billingEnabled, showUpdates, i18n.locale]);
+  }, [nav, section, showComputer, showDepartments, billingEnabled, showUpdates, i18n.locale]);
 
   function scrollSections(direction: number) {
-    const nav = navRef.current;
     if (!nav) return;
     const rtl = getComputedStyle(nav).direction === "rtl";
     nav.scrollBy({ left: nav.clientWidth * 0.75 * direction * (rtl ? -1 : 1), behavior: "smooth" });
@@ -349,7 +353,7 @@ export function SettingsOverlay({
               <ChevronLeft className="rtl:rotate-180" />
             </Button>
             <nav
-              ref={navRef}
+              ref={setNav}
               data-testid="settings-nav"
               aria-label={t`Settings`}
               className="flex min-w-0 flex-1 flex-row gap-1 overflow-x-auto py-3 md:w-[200px] md:shrink-0 md:flex-none md:flex-col md:overflow-y-auto md:border-e md:border-border md:px-3 md:py-4"

@@ -64,6 +64,7 @@ it("keeps only Activity, Search and Create in the transparent native home header
     navigation: { setOptions },
     ready: true,
     hasSession: true,
+    canAddBots: true,
     initials: "A",
     activityMode: false,
     toggleActivityMode: vi.fn(),
@@ -91,6 +92,7 @@ it.each(["android", "ios"])("omits Artifacts from the %s fallback header", (plat
   const element = evaluate(`return <>${header}</>;`, {
     React,
     nativeHeader: false,
+    canAddBots: true,
     View: ({
       children,
       accessibilityLabel,

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import type { Actor } from "@rakazo/contracts";
 import type { Prisma, PrismaClient } from "./generated/prisma/client.js";
+import { runAsSystem } from "./row-security.js";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -42,4 +44,38 @@ export async function joinCompanySpace(db: Db, userId: string): Promise<void> {
     select: { companySpaceId: true },
   });
   if (settings?.companySpaceId) await joinSpace(db, settings.companySpaceId, userId);
+}
+
+export function readConnectionsSwitch(db: Db) {
+  return runAsSystem("the admin-only connections switch", () =>
+    db.deploymentSettings.findUnique({
+      where: { id: "default" },
+      select: { connectionsAdminOnly: true, companySpaceId: true, ownerUserId: true },
+    }),
+  );
+}
+
+/**
+ * Whether the actor may add access (servers, tokens, secrets, accounts) and bots. While the
+ * deployment's admin-only switch is on, only the deployment owner and owners of the company space
+ * may, in any space they are in.
+ */
+export async function mayManageConnections(
+  db: Db,
+  actor: Pick<Actor, "userId" | "spaceId" | "isDeploymentOwner" | "spaceRole">,
+): Promise<boolean> {
+  if (actor.isDeploymentOwner) return true;
+  const settings = await readConnectionsSwitch(db);
+  if (!settings?.connectionsAdminOnly) return true;
+  if (settings.ownerUserId === actor.userId) return true;
+  const companySpaceId = settings.companySpaceId;
+  if (!companySpaceId) return false;
+  if (companySpaceId === actor.spaceId && actor.spaceRole) return actor.spaceRole === "owner";
+  const membership = await runAsSystem("company space ownership", () =>
+    db.spaceMember.findUnique({
+      where: { spaceId_userId: { spaceId: companySpaceId, userId: actor.userId } },
+      select: { role: true },
+    }),
+  );
+  return membership?.role === "owner";
 }

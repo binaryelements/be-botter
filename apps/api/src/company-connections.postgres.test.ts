@@ -123,6 +123,8 @@ const GUARDED: [string, unknown][] = [
   ["messaging/channels/respond", { membershipId: "missing", accept: true }],
   ["messaging/connections/respond", { connectionId: "missing", accept: true }],
   ["spaces/create", { name: "Side project" }],
+  ["bots/create", { name: "Guarded bot" }],
+  ["bots/duplicate", { botId: "missing" }],
 ];
 
 describePostgres("company connections and the admin-only switch (PostgreSQL)", () => {
@@ -388,6 +390,8 @@ describePostgres("company connections and the admin-only switch (PostgreSQL)", (
 
     // Owners of the company space still add connections; only the deployment owner adds spaces.
     await rpc(app, owner.cookie, "mcp/servers/create", remoteServer("owner-private"));
+    await rpc(app, owner.cookie, "bots/create", { name: "Owner bot" });
+    await rpc(app, deployer.cookie, "bots/create", { name: "Deployer bot" });
     expect(await status(app, owner.cookie, "spaces/create", { name: "Owner side" })).toBe(403);
     const created = await rpc<{ id: string }>(app, deployer.cookie, "spaces/create", {
       name: "Deployer side",

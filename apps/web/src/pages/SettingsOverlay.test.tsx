@@ -258,13 +258,27 @@ it("withholds memory connection controls after a failed load and retries the edi
 const departmentsNav = (container: HTMLElement) =>
   container.querySelector('[data-testid="settings-nav-departments"]');
 
-it("hides Departments until the space has one", async () => {
+it("hides Departments from members until the space has one", async () => {
   const { container, cleanup } = await render({ space: acme, spaces: [acme] });
   try {
     await vi.waitFor(() => expect(departmentsList).toHaveBeenCalledWith("space-a"));
     expect(departmentsNav(container)).toBeNull();
   } finally {
     await cleanup();
+  }
+});
+
+it("always shows Departments to owners", async () => {
+  for (const props of [
+    { space: { ...acme, canRename: true }, spaces: [acme] },
+    { space: acme, spaces: [acme], isDeploymentOwner: true },
+  ]) {
+    const { container, cleanup } = await render(props);
+    try {
+      expect(departmentsNav(container)).not.toBeNull();
+    } finally {
+      await cleanup();
+    }
   }
 });
 

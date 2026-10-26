@@ -39,7 +39,7 @@ it("reads the deployment switch and saves a change", async () => {
   const root = createRoot(host);
   await act(async () => root.render(<ConnectionsAdminOnlySetting />));
   const input = host.querySelector("input") as HTMLInputElement;
-  expect(host.textContent).toContain("Only admins add connections");
+  expect(host.textContent).toContain("Only admins add bots and connections");
   expect(input.checked).toBe(false);
   await act(async () => input.click());
   expect(client.deployment.update).toHaveBeenCalledWith({ connectionsAdminOnly: true });

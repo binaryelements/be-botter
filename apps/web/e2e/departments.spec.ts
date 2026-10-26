@@ -5,8 +5,31 @@ import {
   completeOnboarding,
   createNamedBot,
   expandAdvancedSection,
+  openUserSettings,
   signup,
 } from "./helpers";
+
+test("an owner sets up a department's people and bots from Settings", async ({
+  page,
+}, testInfo) => {
+  const stamp = Date.now();
+  await signup(page, `departments-admin-${stamp}@rakazo.test`, "password12", "Owner");
+  await completeOnboarding(page);
+  const botName = `Helpdesk ${stamp}`;
+  await createNamedBot(page, botName);
+
+  // Owners reach Departments before any department exists.
+  const settings = await openUserSettings(page, "departments");
+  const panel = settings.getByTestId("departments-settings");
+  await panel.getByLabel("New department").fill("IT");
+  await panel.getByRole("button", { name: "Add department", exact: true }).click();
+  const department = panel.locator('li[data-testid^="department-"]').first();
+  await expect(department.getByRole("heading", { name: "IT", exact: true })).toBeVisible();
+  await department.getByRole("combobox", { name: "Bots" }).selectOption({ label: botName });
+  await department.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(department.getByRole("button", { name: `Remove ${botName}` })).toBeVisible();
+  await captureScreenshot(page, testInfo, "departments-admin");
+});
 
 test("an owner shares a bot with a department and its member can reach it", async ({
   page,
