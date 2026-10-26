@@ -723,7 +723,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "Open in full window": "Открыть в полном окне",
   "OpenAPI JSON": "OpenAPI JSON",
   "Opened its thread.": "Диалог открыт.",
-  "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed.":
+  "Paste the OpenAI-compatible address from your server. BE Botter adds /v1 if needed.":
     "Вставьте OpenAI-совместимый адрес со своего сервера. При необходимости Rakazo добавляет /v1.",
   Paused: "Приостановлено",
   Prompt: "Промпт",

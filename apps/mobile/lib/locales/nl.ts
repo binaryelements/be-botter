@@ -101,7 +101,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "Chat Settings": "Chatinstellingen",
   "Configure a plugin catalog on the server to connect apps.":
     "Configureer een plugincatalogus op de server om apps te koppelen.",
-  "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed.":
+  "Paste the OpenAI-compatible address from your server. BE Botter adds /v1 if needed.":
     "Plak het OpenAI-compatibele adres van je server. Rakazo voegt zo nodig /v1 toe.",
   "Settings: General": "Instellingen: algemeen",
   "Settings: Usage": "Instellingen: gebruik",
