@@ -243,6 +243,17 @@ describePostgres("company connections and the admin-only switch (PostgreSQL)", (
         assignments: [{ serverId: server.id }],
       }),
     ).toBe(400);
+    // Approving without a card's thread always assigns, so this reaches the shared check,
+    // which only looks at enabled servers.
+    await db.mcpServer.update({ where: { id: server.id }, data: { enabled: true } });
+    expect(
+      await status(app, owner.cookie, "mcp/assignments/approve", {
+        botId: bot.id,
+        serverId: server.id,
+      }),
+    ).toBe(400);
+    expect(await db.botMcpServer.count({ where: { serverId: server.id } })).toBe(0);
+    await db.mcpServer.update({ where: { id: server.id }, data: { enabled: false } });
 
     // Members never see it, or its credential.
     const listed = await rpc<McpServer[]>(

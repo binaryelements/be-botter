@@ -159,14 +159,14 @@ import {
 import { mountVoiceHttpRoutes, voiceAccountErrorStatus } from "./voice.js";
 import { mountWebhookHttpRoutes } from "./webhook.js";
 
+/** How often the API renews SSO tokens that expire within 45 minutes. */
+const SSO_RENEWAL_INTERVAL_MS = 10 * 60_000;
+
 /**
  * Native clients always send the app scheme, including in Expo Go, so no
  * exp:// origin is trusted: it would accept any Expo host as a redirect target.
  * The loopback entries are the Expo web dev server.
  */
-/** How often the API renews SSO tokens that expire within 45 minutes. */
-const SSO_RENEWAL_INTERVAL_MS = 10 * 60_000;
-
 export const MOBILE_AUTH_ORIGINS = [
   "rakazo://",
   "http://localhost:8081",
