@@ -385,6 +385,7 @@ msgstr "Активная модель"
 msgid "Activity"
 msgstr "Активность"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -928,6 +929,7 @@ msgstr "Бот для ссылки"
 msgid "Bot's model"
 msgstr "Модель бота"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "Bots"
 msgstr ""
@@ -4062,6 +4064,7 @@ msgid "Remove"
 msgstr "Удалить"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: bot.name
 #. placeholder {0}: user.name
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
@@ -4478,6 +4481,7 @@ msgstr ""
 msgid "Searching…"
 msgstr "Поиск…"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Выберите бота"

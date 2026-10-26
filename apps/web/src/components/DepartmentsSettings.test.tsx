@@ -14,6 +14,7 @@ const client = vi.hoisted(() => ({
     remove: vi.fn(),
     setUsers: vi.fn(),
   },
+  bots: { list: vi.fn(), setDepartments: vi.fn() },
   me: vi.fn(),
 }));
 
@@ -58,6 +59,10 @@ let root: Root;
 async function render(departments: Department[], isSpaceOwner: boolean) {
   client.departments.list.mockResolvedValue(departments);
   client.me.mockResolvedValue({ isSpaceOwner });
+  client.bots.list.mockResolvedValue([
+    { id: "bot-1", name: "Scout" },
+    { id: "bot-2", name: "Painter" },
+  ]);
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -115,6 +120,29 @@ describe("DepartmentsSettings", () => {
     expect(client.departments.create).toHaveBeenCalledWith({ name: "Accounts" });
     expect(container.textContent).toContain("Accounts");
     expect(nameInput.value).toBe("");
+  });
+
+  it("lets an owner add and remove a department's bots", async () => {
+    await render([it_], true);
+    const removeButton = (name: string) => container.querySelector(`[aria-label="Remove ${name}"]`);
+    expect(removeButton("Scout")).not.toBeNull();
+    client.bots.setDepartments.mockResolvedValueOnce({ departmentIds: [] });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Remove Scout"]')?.click(),
+    );
+    expect(client.bots.setDepartments).toHaveBeenCalledWith({ botId: "bot-1", departmentIds: [] });
+    expect(removeButton("Scout")).toBeNull();
+
+    client.bots.setDepartments.mockResolvedValueOnce({ departmentIds: ["dept-it"] });
+    const picker = container.querySelector<HTMLSelectElement>('select[aria-label="Bots"]');
+    if (!picker) throw new Error("Missing bot picker");
+    await act(async () => setValue(picker, "bot-2"));
+    await act(async () => button("Add").click());
+    expect(client.bots.setDepartments).toHaveBeenLastCalledWith({
+      botId: "bot-2",
+      departmentIds: ["dept-it"],
+    });
+    expect(removeButton("Painter")).not.toBeNull();
   });
 
   it("shows departments read-only to someone who is neither owner nor head", async () => {

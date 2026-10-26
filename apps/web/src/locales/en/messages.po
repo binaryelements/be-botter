@@ -385,6 +385,7 @@ msgstr "Active model"
 msgid "Activity"
 msgstr "Activity"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -928,6 +929,7 @@ msgstr "Bot to link"
 msgid "Bot's model"
 msgstr "Bot's model"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "Bots"
 msgstr "Bots"
@@ -4062,6 +4064,7 @@ msgid "Remove"
 msgstr "Remove"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: bot.name
 #. placeholder {0}: user.name
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
@@ -4478,6 +4481,7 @@ msgstr "Search: {0}"
 msgid "Searching…"
 msgstr "Searching…"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Select a bot"

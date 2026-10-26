@@ -7,12 +7,13 @@ import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 
 type UserInput = { email: string; role: DepartmentRole };
+type BotOption = { id: string; name: string };
 
 function toUsersInput(users: Department["users"]): UserInput[] {
   return users.map((user) => ({ email: user.email, role: user.role }));
 }
 
-/** Departments of the space these settings act on: who is in each, and who may change that. */
+/** Departments of the space these settings act on: who and which bots are in each. */
 export function DepartmentsSettings() {
   const rpc = useSpaceRpc();
   const { t } = useLingui();
@@ -22,14 +23,16 @@ export function DepartmentsSettings() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("");
+  const [bots, setBots] = useState<BotOption[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([rpc.departments.list(), rpc.me()])
-      .then(([list, me]) => {
+    Promise.all([rpc.departments.list(), rpc.me(), rpc.bots.list()])
+      .then(([list, me, botList]) => {
         if (cancelled) return;
         setDepartments(list);
         setIsOwner(me.isSpaceOwner === true);
+        setBots(botList.map((bot) => ({ id: bot.id, name: bot.name })));
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(errorText(err, t`Could not load departments`));
@@ -90,6 +93,33 @@ export function DepartmentsSettings() {
     }
   }
 
+  async function setBotInDepartment(botId: string, departmentId: string, on: boolean) {
+    const current = (departments ?? [])
+      .filter((department) => department.botIds.includes(botId) && department.id !== departmentId)
+      .map((department) => department.id);
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await rpc.bots.setDepartments({
+        botId,
+        departmentIds: on ? [...current, departmentId] : current,
+      });
+      setDepartments((list) =>
+        (list ?? []).map((department) => {
+          const others = department.botIds.filter((id) => id !== botId);
+          return {
+            ...department,
+            botIds: saved.departmentIds.includes(department.id) ? [...others, botId] : others,
+          };
+        }),
+      );
+    } catch (err) {
+      setError(errorText(err, t`Could not save`));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div data-testid="departments-settings" className="pt-5">
       {isOwner ? (
@@ -133,6 +163,8 @@ export function DepartmentsSettings() {
               busy={busy}
               onRemove={() => removeDepartment(department.id)}
               onSaveUsers={(users) => saveUsers(department, users)}
+              bots={bots}
+              onSetBot={(botId, on) => setBotInDepartment(botId, department.id, on)}
             />
           ))}
         </ul>
@@ -147,19 +179,26 @@ function DepartmentCard({
   busy,
   onRemove,
   onSaveUsers,
+  bots,
+  onSetBot,
 }: {
   department: Department;
   isOwner: boolean;
   busy: boolean;
   onRemove: () => Promise<void>;
   onSaveUsers: (users: UserInput[]) => Promise<boolean>;
+  bots: BotOption[];
+  onSetBot: (botId: string, on: boolean) => Promise<void>;
 }) {
   const { t } = useLingui();
   const ids = useId();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<DepartmentRole>("member");
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [botId, setBotId] = useState("");
   const canManage = department.canManageUsers;
+  const departmentBots = bots.filter((bot) => department.botIds.includes(bot.id));
+  const otherBots = bots.filter((bot) => !department.botIds.includes(bot.id));
 
   async function addPerson() {
     const trimmed = email.trim();
@@ -300,6 +339,56 @@ function DepartmentCard({
             <Trans>Add person</Trans>
           </Button>
         </form>
+      ) : null}
+      {isOwner ? (
+        <>
+          {departmentBots.length > 0 ? (
+            <ul className="mt-3 space-y-1.5">
+              {departmentBots.map((bot) => (
+                <li key={bot.id} className="flex items-center justify-between gap-3 text-[13.5px]">
+                  <span className="min-w-0 truncate text-foreground/75">{bot.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t`Remove ${bot.name}`}
+                    disabled={busy}
+                    onClick={() => void onSetBot(bot.id, false)}
+                  >
+                    <XIcon />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {otherBots.length > 0 ? (
+            <form
+              className="mt-3 flex items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!botId) return;
+                void onSetBot(botId, true).then(() => setBotId(""));
+              }}
+            >
+              <NativeSelect
+                aria-label={t`Bots`}
+                className="flex-1"
+                value={botId}
+                disabled={busy}
+                onChange={(event) => setBotId(event.target.value)}
+              >
+                <NativeSelectOption value="">{t`Select a bot`}</NativeSelectOption>
+                {otherBots.map((bot) => (
+                  <NativeSelectOption key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              <Button type="submit" variant="outline" disabled={busy || !botId}>
+                <Trans>Add</Trans>
+              </Button>
+            </form>
+          ) : null}
+        </>
       ) : null}
     </li>
   );

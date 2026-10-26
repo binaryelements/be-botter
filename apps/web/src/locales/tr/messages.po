@@ -385,6 +385,7 @@ msgstr "Etkin model"
 msgid "Activity"
 msgstr "Etkinlik"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -928,6 +929,7 @@ msgstr ""
 msgid "Bot's model"
 msgstr "Botun modeli"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Artifacts.tsx
 msgid "Bots"
 msgstr ""
@@ -4062,6 +4064,7 @@ msgid "Remove"
 msgstr "Kaldır"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: bot.name
 #. placeholder {0}: user.name
 #: src/components/DepartmentsSettings.tsx
 #: src/pages/shell/composer.tsx
@@ -4478,6 +4481,7 @@ msgstr ""
 msgid "Searching…"
 msgstr "Aranıyor…"
 
+#: src/components/DepartmentsSettings.tsx
 #: src/pages/Shell.tsx
 msgid "Select a bot"
 msgstr "Bir bot seç"
