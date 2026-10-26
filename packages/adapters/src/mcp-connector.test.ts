@@ -2461,11 +2461,12 @@ describe("MCP connector company servers", () => {
     signIn: "server",
     secretId: null as string | null,
   };
-  const contextFor = (userId: string) =>
+  const contextFor = (userId: string, trigger?: string) =>
     ({
       spaceId: "w1",
       userId,
       botId: "bot-1",
+      trigger: trigger ?? "user",
       signal: new AbortController().signal,
     }) as never;
   const echoCall = {
@@ -2556,8 +2557,70 @@ describe("MCP connector company servers", () => {
     }
   });
 
+  it("keeps a shared-token server working on runs nobody started in person", async () => {
+    vi.stubGlobal("fetch", mcpFetch({ failNext: false, initializations: 0 }));
+    const connector = new McpConnector(companyPrisma(COMPANY) as never, {} as never, {
+      network: TEST_NETWORK,
+    });
+    try {
+      for (const trigger of ["webhook", "messaging", "tickets", "spawn"]) {
+        const tools = await connector.discoverTools(contextFor("owner", trigger));
+        expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+        const events: unknown[] = [];
+        for await (const event of connector.execute(echoCall, contextFor("owner", trigger)))
+          events.push(event);
+        expect(events).toMatchObject([{ type: "result" }]);
+      }
+    } finally {
+      await connector.close();
+    }
+  });
+
   describe("signed in as each person", () => {
     const PERSONAL = { ...COMPANY, signIn: "person" };
+
+    it("is offered only on runs the person started for themselves", async () => {
+      vi.stubGlobal("fetch", mcpFetch({ failNext: false, initializations: 0 }));
+      const personToken = vi.fn(async (userId: string) => ({
+        accessToken: `token-of-${userId}`,
+        expiresAt: Date.now() + 60 * 60_000,
+      }));
+      const connector = new McpConnector(companyPrisma(PERSONAL) as never, {} as never, {
+        network: TEST_NETWORK,
+        personToken,
+      });
+      try {
+        // Channels, webhooks, tickets, other bots, spawns, follow-ups and anything without a
+        // run run as the bot's owner, who did not ask: the owner's mailbox stays out of reach.
+        for (const trigger of [
+          "webhook",
+          "messaging",
+          "tickets",
+          "bot_message",
+          "spawn",
+          "follow_up",
+          "cloud_agent",
+          "",
+        ]) {
+          const context = { ...(contextFor("owner") as object), trigger: trigger || undefined };
+          expect(await connector.discoverTools(context as never)).toEqual([]);
+          const events: unknown[] = [];
+          for await (const event of connector.execute(echoCall, context as never))
+            events.push(event);
+          expect(events).toEqual([
+            { type: "error", message: "MCP tool is not assigned to this bot" },
+          ]);
+        }
+        expect(personToken).not.toHaveBeenCalled();
+        for (const trigger of ["user", "routine"]) {
+          const tools = await connector.discoverTools(contextFor("owner", trigger));
+          expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+        }
+        expect(personToken).toHaveBeenCalledWith("owner");
+      } finally {
+        await connector.close();
+      }
+    });
 
     it("connects with each person's own token, one session each", async () => {
       const state = {

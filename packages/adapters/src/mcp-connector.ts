@@ -202,6 +202,15 @@ function sharedServerWhere(spaceId: string, botId: string) {
   };
 }
 
+/**
+ * A server signed in as each person carries the run's person's own token, so it is offered
+ * only on runs that person started for themselves: their own message or their own routine.
+ * Channels, webhooks, tickets, other bots and spawns run as the bot's owner, who did not ask.
+ */
+const PERSON_RUN_TRIGGERS = new Set(["user", "routine"]);
+const grantUsable = (grant: ServerGrant, context: AdapterContext) =>
+  grant.server.signIn !== "person" || PERSON_RUN_TRIGGERS.has(context.trigger ?? "");
+
 const sharedGrant = (server: McpServer): ServerGrant => ({
   serverId: server.id,
   server,
@@ -446,7 +455,7 @@ export class McpConnector implements ConnectorProvider {
     const grants: ServerGrant[] = [
       ...assignments,
       ...shared.filter((server) => !assigned.has(server.id)).map(sharedGrant),
-    ];
+    ].filter((grant) => grantUsable(grant, context));
     const groups = await Promise.all(
       grants.map(async (assignment): Promise<ConnectorTool[]> => {
         const startedAt = Date.now();
@@ -644,7 +653,7 @@ export class McpConnector implements ConnectorProvider {
     }
     const resourceId = call.route.resourceId;
     const botId = context.botId;
-    const assignment: ServerGrant | null =
+    const found: ServerGrant | null =
       (await this.prisma.botMcpServer.findFirst({
         where: {
           botId,
@@ -659,6 +668,7 @@ export class McpConnector implements ConnectorProvider {
         ?.findFirst?.({ where: { id: resourceId, ...sharedServerWhere(context.spaceId, botId) } })
         .then((server) => (server ? sharedGrant(server) : null))) ??
       null;
+    const assignment = found && grantUsable(found, context) ? found : null;
     if (assignment && call.route.toolName === UNAVAILABLE_TOOL) {
       const reason =
         this.unavailable.get(this.sessionKey(assignment.server, context)) ??

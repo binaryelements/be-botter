@@ -11,6 +11,8 @@ export interface AdapterContext {
   userId: string;
   botId?: string;
   runId?: string;
+  /** What started the run (`user`, `routine`, `webhook`, ...); absent outside a run. */
+  trigger?: string;
   /** Opaque fence for releasing a graphical screen without tearing down its replacement. */
   screenLeaseId?: string;
   /** Retain a completed run's screen for reuse by this bot. */
