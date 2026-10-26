@@ -19,6 +19,7 @@ import {
 } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCanManageConnections } from "../lib/connections-access";
 import { importChunk } from "../lib/preload-recovery";
 import { useBoundSpaceId, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
@@ -36,6 +37,7 @@ export function VoiceSettingsOverlay({
   const rpc = useSpaceRpc();
   const spaceId = useBoundSpaceId();
   const { t } = useLingui();
+  const canManageConnections = useCanManageConnections();
   const apiKeyId = useId();
   const voiceSelectId = useId();
   const speechModelId = useId();
@@ -292,89 +294,93 @@ export function VoiceSettingsOverlay({
           {notice ? <p className="mb-4 text-sm text-success">{notice}</p> : null}
           {selected ? (
             <>
-              {selfHosted ? (
-                <Field className="mt-5">
-                  <FieldLabel htmlFor={baseUrlId}>
-                    <Trans>Server URL</Trans>
-                  </FieldLabel>
-                  <Input
-                    id={baseUrlId}
-                    type="url"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={baseUrl}
-                    onChange={(event) => setBaseUrl(event.target.value)}
-                    placeholder="http://192.168.1.10:8880/v1"
-                  />
-                </Field>
-              ) : null}
-              <Field className="mt-5">
-                <FieldLabel htmlFor={apiKeyId}>
-                  <Trans>API key</Trans>
-                </FieldLabel>
-                <Input
-                  id={apiKeyId}
-                  type="password"
-                  autoComplete="new-password"
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                  placeholder={
-                    selfHosted
-                      ? t`Optional`
-                      : credential
-                        ? t`Paste a replacement key`
-                        : t`Paste your API key`
-                  }
-                />
-              </Field>
-              {selfHosted ? (
+              {canManageConnections ? (
                 <>
+                  {selfHosted ? (
+                    <Field className="mt-5">
+                      <FieldLabel htmlFor={baseUrlId}>
+                        <Trans>Server URL</Trans>
+                      </FieldLabel>
+                      <Input
+                        id={baseUrlId}
+                        type="url"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={baseUrl}
+                        onChange={(event) => setBaseUrl(event.target.value)}
+                        placeholder="http://192.168.1.10:8880/v1"
+                      />
+                    </Field>
+                  ) : null}
                   <Field className="mt-5">
-                    <FieldLabel htmlFor={ttsModelId}>
-                      <Trans>Speech model</Trans>
+                    <FieldLabel htmlFor={apiKeyId}>
+                      <Trans>API key</Trans>
                     </FieldLabel>
                     <Input
-                      id={ttsModelId}
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={ttsModel}
-                      maxLength={200}
-                      onChange={(event) => setTtsModel(event.target.value)}
-                      placeholder={DEFAULT_COMPATIBLE_TTS_MODEL}
+                      id={apiKeyId}
+                      type="password"
+                      autoComplete="new-password"
+                      value={apiKey}
+                      onChange={(event) => setApiKey(event.target.value)}
+                      placeholder={
+                        selfHosted
+                          ? t`Optional`
+                          : credential
+                            ? t`Paste a replacement key`
+                            : t`Paste your API key`
+                      }
                     />
                   </Field>
-                  <Field className="mt-5">
-                    <FieldLabel htmlFor={sttModelId}>
-                      <Trans>Transcription model</Trans>
-                    </FieldLabel>
-                    <Input
-                      id={sttModelId}
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={sttModel}
-                      maxLength={200}
-                      onChange={(event) => setSttModel(event.target.value)}
-                      placeholder={DEFAULT_COMPATIBLE_STT_MODEL}
-                    />
-                  </Field>
+                  {selfHosted ? (
+                    <>
+                      <Field className="mt-5">
+                        <FieldLabel htmlFor={ttsModelId}>
+                          <Trans>Speech model</Trans>
+                        </FieldLabel>
+                        <Input
+                          id={ttsModelId}
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={ttsModel}
+                          maxLength={200}
+                          onChange={(event) => setTtsModel(event.target.value)}
+                          placeholder={DEFAULT_COMPATIBLE_TTS_MODEL}
+                        />
+                      </Field>
+                      <Field className="mt-5">
+                        <FieldLabel htmlFor={sttModelId}>
+                          <Trans>Transcription model</Trans>
+                        </FieldLabel>
+                        <Input
+                          id={sttModelId}
+                          autoComplete="off"
+                          spellCheck={false}
+                          value={sttModel}
+                          maxLength={200}
+                          onChange={(event) => setSttModel(event.target.value)}
+                          placeholder={DEFAULT_COMPATIBLE_STT_MODEL}
+                        />
+                      </Field>
+                    </>
+                  ) : null}
+                  <Button
+                    type="button"
+                    className="mt-3"
+                    disabled={busy || !canConnect}
+                    onClick={() => void connectKey()}
+                  >
+                    {pending === "connect" ? (
+                      <Trans>Connecting…</Trans>
+                    ) : credential && selfHosted ? (
+                      <Trans>Reconnect</Trans>
+                    ) : credential ? (
+                      <Trans>Replace key</Trans>
+                    ) : (
+                      <Trans>Connect</Trans>
+                    )}
+                  </Button>
                 </>
               ) : null}
-              <Button
-                type="button"
-                className="mt-3"
-                disabled={busy || !canConnect}
-                onClick={() => void connectKey()}
-              >
-                {pending === "connect" ? (
-                  <Trans>Connecting…</Trans>
-                ) : credential && selfHosted ? (
-                  <Trans>Reconnect</Trans>
-                ) : credential ? (
-                  <Trans>Replace key</Trans>
-                ) : (
-                  <Trans>Connect</Trans>
-                )}
-              </Button>
               {credential ? (
                 <Button
                   type="button"

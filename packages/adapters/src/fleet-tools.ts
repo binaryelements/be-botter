@@ -996,6 +996,7 @@ export async function createChildRoutine(
   deps: ScheduleToolDeps,
   run: FleetRun,
   canonical: Record<string, unknown>,
+  personCreated = false,
 ) {
   const typedName = text(canonical.name);
   const name = typedName === undefined ? undefined : singleLine(typedName);
@@ -1052,6 +1053,7 @@ export async function createChildRoutine(
     prompt,
     timezone,
     schedule,
+    personCreated,
   });
   return "error" in created ? created : { ...created, ...target };
 }

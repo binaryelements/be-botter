@@ -11,6 +11,11 @@ export interface AdapterContext {
   userId: string;
   botId?: string;
   runId?: string;
+  /**
+   * The person started this run for themselves (their own message, or a routine they made)
+   * in their own private thread. Only then do servers act with that person's own sign-in.
+   */
+  personRun?: boolean;
   /** Opaque fence for releasing a graphical screen without tearing down its replacement. */
   screenLeaseId?: string;
   /** Retain a completed run's screen for reuse by this bot. */

@@ -831,6 +831,12 @@ const McpServerBaseInput = z.object({
   /** Update-only: drop the stored static credential (secret/env/headers).
    * OAuth state survives so a connected server stays connected. */
   clearCredential: z.boolean().optional(),
+  /** Company connections (owners, company space only). Omitted on update: kept. */
+  shared: z.boolean().optional(),
+  /** How a shared server signs in: its own token, or each person's SSO token (remote only). */
+  signIn: z.enum(["server", "person"]).optional(),
+  /** Departments a shared server is limited to; empty means the whole company. */
+  departmentIds: z.array(Id).max(200).optional(),
 });
 const McpOAuthClientFields = {
   clientId: z.string().trim().min(1).max(512),
@@ -931,6 +937,9 @@ export const McpServerSchema = z.object({
   oauthStatus: z.enum(["none", "connected", "reconnect"]),
   /** The pre-registered OAuth client, when one is configured. Its secret is never returned. */
   oauthClientId: z.string().nullable(),
+  shared: z.boolean().default(false),
+  signIn: z.enum(["server", "person"]).default("server"),
+  departmentIds: z.array(Id).default([]),
   health: McpServerHealthSchema,
   enabled: z.boolean(),
   revision: z.number().int().positive(),
@@ -1462,6 +1471,8 @@ export const DeploymentSettingsSchema = z.object({
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
   companySpaceId: Id.nullable(),
+  /** Only the deployment owner and company space owners add connections. */
+  connectionsAdminOnly: z.boolean().default(false),
 });
 
 export const ServerUpdateSourceSchema = z.object({
@@ -1575,6 +1586,10 @@ export const MeSchema = z.object({
   isDeploymentOwner: z.boolean(),
   /** True when the user owns the active space and may manage its departments. */
   isSpaceOwner: z.boolean().optional(),
+  /** False while only admins add connections and the user is not one. */
+  canManageConnections: z.boolean().default(true),
+  /** True for owners of the company space while it is active: they share connections. */
+  canShareConnections: z.boolean().default(false),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),

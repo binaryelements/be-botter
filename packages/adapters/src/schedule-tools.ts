@@ -217,6 +217,8 @@ export async function createScheduleFromTool(
     prompt: string;
     timezone?: string;
     schedule: Record<string, unknown>;
+    /** Asked for in a run the person started themselves. */
+    personCreated?: boolean;
   },
 ) {
   const routineBotId = input.target?.botId ?? input.botId;
@@ -249,6 +251,7 @@ export async function createScheduleFromTool(
       timezone,
       notify: true,
       active: true,
+      personCreated: input.personCreated === true,
       nextRunAt: resolved.nextRunAt,
     },
   });
@@ -302,6 +305,7 @@ async function createWatchFromTool(
     prompt: string;
     timezone: string;
     schedule: Record<string, unknown>;
+    personCreated?: boolean;
   },
 ) {
   const others = Object.keys(input.schedule).filter((key) => key !== "watch");
@@ -351,6 +355,7 @@ async function createWatchFromTool(
       notify: true,
       active: true,
       watch: parsed.data as Prisma.InputJsonValue,
+      personCreated: input.personCreated === true,
       nextRunAt,
     },
   });

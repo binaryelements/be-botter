@@ -276,6 +276,16 @@ describe("tickRoutineWatch", () => {
     },
   );
 
+  it("reads as the person only for a routine that counts as theirs", async () => {
+    for (const personRun of [undefined, true]) {
+      const { deps, routine } = setup({ data: "ok" });
+      await checkRoutineWatch(deps, { ...routine, personRun });
+      expect(deps.connector!.discoverTools).toHaveBeenCalledWith(
+        expect.objectContaining({ personRun: personRun === true }),
+      );
+    }
+  });
+
   it("applies approval rules to the real tool behind a lazy catalog call", async () => {
     const { deps, routine } = setup({ data: "ok" });
     vi.mocked(deps.connector!.discoverTools).mockResolvedValue([]);

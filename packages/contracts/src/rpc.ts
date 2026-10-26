@@ -254,6 +254,7 @@ export const appContract = {
           computerHost: z.enum(["docker", "this-mac"]).nullable().optional(),
           /** The Space people signing in through SSO join. */
           companySpaceId: Id.nullable().optional(),
+          connectionsAdminOnly: z.boolean().optional(),
         }),
       )
       .output(DeploymentSettingsSchema),

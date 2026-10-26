@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { BuiCard, SuccessPop } from "../../components/ai/primitives";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { chartViewport } from "../../lib/chart-viewport";
+import { useCanManageConnections } from "../../lib/connections-access";
 import { connectMcpOauth } from "../../lib/mcp-connect";
 import { importChunk } from "../../lib/preload-recovery";
 import { rpc } from "../../lib/rpc";
@@ -155,6 +156,7 @@ export function AppConnectCard({
   block: Extract<MessageBlock, { kind: "app_connect" }>;
 }) {
   const { t } = useLingui();
+  const canManageConnections = useCanManageConnections();
   const [busy, setBusy] = useState(false);
   const [localStatus, setLocalStatus] = useState<"pending" | "connected">(block.status);
   const [error, setError] = useState<string | null>(null);
@@ -228,7 +230,7 @@ export function AppConnectCard({
         </span>
         {status === "connected" ? (
           <SuccessPop label={t`Connected`} />
-        ) : (
+        ) : !canManageConnections ? null : (
           <Button className="rounded-full" disabled={busy} onClick={() => void authorize()}>
             {busy ? t`Waiting…` : t`Authorize`}
           </Button>
@@ -340,6 +342,7 @@ export function McpApprovalCard({
 }) {
   const { t } = useLingui();
   const { name, serverId, transport, endpoint, needsOAuth, status: savedStatus } = block;
+  const canManageConnections = useCanManageConnections();
   const [localStatus, setLocalStatus] = useState<McpApprovalState>("pending");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -419,13 +422,15 @@ export function McpApprovalCard({
           </p>
           {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              className="rounded-full"
-              disabled={state !== "pending" || busy}
-              onClick={() => void authorize()}
-            >
-              {state === "connecting" ? t`Connecting…` : needsOAuth ? t`Authorize` : t`Approve`}
-            </Button>
+            {canManageConnections ? (
+              <Button
+                className="rounded-full"
+                disabled={state !== "pending" || busy}
+                onClick={() => void authorize()}
+              >
+                {state === "connecting" ? t`Connecting…` : needsOAuth ? t`Authorize` : t`Approve`}
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               className="rounded-full"

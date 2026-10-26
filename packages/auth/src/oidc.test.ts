@@ -351,6 +351,22 @@ describe("OIDC callbacks", () => {
     expect(await openIdToken(secret, String(stored().idToken))).toMatch(/^ey/);
     expect(await (await request("/account-security")).json()).toMatchObject({ ssoLinked: true });
   });
+  it("hands each sign-in's SSO token to the app's secret store", async () => {
+    const onSsoToken = vi.fn(async () => undefined);
+    setup({ onSsoToken });
+    await signIn();
+    const user = rows("user")[0] as { id: string };
+    expect(onSsoToken).toHaveBeenCalledWith(user.id, {
+      accessToken: "fake-access-token",
+      expiresAt: expect.any(Number),
+    });
+    const [, token] = onSsoToken.mock.calls[0] as unknown as [string, { expiresAt: number }];
+    expect(token.expiresAt).toBeGreaterThan(Date.now() + 200_000);
+  });
+  it("still signs in when the SSO token cannot be kept", async () => {
+    setup({ onSsoToken: vi.fn(async () => Promise.reject(new Error("store down"))) });
+    expect((await signIn()).headers.get("location")).toBe(`${origin}/app`);
+  });
   it("keeps accounts stored before token encryption working, then encrypts them", async () => {
     setup();
     await signIn();

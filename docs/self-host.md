@@ -345,7 +345,8 @@ SIGNUP_ALLOWLIST=
 Entra ID tokens carry no `email_verified` claim, so the bypass is required: without it every
 Entra identity stays unverified and the allowlist refuses it. With the bypass, who may sign in
 is decided in Entra, by requiring user assignment on the application, so leave the allowlist
-empty and let the tenant be the only gate. With passwords off there is no other way in.
+empty and let the tenant be the only gate. With passwords off there is no other way in. To let bots
+use Microsoft 365 as each person, see [Company connections and Microsoft 365](#company-connections-and-microsoft-365).
 
 Create the deployment owner before enabling SSO: the first account admitted becomes the owner,
 through the `bootstrap-owner` command or an existing password account. The owner's default
@@ -362,6 +363,63 @@ deletion or create another account in that flow. A stale or borrowed session alo
 email configured, **Send deletion code** sends a single-use code to the account email, valid for ten
 minutes. Enter it in account settings to confirm deletion. Email-code requests are rate-limited;
 invalid, expired or wrong-account codes fail. No password needs to be created for deletion.
+
+### Company connections and Microsoft 365
+
+An owner of the company Space can add a public HTTPS MCP server with **Share with the company**. Bots in the
+chosen **Departments** (none means all) get its tools for whoever talks to them, and staff connect
+nothing. **Sign in as** decides whose credentials the server sees:
+
+- **Each person** (remote HTTP servers only) sends that person's own SSO access token as
+  `Authorization: Bearer`, and nothing else.
+- **Shared token** uses the server's own token or headers.
+
+On an OIDC sign-in the API keeps the person's access and refresh tokens in the encrypted secret
+store and refreshes them on that person's requests and in a background pass every ten minutes. The
+worker only reads the current access token; it holds no auth or OIDC secret. People who signed in
+before this feature existed must sign in once more. The deployment owner switch **Only admins add
+connections** (deployment settings) limits adding model keys, MCP servers, plugins and connectors,
+secrets, voice and memory providers, messaging links, and creating Spaces to the deployment owner
+and company Space owners.
+
+To give bots Microsoft 365, run the open-source
+[`softeria/ms-365-mcp-server`](https://github.com/Softeria/ms-365-mcp-server) (MIT) next to the
+stack. It needs no public URL, client secret or Entra app of its own: it forwards each person's
+bearer token to Microsoft Graph. Add it to your own Compose file or overlay, on the `app` network
+(it needs outbound access to Microsoft; do not publish a port), and pin a release tag instead of
+`latest`:
+
+```yaml
+services:
+  ms365:
+    image: ghcr.io/softeria/ms-365-mcp-server:replace-with-release-tag
+    command:
+      - --http
+      - "3000"
+      - --org-mode
+      - --allowed-scopes
+      - "User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All"
+    restart: unless-stopped
+    networks:
+      - app
+```
+
+Then, on the API, ask for the same Graph scopes at sign-in (`openid email profile` are always
+added; `offline_access` lets the API renew tokens):
+
+```env
+OIDC_SCOPES="offline_access User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All"
+```
+
+In Entra, add the same scopes (without `offline_access`) as Microsoft Graph delegated permissions
+on the sign-in app registration, and grant admin consent once. Passing them as `--allowed-scopes`
+keeps the tool list in line with what the token can do.
+
+Redeploy, sign in again, then, as the deployment owner, add an MCP server with URL
+`http://ms365:3000/mcp`, **Share with the company** on, **Sign in as** **Each person**. Only the
+deployment owner can use a private-network URL (company Space owners can add public HTTPS servers;
+see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`). Teams and shared
+mailboxes are not covered by these scopes.
 
 ### Mobile push notifications
 
@@ -826,6 +884,8 @@ its own PostgreSQL with pgvector, an LLM provider, and an embedding provider; se
 `EMBEDDING_VECTOR_DIMENSIONS` before its first start. Rakazo stores only explicitly saved facts
 in Honcho; conversation summaries stay in Rakazo. Bots can forget a saved fact on Honcho v3.2 or
 later.
+
+Shared company servers and Microsoft 365 are covered in [Company connections and Microsoft 365](#company-connections-and-microsoft-365).
 
 Remote MCP servers and installed API / GraphQL connectors default to public HTTPS. The deployment
 owner can attach one on localhost, the same LAN, or a Docker network. Set

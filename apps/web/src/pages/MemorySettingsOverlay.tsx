@@ -14,6 +14,7 @@ import {
 } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useCanManageConnections } from "../lib/connections-access";
 import { useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 import { SpaceMemorySection } from "./KnowledgeSection";
@@ -72,6 +73,7 @@ export function MemorySettingsOverlay({
 }) {
   const rpc = useSpaceRpc();
   const { t } = useLingui();
+  const canManageConnections = useCanManageConnections();
   const providerSelectId = useId();
   const defaultRegistration = defaultMemoryProviderSettings();
   const [selectedProvider, setSelectedProvider] = useState(
@@ -214,7 +216,7 @@ export function MemorySettingsOverlay({
                 )}
               </Button>
             </section>
-          ) : registration ? (
+          ) : !canManageConnections ? null : registration ? (
             <section className="rounded-xl border border-border px-4 py-4">
               <h3 id={providerSelectId} className="text-[15px] font-medium text-foreground">
                 <Trans>Provider</Trans>

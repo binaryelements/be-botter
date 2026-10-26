@@ -186,6 +186,8 @@ function account(provider: string, modelId: string) {
     billingEnabled: false,
     ticketBoardEnabled: false,
     phoneCallsEnabled: false,
+    canManageConnections: true,
+    canShareConnections: false,
   };
 }
 

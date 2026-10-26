@@ -25,6 +25,7 @@ import { AccountAccess } from "../components/AccountAccess";
 import { AuditLog } from "../components/AuditLog";
 import { SuccessPop } from "../components/ai/primitives";
 import { ComputersUnavailableHint } from "../components/ComputersUnavailableHint";
+import { ConnectionsAdminOnlySetting } from "../components/ConnectionsAdminOnlySetting";
 import { DesktopUpdateSection } from "../components/DesktopUpdates";
 import { PasskeySettings } from "../components/PasskeySettings";
 import type { ServerUpdateLoad } from "../components/SoftwareUpdateSection";
@@ -319,9 +320,12 @@ export function GeneralSettingsPanels({
       </section>
 
       {isDeploymentOwner ? (
-        <Link to="/integrations/setup" className={buttonVariants({ variant: "outline" })}>
-          <Trans>Server integrations</Trans>
-        </Link>
+        <>
+          <Link to="/integrations/setup" className={buttonVariants({ variant: "outline" })}>
+            <Trans>Server integrations</Trans>
+          </Link>
+          <ConnectionsAdminOnlySetting />
+        </>
       ) : null}
 
       <Disclosure

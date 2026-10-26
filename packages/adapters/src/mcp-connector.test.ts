@@ -2448,6 +2448,315 @@ describe("MCP connector private endpoints", () => {
   });
 });
 
+describe("MCP connector company servers", () => {
+  const COMPANY = {
+    ...SERVER,
+    id: "company-1",
+    slug: "company",
+    name: "Company",
+    spaceId: "w1",
+    userId: "admin",
+    enabled: true,
+    shared: true,
+    signIn: "server",
+    secretId: null as string | null,
+  };
+  const contextFor = (userId: string, personRun = true) =>
+    ({
+      spaceId: "w1",
+      userId,
+      botId: "bot-1",
+      personRun,
+      signal: new AbortController().signal,
+    }) as never;
+  const echoCall = {
+    tool: "mcp__company__echo",
+    args: {},
+    route: { connectorId: "mcp", resourceId: "company-1", toolName: "echo" },
+  } as never;
+  function companyPrisma(server: typeof COMPANY, extra: Record<string, unknown> = {}) {
+    return {
+      botMcpServer: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
+      mcpServer: {
+        findMany: vi.fn(async () => [server]),
+        findFirst: vi.fn(async () => server),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
+      ...extra,
+    };
+  }
+
+  it("offers every tool of a company server shared with the bot's departments, and runs them", async () => {
+    const state = { failNext: false, initializations: 0 };
+    vi.stubGlobal("fetch", mcpFetch(state));
+    const prisma = companyPrisma(COMPANY);
+    const connector = new McpConnector(prisma as never, {} as never, { network: TEST_NETWORK });
+    try {
+      const tools = await connector.discoverTools(contextFor("u2"));
+      expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+      expect(prisma.mcpServer.findMany).toHaveBeenCalledWith({
+        where: {
+          spaceId: "w1",
+          shared: true,
+          enabled: true,
+          OR: [
+            { departments: { none: {} } },
+            { departments: { some: { department: { bots: { some: { botId: "bot-1" } } } } } },
+          ],
+        },
+      });
+      const events: unknown[] = [];
+      for await (const event of connector.execute(echoCall, contextFor("u2"))) events.push(event);
+      expect(events).toMatchObject([{ type: "result" }]);
+      expect(prisma.mcpServer.findFirst).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: "company-1", spaceId: "w1", shared: true }),
+      });
+    } finally {
+      await connector.close();
+    }
+  });
+
+  it("does not run a company server the bot no longer shares", async () => {
+    const prisma = companyPrisma(COMPANY);
+    prisma.mcpServer.findFirst = vi.fn(async () => null) as never;
+    const connector = new McpConnector(prisma as never, {} as never, { network: TEST_NETWORK });
+    const events: unknown[] = [];
+    for await (const event of connector.execute(echoCall, contextFor("u2"))) events.push(event);
+    expect(events).toEqual([{ type: "error", message: "MCP tool is not assigned to this bot" }]);
+    await connector.close();
+  });
+
+  it("uses the credentials and private-endpoint rights of the admin who added it", async () => {
+    const state = { failNext: false, initializations: 0, headers: [] as Record<string, string>[] };
+    vi.stubGlobal("fetch", mcpFetch(state, "http://10.0.0.8:3927/mcp"));
+    const server = { ...COMPANY, endpoint: "http://10.0.0.8:3927/mcp", secretId: "secret-1" };
+    const secret = { findFirst: vi.fn(async () => ({ id: "secret-1", ciphertext: "encrypted" })) };
+    const prisma = companyPrisma(server, {
+      secret,
+      deploymentSettings: { findUnique: vi.fn(async () => ({ ownerUserId: "admin" })) },
+    });
+    const connector = new McpConnector(
+      prisma as never,
+      { load: vi.fn(async () => JSON.stringify({ secret: "company-token" })) } as never,
+      {
+        network: {
+          fetch: (input, init) => globalThis.fetch(input, init),
+          resolveHostname: async () => [{ address: "10.0.0.8", family: 4 }],
+        },
+      },
+    );
+    try {
+      const tools = await connector.discoverTools(contextFor("u2"));
+      expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+      expect(secret.findFirst).toHaveBeenCalledWith({
+        where: { id: "secret-1", spaceId: "w1", userId: "admin" },
+      });
+      expect(state.headers[0]?.authorization).toBe("Bearer company-token");
+    } finally {
+      await connector.close();
+    }
+  });
+
+  it("keeps a shared-token server working on runs nobody started in person", async () => {
+    vi.stubGlobal("fetch", mcpFetch({ failNext: false, initializations: 0 }));
+    const connector = new McpConnector(companyPrisma(COMPANY) as never, {} as never, {
+      network: TEST_NETWORK,
+    });
+    try {
+      for (const personRun of [false, true]) {
+        const tools = await connector.discoverTools(contextFor("owner", personRun));
+        expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+        const events: unknown[] = [];
+        for await (const event of connector.execute(echoCall, contextFor("owner", personRun)))
+          events.push(event);
+        expect(events).toMatchObject([{ type: "result" }]);
+      }
+    } finally {
+      await connector.close();
+    }
+  });
+
+  describe("signed in as each person", () => {
+    const PERSONAL = { ...COMPANY, signIn: "person" };
+
+    it("is offered only on the person's own runs in their private thread", async () => {
+      vi.stubGlobal("fetch", mcpFetch({ failNext: false, initializations: 0 }));
+      const personToken = vi.fn(async (userId: string) => ({
+        accessToken: `token-of-${userId}`,
+        expiresAt: Date.now() + 60 * 60_000,
+      }));
+      const connector = new McpConnector(companyPrisma(PERSONAL) as never, {} as never, {
+        network: TEST_NETWORK,
+        personToken,
+      });
+      try {
+        // Anything else (channels, webhooks, tickets, other bots, routines nobody made in
+        // person, or no run at all) runs without the person: their mailbox stays out of reach.
+        for (const personRun of [false, undefined]) {
+          const context = { ...(contextFor("owner") as object), personRun };
+          expect(await connector.discoverTools(context as never)).toEqual([]);
+          const events: unknown[] = [];
+          for await (const event of connector.execute(echoCall, context as never))
+            events.push(event);
+          expect(events).toEqual([
+            { type: "error", message: "MCP tool is not assigned to this bot" },
+          ]);
+        }
+        expect(personToken).not.toHaveBeenCalled();
+        const tools = await connector.discoverTools(contextFor("owner"));
+        expect(tools.map((tool) => tool.name)).toEqual(["mcp__company__echo"]);
+        expect(personToken).toHaveBeenCalledWith("owner");
+      } finally {
+        await connector.close();
+      }
+    });
+
+    it("connects with each person's own token, one session each", async () => {
+      const state = {
+        failNext: false,
+        initializations: 0,
+        headers: [] as Record<string, string>[],
+      };
+      vi.stubGlobal("fetch", mcpFetch(state));
+      const personToken = vi.fn(async (userId: string) => ({
+        accessToken: `token-of-${userId}`,
+        expiresAt: Date.now() + 60 * 60_000,
+      }));
+      const oauth = { providerFor: vi.fn() };
+      const connector = new McpConnector(
+        companyPrisma(PERSONAL) as never,
+        {} as never,
+        { network: TEST_NETWORK, personToken },
+        oauth as never,
+      );
+      try {
+        await connector.discoverTools(contextFor("u2"));
+        await connector.discoverTools(contextFor("u3"));
+        await connector.discoverTools(contextFor("u2"));
+        expect(state.initializations).toBe(2);
+        const tokens = new Set(state.headers.map((headers) => headers.authorization));
+        expect(tokens).toEqual(new Set(["Bearer token-of-u2", "Bearer token-of-u3"]));
+        expect(oauth.providerFor).not.toHaveBeenCalled();
+      } finally {
+        await connector.close();
+      }
+    });
+
+    it("sends none of the admin's stored credentials on a person's session", async () => {
+      const state = {
+        failNext: false,
+        initializations: 0,
+        headers: [] as Record<string, string>[],
+      };
+      vi.stubGlobal("fetch", mcpFetch(state));
+      const server = { ...PERSONAL, secretId: "secret-1" };
+      const prisma = companyPrisma(server, {
+        secret: { findFirst: vi.fn(async () => ({ id: "secret-1", ciphertext: "encrypted" })) },
+      });
+      const connector = new McpConnector(
+        prisma as never,
+        {
+          load: vi.fn(async () =>
+            JSON.stringify({ secret: "admin-token", headers: { "X-Api-Key": "admin-key" } }),
+          ),
+        } as never,
+        {
+          network: TEST_NETWORK,
+          personToken: async () => ({
+            accessToken: "token-of-u2",
+            expiresAt: Date.now() + 60 * 60_000,
+          }),
+        },
+      );
+      try {
+        await connector.discoverTools(contextFor("u2"));
+        expect(state.headers[0]?.authorization).toBe("Bearer token-of-u2");
+        expect(state.headers[0]).not.toHaveProperty("x-api-key");
+      } finally {
+        await connector.close();
+      }
+    });
+
+    it("reconnects with a fresh token once the person's token expires", async () => {
+      const state = {
+        failNext: false,
+        initializations: 0,
+        headers: [] as Record<string, string>[],
+      };
+      vi.stubGlobal("fetch", mcpFetch(state));
+      const personToken = vi
+        .fn()
+        .mockResolvedValueOnce({ accessToken: "first-token", expiresAt: Date.now() + 1_000 })
+        .mockResolvedValueOnce({ accessToken: "second-token", expiresAt: Date.now() + 3_600_000 });
+      const connector = new McpConnector(companyPrisma(PERSONAL) as never, {} as never, {
+        network: TEST_NETWORK,
+        personToken,
+      });
+      try {
+        await connector.discoverTools(contextFor("u2"));
+        await connector.discoverTools(contextFor("u2"));
+        expect(state.initializations).toBe(2);
+        expect(state.headers.at(-1)?.authorization).toBe("Bearer second-token");
+      } finally {
+        await connector.close();
+      }
+    });
+
+    it("refuses a command-line server, which cannot carry the person's token", async () => {
+      const connectStdio = vi.spyOn(McpSession.prototype, "connectStdio");
+      const personToken = vi.fn(async () => ({
+        accessToken: "t",
+        expiresAt: Date.now() + 3_600_000,
+      }));
+      const server = { ...PERSONAL, transport: "stdio", endpoint: null, command: "node" };
+      const connector = new McpConnector(companyPrisma(server as never) as never, {} as never, {
+        stdioEnabled: true,
+        allowedCommands: ["node"],
+        personToken,
+      });
+      try {
+        const tools = await connector.discoverTools(contextFor("u2"));
+        expect(tools).toEqual(unavailableOnly("company"));
+        expect(connectStdio).not.toHaveBeenCalled();
+        expect(personToken).not.toHaveBeenCalled();
+      } finally {
+        connectStdio.mockRestore();
+        await connector.close();
+      }
+    });
+
+    it("asks the person to sign in again when there is no token", async () => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      const connector = new McpConnector(companyPrisma(PERSONAL) as never, {} as never, {
+        network: TEST_NETWORK,
+        personToken: async () => null,
+      });
+      try {
+        const tools = await connector.discoverTools(contextFor("u2"));
+        expect(tools).toEqual(unavailableOnly("company"));
+        expect(tools[0]?.description).toContain("sign in to BE Botter again to use it");
+        expect(fetch).not.toHaveBeenCalled();
+        const events: unknown[] = [];
+        const call = {
+          tool: "mcp__company__unavailable",
+          args: {},
+          route: { connectorId: "mcp", resourceId: "company-1", toolName: "__rakazo_unavailable" },
+        } as never;
+        for await (const event of connector.execute(call, contextFor("u2"))) events.push(event);
+        expect(events).toEqual([
+          {
+            type: "error",
+            message: 'MCP server "Company" is unavailable: sign in to BE Botter again to use it',
+          },
+        ]);
+      } finally {
+        await connector.close();
+      }
+    });
+  });
+});
+
 describe("allowlistDrift", () => {
   it("names the allowed tools the server no longer offers", () => {
     const offered = [{ name: "echo" }, { name: "upper" }];

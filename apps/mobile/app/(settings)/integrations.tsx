@@ -3,6 +3,7 @@ import type {
   Connection,
   ConnectionCatalogItem,
   McpServer,
+  Me,
 } from "@rakazo/contracts";
 import {
   buildFeaturedConnectorTiles,
@@ -60,6 +61,8 @@ export default function Integrations() {
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [query, setQuery] = useState("");
+  // False while only admins add connections; the API refuses staff either way.
+  const [canManage, setCanManage] = useState(true);
   const [visibleCount, setVisibleCount] = useState(CONNECTION_CATALOG_PAGE_SIZE);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [mcpError, setMcpError] = useState<string | null>(null);
@@ -219,6 +222,11 @@ export default function Integrations() {
     }
     const generation = ++refreshGeneration.current;
     const sourceGeneration = ++sourcesGeneration.current;
+    void rpc<Pick<Me, "canManageConnections">>("me")
+      .then((me) => {
+        if (mounted.current) setCanManage(me.canManageConnections !== false);
+      })
+      .catch(() => undefined);
     void rpc<McpServer[]>("mcp/servers/list")
       .then((servers) => {
         if (
@@ -579,6 +587,7 @@ export default function Integrations() {
         />
       );
     }
+    if (!canManage) return null;
     return (
       <NativeActionButton
         accessibilityLabel={t("Add {name}", { name: label })}
@@ -681,13 +690,15 @@ export default function Integrations() {
               />
             </View>
           ))}
-          <NativeActionButton
-            accessibilityLabel={t("Add another {name}", { name: item.name })}
-            disabled={connecting || uninstalling}
-            label={connecting ? t("Working…") : t("Add another")}
-            onPress={() => void connect(item)}
-            prominence="secondary"
-          />
+          {canManage ? (
+            <NativeActionButton
+              accessibilityLabel={t("Add another {name}", { name: item.name })}
+              disabled={connecting || uninstalling}
+              label={connecting ? t("Working…") : t("Add another")}
+              onPress={() => void connect(item)}
+              prominence="secondary"
+            />
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -898,26 +909,28 @@ export default function Integrations() {
 
             {advancedOpen ? (
               <View style={styles.advancedBody}>
-                <View style={styles.accountActions}>
-                  {(["mcp", "api", "graphql", "executor", "treg"] as const).map((kind) => (
-                    <NativeActionButton
-                      key={kind}
-                      label={
-                        kind === "treg"
-                          ? t("Add Treg")
-                          : kind === "executor"
-                            ? t("Add Executor")
-                            : kind === "mcp"
-                              ? t("Add MCP server")
-                              : kind === "graphql"
-                                ? t("Add GraphQL")
-                                : t("Add OpenAPI")
-                      }
-                      onPress={() => beginSource(kind)}
-                      prominence="secondary"
-                    />
-                  ))}
-                </View>
+                {canManage ? (
+                  <View style={styles.accountActions}>
+                    {(["mcp", "api", "graphql", "executor", "treg"] as const).map((kind) => (
+                      <NativeActionButton
+                        key={kind}
+                        label={
+                          kind === "treg"
+                            ? t("Add Treg")
+                            : kind === "executor"
+                              ? t("Add Executor")
+                              : kind === "mcp"
+                                ? t("Add MCP server")
+                                : kind === "graphql"
+                                  ? t("Add GraphQL")
+                                  : t("Add OpenAPI")
+                        }
+                        onPress={() => beginSource(kind)}
+                        prominence="secondary"
+                      />
+                    ))}
+                  </View>
+                ) : null}
 
                 {sourceError ? <Text style={styles.error}>{sourceError}</Text> : null}
 

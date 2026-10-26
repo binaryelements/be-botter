@@ -9,6 +9,7 @@ import {
 import { Button, Input, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { InfoTooltip } from "../../components/InfoTooltip";
+import { useCanManageConnections } from "../../lib/connections-access";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
@@ -29,6 +30,7 @@ function credentialDestination(name: string, origin: string, auth: ReadableCrede
 
 export function BotCredentialsSection({ botId }: { botId: string }) {
   const { t } = useLingui();
+  const canManageConnections = useCanManageConnections();
   const ids = useId();
   const [secrets, setSecrets] = useState<BotSecretMetadata[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -339,7 +341,7 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
                   </div>
                 ) : (
                   <div className="mt-1.5 flex gap-1">
-                    {readableAuth !== null ? (
+                    {readableAuth !== null && canManageConnections ? (
                       <Button
                         type="button"
                         size="sm"
@@ -507,7 +509,7 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
             </Button>
           </div>
         </form>
-      ) : (
+      ) : !canManageConnections ? null : (
         <Button
           type="button"
           size="sm"

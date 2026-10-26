@@ -173,6 +173,50 @@ const UNAVAILABLE_TOOL = "__rakazo_unavailable";
 /** Skip rewriting an unchanged health observation more often than this. */
 const HEALTH_REWRITE_MS = 60_000;
 
+/** A company server signed in as each person, for someone with no usable sign-in token. */
+class McpPersonSignInRequiredError extends Error {
+  constructor() {
+    super("sign in to BE Botter again to use it");
+    this.name = "McpPersonSignInRequiredError";
+  }
+}
+
+/** What authorizes a bot to use a server: the actor's own assignment, or a company server. */
+type ServerGrant = {
+  serverId: string;
+  server: McpServer;
+  allowAllTools: boolean;
+  allowedTools: unknown;
+};
+
+/** Company servers a bot gets for everyone: shared with the whole company or its departments. */
+function sharedServerWhere(spaceId: string, botId: string) {
+  return {
+    spaceId,
+    shared: true,
+    enabled: true,
+    OR: [
+      { departments: { none: {} } },
+      { departments: { some: { department: { bots: { some: { botId } } } } } },
+    ],
+  };
+}
+
+/**
+ * A server signed in as each person carries the run's person's own token, so it is offered
+ * only on that person's own runs in their private thread (see `personRunFor`). Channels,
+ * webhooks, tickets, other bots and spawns run as the bot's owner, who did not ask.
+ */
+const grantUsable = (grant: ServerGrant, context: AdapterContext) =>
+  grant.server.signIn !== "person" || context.personRun === true;
+
+const sharedGrant = (server: McpServer): ServerGrant => ({
+  serverId: server.id,
+  server,
+  allowAllTools: true,
+  allowedTools: [],
+});
+
 export type McpConnectorOptions = {
   stdioEnabled?: boolean;
   allowedCommands?: string[];
@@ -192,6 +236,8 @@ export type McpConnectorOptions = {
   credentialTempRoot?: string;
   /** How long a run waits for one server's tool list; 0 waits for the transport's own timeouts. */
   discoveryTimeoutMs?: number;
+  /** The person's own sign-in token, for company servers that sign in as each person. */
+  personToken?: (userId: string) => Promise<{ accessToken: string; expiresAt: number } | null>;
 };
 
 function positiveInteger(value: string | undefined, allowZero = false): number | undefined {
@@ -225,7 +271,7 @@ function unavailableTool(server: McpServer, reason: string): ConnectorTool {
   const brief = reason.length > 400 ? `${reason.slice(0, 400)}...` : reason;
   return {
     name: `mcp__${server.slug}__unavailable`,
-    description: `The MCP server "${server.name}" is assigned to you but is unavailable right now, so none of its tools can be used. Reason: ${brief}. Tell the user it failed to start rather than saying it is not assigned. Calling this tool returns the same error.`,
+    description: `The MCP server "${server.name}" is assigned to you but is unavailable right now, so none of its tools can be used. Reason: ${brief}. Tell the user why rather than saying it is not assigned. Calling this tool returns the same error.`,
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     readOnly: true,
     route: {
@@ -399,8 +445,18 @@ export class McpConnector implements ConnectorProvider {
       },
       include: { server: true },
     });
+    const assigned = new Set(assignments.map((assignment) => assignment.serverId));
+    // Narrow clients (and test fakes) may not expose the model; then there are none.
+    const shared =
+      (await this.prisma.mcpServer?.findMany?.({
+        where: sharedServerWhere(context.spaceId, context.botId),
+      })) ?? [];
+    const grants: ServerGrant[] = [
+      ...assignments,
+      ...shared.filter((server) => !assigned.has(server.id)).map(sharedGrant),
+    ].filter((grant) => grantUsable(grant, context));
     const groups = await Promise.all(
-      assignments.map(async (assignment): Promise<ConnectorTool[]> => {
+      grants.map(async (assignment): Promise<ConnectorTool[]> => {
         const startedAt = Date.now();
         const server = assignment.server;
         const key = this.sessionKey(server, context);
@@ -467,6 +523,11 @@ export class McpConnector implements ConnectorProvider {
             }));
         } catch (error) {
           if (error instanceof McpDiscoveryTimeoutError) listing.abort(error);
+          // One person's missing sign-in says nothing about the server's health.
+          if (error instanceof McpPersonSignInRequiredError) {
+            this.unavailable.set(key, error.message);
+            return [unavailableTool(server, error.message)];
+          }
           // Capture material before eviction so the audited reason stays redacted, the
           // same reason execute() captures it before callTool.
           const material = (entry ?? this.sessions.get(key))?.material;
@@ -589,16 +650,24 @@ export class McpConnector implements ConnectorProvider {
       yield { type: "error", message: "MCP tools require a bot context" };
       return;
     }
-    const assignment = await this.prisma.botMcpServer.findFirst({
-      where: {
-        botId: context.botId,
-        serverId: call.route.resourceId,
-        spaceId: context.spaceId,
-        userId: context.userId,
-        server: { enabled: true },
-      },
-      include: { server: true },
-    });
+    const resourceId = call.route.resourceId;
+    const botId = context.botId;
+    const found: ServerGrant | null =
+      (await this.prisma.botMcpServer.findFirst({
+        where: {
+          botId,
+          serverId: resourceId,
+          spaceId: context.spaceId,
+          userId: context.userId,
+          server: { enabled: true },
+        },
+        include: { server: true },
+      })) ??
+      (await this.prisma.mcpServer
+        ?.findFirst?.({ where: { id: resourceId, ...sharedServerWhere(context.spaceId, botId) } })
+        .then((server) => (server ? sharedGrant(server) : null))) ??
+      null;
+    const assignment = found && grantUsable(found, context) ? found : null;
     if (assignment && call.route.toolName === UNAVAILABLE_TOOL) {
       const reason =
         this.unavailable.get(this.sessionKey(assignment.server, context)) ??
@@ -962,13 +1031,15 @@ export class McpConnector implements ConnectorProvider {
     // Hoisted so a throw after the secret is decoded can still hand the material out.
     let material: OAuthMaterial | undefined;
     // What the process was handed; its stderr can echo any of it.
+    // A company server runs with the credentials and rights of the admin who added it.
+    const ownerId = server.shared ? server.userId : context.userId;
     try {
       const secret = server.secretId
         ? await this.prisma.secret.findFirst({
             where: {
               id: server.secretId,
               spaceId: context.spaceId,
-              userId: context.userId,
+              userId: ownerId,
             },
           })
         : null;
@@ -994,6 +1065,9 @@ export class McpConnector implements ConnectorProvider {
       };
       let accessTokenExpiresAtMs: number | undefined;
       if (server.transport === "stdio") {
+        // A launched process has no per-request header to carry each person's token.
+        if (server.signIn === "person")
+          throw new Error("MCP servers that sign in as each person must use HTTP");
         if (!this.options.stdioEnabled) throw new Error("MCP stdio is disabled");
         const command = String(server.command ?? "");
         const allowedCommands = this.options.allowedCommands ?? [];
@@ -1046,7 +1120,9 @@ export class McpConnector implements ConnectorProvider {
         let values: Partial<Record<McpOAuthEnvField, string>> = {};
         if (references.some((fields) => fields.length > 0)) {
           // The host holds the OAuth grant; the process only sees the values it asks for.
-          const provider = await this.oauth?.providerFor(server, context, loaded, onPersisted);
+          const provider = server.shared
+            ? undefined
+            : await this.oauth?.providerFor(server, context, loaded, onPersisted);
           const tokens = await provider?.tokens();
           const expiresAt = accessTokenExpiresAt(material.oauth);
           if (!tokens || (expiresAt !== undefined && Date.now() >= expiresAt))
@@ -1114,24 +1190,33 @@ export class McpConnector implements ConnectorProvider {
         });
       } else {
         if (!server.endpoint) throw new Error("MCP endpoint is required");
-        const endpoint = new URL(server.endpoint);
-        const localHttp = endpoint.protocol === "http:" && isLocalMcpHost(endpoint.hostname);
-        const allowPrivateEndpoint = await actorMayUsePrivateEndpoint(
-          this.prisma,
-          context.userId,
-          this.options.allowPrivateEndpoint === true,
-        );
-        const authProvider =
-          !localHttp && this.oauth
-            ? await this.oauth.providerFor(server, context, loaded, onPersisted)
-            : undefined;
-        const staticToken = material.secret
+        let staticToken = material.secret
           ? material.secret.startsWith("Bearer ")
             ? material.secret
             : `Bearer ${material.secret}`
           : undefined;
+        if (server.signIn === "person") {
+          const token = await this.options.personToken?.(context.userId);
+          if (!token) throw new McpPersonSignInRequiredError();
+          staticToken = `Bearer ${token.accessToken}`;
+          launchSecrets.push(token.accessToken);
+          // Replace the session before the person's token lapses.
+          accessTokenExpiresAtMs = token.expiresAt;
+        }
+        const endpoint = new URL(server.endpoint);
+        const localHttp = endpoint.protocol === "http:" && isLocalMcpHost(endpoint.hostname);
+        const allowPrivateEndpoint = await actorMayUsePrivateEndpoint(
+          this.prisma,
+          ownerId,
+          this.options.allowPrivateEndpoint === true,
+        );
+        const authProvider =
+          !localHttp && this.oauth && !server.shared
+            ? await this.oauth.providerFor(server, context, loaded, onPersisted)
+            : undefined;
+        // A person session carries only that person's token, never the admin's stored headers.
         const headers = {
-          ...(material.headers ?? {}),
+          ...(server.signIn === "person" ? {} : (material.headers ?? {})),
           ...(staticToken ? { Authorization: staticToken } : {}),
         };
         await session.connectRemote({
@@ -1167,7 +1252,11 @@ export class McpConnector implements ConnectorProvider {
       // the secrets: the session never reached `sessions`. Sanitizing per caller would
       // cover only whoever looked first.
       if (!material) throw error;
-      if (error instanceof McpReauthorizationRequiredError) throw error;
+      if (
+        error instanceof McpReauthorizationRequiredError ||
+        error instanceof McpPersonSignInRequiredError
+      )
+        throw error;
       throw new McpConnectFailure(
         sanitizeConnectorError(error, [...oauthMaterialSecrets(material), ...launchSecrets]),
         expectedFailure(error),

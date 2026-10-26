@@ -236,12 +236,13 @@ function sendResult(message: { seq: number }, runs: Array<{ id: string; taskId: 
 
 export async function cancelSupersededQueuedRuns(
   tx: Prisma.TransactionClient,
-  input: { threadId: string; botIds: string[]; keepRunIds: string[] },
+  input: { threadId: string; botIds: string[]; keepRunIds: string[]; userId?: string },
 ) {
   const superseded = await tx.run.findMany({
     where: {
       threadId: input.threadId,
       botId: { in: input.botIds },
+      ...(input.userId && { userId: input.userId }),
       status: "queued",
       OR: [{ trigger: "user", sourceMessage: { role: "user" } }, { trigger: "reaction" }],
       id: { notIn: input.keepRunIds },
@@ -735,6 +736,8 @@ export async function sendThreadMessage(
       }
 
       if (target.kind === "bot") {
+        // A channel is shared: a message steers or answers only its sender's own runs.
+        const ownRuns = target.departmentId ? { userId: actor.userId } : {};
         const mentionTargets = splitMentionTargets(input.mentions);
         const { blocks: attachmentBlocks, artifacts } = await resolveSendAttachments(
           { prisma: tx },
@@ -762,6 +765,7 @@ export async function sendThreadMessage(
             threadId: target.threadId,
             botId: target.botId,
             status: { in: [...ACTIVE_RUN_STATUSES] },
+            ...ownRuns,
           },
           select: { id: true, taskId: true, status: true, trigger: true },
         });
@@ -874,6 +878,7 @@ export async function sendThreadMessage(
           threadId: target.threadId,
           botIds: [target.botId],
           keepRunIds: [run.id],
+          ...ownRuns,
         });
         const event = await appendEventInTransaction(tx, {
           spaceId: actor.spaceId,
@@ -1147,6 +1152,7 @@ export async function reactToThreadMessage(
       ? await startReactionTurn(tx, actor, target.threadId, replyBotId, parent, message, {
           ...input,
           canReleaseTakeover: Boolean(releaseTakeover),
+          ownRunsOnly: target.kind === "bot" && Boolean(target.departmentId),
         })
       : [];
     if (target.kind === "group") await touchGroupUpdatedAt(tx, target.groupId);
@@ -1210,10 +1216,16 @@ async function startReactionTurn(
   botId: string,
   parent: { id: string; runId: string | null },
   message: { id: string; seq: number },
-  input: { reaction: MessageReaction; clientNonce: string; canReleaseTakeover: boolean },
+  input: {
+    reaction: MessageReaction;
+    clientNonce: string;
+    canReleaseTakeover: boolean;
+    ownRunsOnly?: boolean;
+  },
 ): Promise<Array<{ id: string; taskId: string; status: string }>> {
+  const ownRuns = input.ownRunsOnly ? { userId: actor.userId } : {};
   const activeRuns = await tx.run.findMany({
-    where: { threadId, botId, status: { in: [...ACTIVE_RUN_STATUSES] } },
+    where: { threadId, botId, status: { in: [...ACTIVE_RUN_STATUSES] }, ...ownRuns },
     select: { id: true, taskId: true, status: true },
   });
   const holdingRuns = activeRuns.filter((run) =>
@@ -1296,7 +1308,12 @@ async function startReactionTurn(
     },
   });
   await tx.message.update({ where: { id: message.id }, data: { runId: run.id } });
-  await cancelSupersededQueuedRuns(tx, { threadId, botIds: [botId], keepRunIds: [run.id] });
+  await cancelSupersededQueuedRuns(tx, {
+    threadId,
+    botIds: [botId],
+    keepRunIds: [run.id],
+    ...ownRuns,
+  });
   return [run];
 }
 

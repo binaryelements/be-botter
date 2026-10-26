@@ -2165,6 +2165,7 @@ msgstr "Denied"
 msgid "Deny"
 msgstr "Deny"
 
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
@@ -2332,6 +2333,10 @@ msgstr "e.g. Hivenet Agent, Presales, Timesheets bot"
 #: src/pages/McpServersOverlay.tsx
 msgid "Each name can be used once."
 msgstr "Each name can be used once."
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Each person"
+msgstr "Each person"
 
 #: src/components/AskCard.tsx
 msgid "Edit"
@@ -3604,6 +3609,10 @@ msgstr "On a schedule"
 msgid "on the 1st at {0}"
 msgstr "on the 1st at {0}"
 
+#: src/components/ConnectionsAdminOnlySetting.tsx
+msgid "Only admins add connections"
+msgstr "Only admins add connections"
+
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr "Only empty spaces can be deleted. Delete its bots and groups first."
@@ -4560,6 +4569,10 @@ msgstr "Setup help"
 msgid "Shape"
 msgstr "Shape"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Share with the company"
+msgstr "Share with the company"
+
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -4576,6 +4589,10 @@ msgstr "Shared documents"
 #: src/pages/KnowledgeSection.tsx
 msgid "Shared skills"
 msgstr "Shared skills"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Shared token"
+msgstr "Shared token"
 
 #: src/pages/GroupPanel.tsx
 msgid "Show all"
@@ -4635,6 +4652,10 @@ msgstr "Sign in"
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Sign in again"
 msgstr "Sign in again"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Sign in as"
+msgstr "Sign in as"
 
 #: src/pages/Auth.tsx
 msgid "Sign in to BE Botter"

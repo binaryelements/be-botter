@@ -263,7 +263,12 @@ import {
 } from "./computer-tools.js";
 import { checkpointRunComputerWorkspace } from "./computer-workspace.js";
 import { connectApp } from "./connect-app.js";
-import { connectedContext, selectRunConnections } from "./connection-context.js";
+import {
+  connectedContext,
+  personRunFor,
+  personStartedRun,
+  selectRunConnections,
+} from "./connection-context.js";
 import { redactConnectorPayload, sanitizeConnectorError } from "./connector-safety.js";
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
@@ -3237,7 +3242,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 },
               ],
             },
-            select: { id: true },
+            select: { id: true, departmentId: true, groupId: true, userId: true },
           })
         : null;
       const thread = targetThread ?? bot.thread;
@@ -3247,7 +3252,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           ? null
           : await tickRoutineWatch(
               { ...deps, commandRefusal: protectedComputerLifecycleRefusal },
-              routine,
+              {
+                ...routine,
+                personRun: personRunFor(routine.personCreated, thread, routine.userId),
+              },
               { threadId: thread.id, botId: bot.id },
               scheduledAt,
             );
@@ -3545,7 +3553,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
     },
 
     async continueRun(runId: string, workerId: string) {
-      const run = await deps.prisma.run.findUnique({ where: { id: runId } });
+      const run = await deps.prisma.run.findUnique({
+        where: { id: runId },
+        include: { routine: { select: { personCreated: true } } },
+      });
       if (!run) return;
       // Logs and security events raised by this run's tools name its account and space.
       enrichLogContext({
@@ -3824,6 +3835,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
           storedConnections,
           connectedComposio.map((connection) => connection.provider),
         );
+        // Routines a channel, webhook or another bot scheduled are not the person's own.
+        const personStarted = personStartedRun(run.trigger, run.routine?.personCreated === true);
         const context = {
           operationId: runId,
           traceId: runId,
@@ -3831,6 +3844,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           userId: run.userId,
           botId: bot.id,
           runId,
+          personRun: personRunFor(personStarted, thread, run.userId),
           screenLeaseId: screenLeaseIdForRun(computerLease, runId, fence),
           signal: runAbortController.signal,
           ...connectedContext(connectedPlugins),
@@ -6275,6 +6289,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               botId: bot.id,
               userId: run.userId,
               threadId: thread.id,
+              personCreated: personStarted,
               name: String(args.name ?? ""),
               prompt: String(args.prompt ?? ""),
               timezone: args.timezone ? String(args.timezone) : undefined,
@@ -7077,7 +7092,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             return finish(await setChildBotModel(modelDeps, fleetRun, args));
           }
           if (name === "create_child_routine") {
-            return finish(await createChildRoutine(deps, fleetRun, args));
+            return finish(await createChildRoutine(deps, fleetRun, args, personStarted));
           }
           if (name === "update_bot" && argumentGiven(args.bot_id)) {
             return finish(await updateChildBot({ ...deps, runSecrets }, fleetRun, args));

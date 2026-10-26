@@ -75,7 +75,14 @@ import {
   toTeamChatInbound,
   withSecretPersistence,
 } from "@rakazo/adapters";
-import { createAuth, isBlockedAuthPath, loopbackTwinOrigins } from "@rakazo/auth";
+import {
+  createAuth,
+  createPersonTokenSource,
+  createSsoTokenRefresher,
+  isBlockedAuthPath,
+  loopbackTwinOrigins,
+  saveSsoToken,
+} from "@rakazo/auth";
 import type { Actor, AuthCapabilities } from "@rakazo/contracts";
 import { SERVER_BUILD_HEADER } from "@rakazo/contracts";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
@@ -151,6 +158,9 @@ import {
 } from "./team-chat-startup.js";
 import { mountVoiceHttpRoutes, voiceAccountErrorStatus } from "./voice.js";
 import { mountWebhookHttpRoutes } from "./webhook.js";
+
+/** How often the API renews SSO tokens that expire within 45 minutes. */
+const SSO_RENEWAL_INTERVAL_MS = 10 * 60_000;
 
 /**
  * Native clients always send the app scheme, including in Expo Go, so no
@@ -373,6 +383,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       network: remoteConnectors,
       events,
       allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
+      personToken: createPersonTokenSource({ prisma, secrets }),
     },
     mcpOAuth,
   );
@@ -474,6 +485,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     onEmailError: (error) => getLogger().error("transactional email delivery failed", error),
     extraOrigins: MOBILE_AUTH_ORIGINS,
     androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
+    onSsoToken: (userId, token) => saveSsoToken({ prisma, secrets }, userId, token),
     beforeDeleteUser: async (userId) => {
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);
@@ -751,10 +763,27 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return response;
   });
   mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
+  const ssoTokens = env.oidc
+    ? createSsoTokenRefresher({ prisma, secrets, oidc: env.oidc })
+    : undefined;
+  // Renews everyone's SSO token, so access does not lapse while a person is away (routines
+  // run as them overnight). The API alone holds the OIDC client secret.
+  const ssoRenewal =
+    ssoTokens &&
+    setInterval(
+      () =>
+        void runAsSystem("sso token renewal", () => ssoTokens.renewDue()).catch(() => undefined),
+      SSO_RENEWAL_INTERVAL_MS,
+    );
+  ssoRenewal?.unref?.();
   const requestSession = async (request: Request) => {
     // The bearer plugin turns a signed `Authorization: Bearer` into the session cookie.
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user) return null;
+    const userId = session.user.id;
+    // Keeps the person's SSO token fresh for servers that act as them; never awaited.
+    if (ssoTokens)
+      void runAsSystem("sso token refresh", () => ssoTokens.refresh(userId)).catch(() => undefined);
     const actor = await actorFromMembership(
       requireMembership(prisma, session.user.id, request.headers.get("x-rakazo-space-id")),
     );
@@ -1117,6 +1146,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       // Abort in-flight continueRun boot waits before draining jobs so stop() cannot sit
       // on waitForComputerReady for the full boot-wait window during shared Postgres journeys.
       auth.disposeOidcDiscovery();
+      if (ssoRenewal) clearInterval(ssoRenewal);
       shutdown.abort();
       oauthLogins.abortAll();
       messagingStopped = true;

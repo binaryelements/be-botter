@@ -25,6 +25,23 @@ export function selectRunConnections<
   });
 }
 
+/** A run the person started for themselves: their own message, or a routine they made. */
+export function personStartedRun(trigger: string, routinePersonCreated: boolean): boolean {
+  return trigger === "user" || (trigger === "routine" && routinePersonCreated);
+}
+
+/**
+ * Whether a run may act with the person's own sign-in: one they started, in their own private
+ * thread. Never in a channel or group thread, where others would read what it finds.
+ */
+export function personRunFor(
+  personStarted: boolean,
+  thread: { departmentId?: string | null; groupId?: string | null; userId: string },
+  userId: string,
+): boolean {
+  return personStarted && !thread.departmentId && !thread.groupId && thread.userId === userId;
+}
+
 /** Authorized connection metadata shared by model runs and unattended checks. */
 export function connectedContext(
   rows: Array<{

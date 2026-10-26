@@ -19,6 +19,7 @@ import {
 import { XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useCanManageConnections } from "../lib/connections-access";
 import { providerLabel } from "../lib/messaging";
 import { rpc } from "../lib/rpc";
 import { ExternalConversationSettings } from "./ExternalConversationSettings";
@@ -27,6 +28,7 @@ const LINK_POLL_MS = 3_000;
 
 export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
   const { t } = useLingui();
+  const canManageConnections = useCanManageConnections();
   const [status, setStatus] = useState<MessagingStatus | null>(null);
   const [channels, setChannels] = useState<MessagingChannelMembership[]>([]);
   const [connections, setConnections] = useState<MessagingAgentConnection[]>([]);
@@ -201,35 +203,37 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
               <Trans>No chat apps linked yet.</Trans>
             </p>
           )}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <NativeSelect
-              aria-label={t`Bot to link`}
-              value={linkBotId}
-              onChange={(event) => {
-                setLinkBotId(event.target.value);
-                setLinkRequest(null);
-              }}
-            >
-              <NativeSelectOption value="">{t`Choose a bot…`}</NativeSelectOption>
-              {bots.map((bot) => (
-                <NativeSelectOption key={bot.id} value={bot.id}>
-                  {bot.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-            <Button
-              className="rounded-full"
-              disabled={!linkBotId}
-              onClick={() =>
-                void act(async () => {
-                  const issued = await rpc.messaging.link.start({ botId: linkBotId });
-                  setLinkRequest({ ...issued, botId: linkBotId });
-                })
-              }
-            >
-              <Trans>Link a chat app</Trans>
-            </Button>
-          </div>
+          {canManageConnections ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <NativeSelect
+                aria-label={t`Bot to link`}
+                value={linkBotId}
+                onChange={(event) => {
+                  setLinkBotId(event.target.value);
+                  setLinkRequest(null);
+                }}
+              >
+                <NativeSelectOption value="">{t`Choose a bot…`}</NativeSelectOption>
+                {bots.map((bot) => (
+                  <NativeSelectOption key={bot.id} value={bot.id}>
+                    {bot.name}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              <Button
+                className="rounded-full"
+                disabled={!linkBotId}
+                onClick={() =>
+                  void act(async () => {
+                    const issued = await rpc.messaging.link.start({ botId: linkBotId });
+                    setLinkRequest({ ...issued, botId: linkBotId });
+                  })
+                }
+              >
+                <Trans>Link a chat app</Trans>
+              </Button>
+            </div>
+          ) : null}
           {linkCode ? (
             <p className="mt-3 text-[14px] text-foreground/75" data-testid="messaging-link-code">
               <Trans>
@@ -264,19 +268,21 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
                   <span className="flex gap-2">
                     {channel.status === "invited" ? (
                       <>
-                        <Button
-                          className="rounded-full"
-                          onClick={() =>
-                            void act(() =>
-                              rpc.messaging.channels.respond({
-                                membershipId: channel.id,
-                                accept: true,
-                              }),
-                            )
-                          }
-                        >
-                          <Trans>Approve</Trans>
-                        </Button>
+                        {canManageConnections ? (
+                          <Button
+                            className="rounded-full"
+                            onClick={() =>
+                              void act(() =>
+                                rpc.messaging.channels.respond({
+                                  membershipId: channel.id,
+                                  accept: true,
+                                }),
+                              )
+                            }
+                          >
+                            <Trans>Approve</Trans>
+                          </Button>
+                        ) : null}
                         <Button
                           variant="secondary"
                           className="rounded-full"
@@ -337,19 +343,21 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
                   <span className="flex gap-2">
                     {connection.status === "pending" && connection.incoming ? (
                       <>
-                        <Button
-                          className="rounded-full"
-                          onClick={() =>
-                            void act(() =>
-                              rpc.messaging.connections.respond({
-                                connectionId: connection.id,
-                                accept: true,
-                              }),
-                            )
-                          }
-                        >
-                          <Trans>Approve</Trans>
-                        </Button>
+                        {canManageConnections ? (
+                          <Button
+                            className="rounded-full"
+                            onClick={() =>
+                              void act(() =>
+                                rpc.messaging.connections.respond({
+                                  connectionId: connection.id,
+                                  accept: true,
+                                }),
+                              )
+                            }
+                          >
+                            <Trans>Approve</Trans>
+                          </Button>
+                        ) : null}
                         <Button
                           variant="secondary"
                           className="rounded-full"

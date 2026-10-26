@@ -292,6 +292,13 @@ import {
   resolveBusyBotName,
   toComputerStatus,
 } from "./computer-status.js";
+import {
+  assertMayCreateSpace,
+  assertMayManageConnections,
+  mayManageConnections,
+  mayShareConnections,
+  resolveCompanyServer,
+} from "./connection-admin.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
 import {
   dismissMcpServerApprovals,
@@ -533,6 +540,9 @@ function mcpServerDto(
     headers: unknown;
     secretId: string | null;
     enabled: boolean;
+    shared: boolean;
+    signIn: string;
+    departments: { departmentId: string }[];
     revision: number;
     healthStatus: string;
     healthMessage: string | null;
@@ -566,6 +576,9 @@ function mcpServerDto(
     hasSecret: row.secretId !== null,
     oauthStatus: oauth.status,
     oauthClientId: oauth.clientId,
+    shared: row.shared,
+    signIn: row.signIn === "person" ? "person" : "server",
+    departmentIds: row.departments.map((department) => department.departmentId),
     enabled: row.enabled,
     revision: row.revision,
     health: mcpServerHealthDto(row),
@@ -987,16 +1000,16 @@ export function createRouter(deps: RouterDeps) {
    * ok/error without a click. Returns the row with the health the caller should display.
    * Never throws; a probe problem must not fail the save.
    */
-  const beginMcpProbe = async (
-    row: McpServerRow,
+  const beginMcpProbe = async <Row extends McpServerRow>(
+    row: Row,
     actor: Actor,
     oauth: McpOAuthSummary,
-  ): Promise<McpServerRow> => {
+  ): Promise<Row> => {
     if (!deps.mcp || !row.enabled) return row;
     const shown = async (
       status: "unknown" | "installing",
       message: string | null,
-    ): Promise<McpServerRow> => {
+    ): Promise<Row> => {
       await recordMcpServerHealth(deps.prisma, row.id, { status, message });
       return {
         ...row,
@@ -1151,8 +1164,9 @@ export function createRouter(deps: RouterDeps) {
         spaceNavigationDto(deps, context.actor, repos, groupRepos),
       ),
       // Seeds a Space whose id does not exist yet; the member limit is checked inside.
-      create: authed.spaces.create.handler(({ context, input }) =>
-        runAsSystem("create a Space for its member", async () => {
+      create: authed.spaces.create.handler(async ({ context, input }) => {
+        await assertMayCreateSpace(context.actor, deps);
+        return runAsSystem("create a Space for its member", async () => {
           let space: { id: string; name: string };
           try {
             space = await createSpaceForMember(deps.prisma, {
@@ -1178,8 +1192,8 @@ export function createRouter(deps: RouterDeps) {
             externalConversations: [],
             botSections: [],
           };
-        }),
-      ),
+        });
+      }),
       // Renames another of the member's Spaces; membership is checked inside.
       rename: authed.spaces.rename.handler(({ context, input }) =>
         asMemberOf(deps.prisma, context.actor, input.spaceId, async () => {
@@ -1393,6 +1407,7 @@ export function createRouter(deps: RouterDeps) {
             signupPolicyInitialized: true,
             computerHost: input.computerHost ?? undefined,
             companySpaceId: input.companySpaceId ?? undefined,
+            connectionsAdminOnly: input.connectionsAdminOnly ?? undefined,
           },
           update: {
             ...(input.signupsEnabled === undefined ? {} : { signupsEnabled: input.signupsEnabled }),
@@ -1402,6 +1417,9 @@ export function createRouter(deps: RouterDeps) {
               : { signupPolicyInitialized: true }),
             ...(input.computerHost === undefined ? {} : { computerHost: input.computerHost }),
             ...(input.companySpaceId === undefined ? {} : { companySpaceId: input.companySpaceId }),
+            ...(input.connectionsAdminOnly === undefined
+              ? {}
+              : { connectionsAdminOnly: input.connectionsAdminOnly }),
           },
         });
         return deploymentDto(deps.prisma, deps.env.sandboxProvider);
@@ -1541,6 +1559,7 @@ export function createRouter(deps: RouterDeps) {
         return { ok: true as const };
       }),
       connect: authed.models.connect.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         let plaintext: string;
         try {
           let previousPlaintext: string | undefined;
@@ -1606,8 +1625,11 @@ export function createRouter(deps: RouterDeps) {
       companyConnection: authed.models.companyConnection.handler(({ context }) =>
         getCompanyModelConnection(deps, context.actor),
       ),
-      setCompanyConnection: authed.models.setCompanyConnection.handler(({ context, input }) =>
-        setCompanyModelConnection(deps, context.actor, input, context.signal),
+      setCompanyConnection: authed.models.setCompanyConnection.handler(
+        async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
+          return setCompanyModelConnection(deps, context.actor, input, context.signal);
+        },
       ),
       clearCompanyConnection: authed.models.clearCompanyConnection.handler(async ({ context }) => {
         await clearCompanyModelConnection(deps, context.actor);
@@ -1686,6 +1708,7 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       beginOAuth: authed.models.beginOAuth.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         return deps.oauthLogins.begin({
           userId: context.actor.userId,
           spaceId: context.actor.spaceId,
@@ -1707,6 +1730,7 @@ export function createRouter(deps: RouterDeps) {
         return result.status === "connected" ? { status: "ready" as const } : result;
       }),
       finishOAuth: authed.models.finishOAuth.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         throwIfAborted(context.signal);
         const result = await deps.oauthLogins.finish(
           input.loginId,
@@ -3780,9 +3804,10 @@ export function createRouter(deps: RouterDeps) {
         const config = await findSpaceMemoryConfig(deps.prisma, context.actor.spaceId);
         return config ? serializeSpaceMemoryConfig(config) : null;
       }),
-      connectProvider: authed.memory.connectProvider.handler(async ({ context, input }) =>
-        persistMemoryProviderConfig(deps, context.actor, input),
-      ),
+      connectProvider: authed.memory.connectProvider.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
+        return persistMemoryProviderConfig(deps, context.actor, input);
+      }),
       setDefaultScope: authed.memory.setDefaultScope.handler(async ({ context, input }) =>
         updateMemoryProviderDefaultScope(deps, context.actor, input.defaultMemoryScope),
       ),
@@ -3851,6 +3876,7 @@ export function createRouter(deps: RouterDeps) {
             modelId: input.modelId,
             thinkingLevel: input.thinkingLevel,
             ...(input.watch ? { watch: input.watch as Prisma.InputJsonValue } : {}),
+            personCreated: true,
             nextRunAt,
           },
         });
@@ -4020,6 +4046,8 @@ export function createRouter(deps: RouterDeps) {
                 : {}),
             },
             data: {
+              // An edit by anyone but its maker makes it no longer the maker's own.
+              personCreated: existing.personCreated && existing.userId === context.actor.userId,
               name: input.name,
               prompt: input.prompt,
               crons: input.crons,
@@ -4485,6 +4513,7 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       install: authed.capabilities.install.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         let source = input.source.trim();
         let config = input.config;
         const credential = input.credential?.trim() || undefined;
@@ -4641,6 +4670,7 @@ export function createRouter(deps: RouterDeps) {
           const rows = await deps.prisma.mcpServer.findMany({
             where: { spaceId: context.actor.spaceId, userId: context.actor.userId },
             orderBy: [{ name: "asc" }, { createdAt: "asc" }],
+            include: { departments: { select: { departmentId: true } } },
           });
           const secretIds = rows.flatMap((row) => (row.secretId ? [row.secretId] : []));
           const secrets = secretIds.length
@@ -4667,6 +4697,14 @@ export function createRouter(deps: RouterDeps) {
           );
         }),
         create: authed.mcp.servers.create.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
+          const company = await resolveCompanyServer(
+            deps,
+            context.actor,
+            input,
+            null,
+            Boolean(input.oauthClient),
+          );
           await assertMcpRemoteEndpoint(
             "endpoint" in input ? input.endpoint : null,
             context.actor,
@@ -4724,13 +4762,20 @@ export function createRouter(deps: RouterDeps) {
                   : {}) as Prisma.InputJsonValue,
                 secretId: stored?.id,
                 enabled: input.enabled,
+                shared: company.shared,
+                signIn: company.signIn,
+                departments: {
+                  create: company.departmentIds.map((departmentId) => ({ departmentId })),
+                },
               },
+              include: { departments: { select: { departmentId: true } } },
             });
           });
           const oauth = await mcpOAuth.summaryFor(row, context.actor);
           return mcpServerDto(await beginMcpProbe(row, context.actor, oauth), oauth);
         }),
         update: authed.mcp.servers.update.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           for (let attempt = 0; attempt < 5; attempt++) {
             const { existing, existingSecret } = await deps.prisma.$transaction(async (tx) => {
               const existing = await tx.mcpServer.findFirst({
@@ -4739,6 +4784,7 @@ export function createRouter(deps: RouterDeps) {
                   spaceId: context.actor.spaceId,
                   userId: context.actor.userId,
                 },
+                include: { departments: { select: { departmentId: true } } },
               });
               if (!existing) throw new IsolationError();
               const existingSecret = existing.secretId
@@ -4794,6 +4840,17 @@ export function createRouter(deps: RouterDeps) {
             const update = buildMcpUpdateMaterial(existingMaterial, config, {
               clearOAuth: existing.endpoint !== nextEndpoint,
             });
+            const company = await resolveCompanyServer(
+              deps,
+              context.actor,
+              config,
+              {
+                shared: existing.shared,
+                signIn: existing.signIn === "person" ? "person" : "server",
+                departmentIds: existing.departments.map((department) => department.departmentId),
+              },
+              Boolean((update.action === "store" ? update.material : existingMaterial).oauthClient),
+            );
             if (update.action === "store" && config.transport === "stdio") {
               await assertMcpRemoteEndpoint(
                 update.material.oauthClient?.authorization_server,
@@ -4883,6 +4940,12 @@ export function createRouter(deps: RouterDeps) {
                         ? Object.fromEntries(Object.keys(config.headers).map((key) => [key, true]))
                         : {}) as Prisma.InputJsonValue,
                       enabled: config.enabled,
+                      shared: company.shared,
+                      signIn: company.signIn,
+                      departments: {
+                        deleteMany: {},
+                        create: company.departmentIds.map((departmentId) => ({ departmentId })),
+                      },
                       revision: { increment: 1 },
                       // The old verdict is about the old config.
                       healthStatus: "unknown",
@@ -4891,6 +4954,7 @@ export function createRouter(deps: RouterDeps) {
                       healthCheckedAt: null,
                       ...(stored ? { secretId: stored.id } : clearing ? { secretId: null } : {}),
                     },
+                    include: { departments: { select: { departmentId: true } } },
                   });
                   if ((stored || clearing) && existing.secretId)
                     await tx.secret.deleteMany({
@@ -4932,11 +4996,15 @@ export function createRouter(deps: RouterDeps) {
           } else {
             await probeMcpServer(server, context.actor);
           }
-          const fresh = await deps.prisma.mcpServer.findFirst({ where: scope });
+          const fresh = await deps.prisma.mcpServer.findFirst({
+            where: scope,
+            include: { departments: { select: { departmentId: true } } },
+          });
           if (!fresh) throw new IsolationError();
           return mcpServerDto(fresh, oauth);
         }),
         remove: authed.mcp.servers.remove.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           const server = await deps.prisma.mcpServer.findFirst({
             where: {
               id: input.id,
@@ -5004,6 +5072,7 @@ export function createRouter(deps: RouterDeps) {
           return rows.map(mcpAssignmentDto);
         }),
         approve: authed.mcp.assignments.approve.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           const row = await resolveMcpApprovalCards(
             onboardingDeps,
             context.actor,
@@ -5031,10 +5100,12 @@ export function createRouter(deps: RouterDeps) {
                     userId: context.actor.userId,
                     enabled: true,
                   },
-                  select: { id: true },
+                  select: { id: true, shared: true },
                 }),
               ]);
               if (!bot || !server) throw new IsolationError();
+              // Shared servers reach bots through departments.
+              if (server.shared) throw new ORPCError("BAD_REQUEST");
               return tx.botMcpServer.upsert({
                 where: { botId_serverId: { botId: bot.id, serverId: server.id } },
                 create: {
@@ -5065,6 +5136,7 @@ export function createRouter(deps: RouterDeps) {
           return { ok: true as const };
         }),
         replace: authed.mcp.assignments.replace.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           const { rows, seqs } = await deps.prisma.$transaction(async (tx) => {
             const bot = await tx.bot.findFirst({
               where: {
@@ -5081,9 +5153,10 @@ export function createRouter(deps: RouterDeps) {
                 spaceId: context.actor.spaceId,
                 userId: context.actor.userId,
               },
-              select: { id: true },
+              select: { id: true, shared: true },
             });
             if (servers.length !== input.assignments.length) throw new IsolationError();
+            if (servers.some((server) => server.shared)) throw new ORPCError("BAD_REQUEST");
             const previous = await tx.botMcpServer.findMany({
               where: {
                 botId: bot.id,
@@ -5142,6 +5215,17 @@ export function createRouter(deps: RouterDeps) {
       },
       oauth: {
         begin: authed.mcp.oauth.begin.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
+          const server = await deps.prisma.mcpServer.findFirst({
+            where: {
+              id: input.serverId,
+              spaceId: context.actor.spaceId,
+              userId: context.actor.userId,
+            },
+            select: { shared: true },
+          });
+          // A shared server signs in with its static credential or each person's SSO token.
+          if (server?.shared) throw new ORPCError("BAD_REQUEST");
           try {
             const expectedRedirect = new URL("/mcp/oauth/callback", deps.env.webOrigin).toString();
             if (new URL(input.redirectUri).toString() !== expectedRedirect) {
@@ -5159,6 +5243,7 @@ export function createRouter(deps: RouterDeps) {
           }
         }),
         complete: authed.mcp.oauth.complete.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           try {
             // complete() consumes the session, so which server it belongs to is read first.
             const session = deps.mcp
@@ -5338,6 +5423,7 @@ export function createRouter(deps: RouterDeps) {
         }));
       }),
       begin: authed.connections.begin.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         const connector =
           deps.integrationSettings &&
           (input.connectorId === "composio" || input.connectorId === "pipedream")
@@ -5539,6 +5625,7 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       complete: authed.connections.complete.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         const existing = await deps.prisma.connection.findFirst({
           where: {
             id: input.connectionId,
@@ -6164,6 +6251,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       link: {
         start: authed.messaging.link.start.handler(async ({ context, input }) => {
+          await assertMayManageConnections(context.actor, deps);
           const bot = await deps.prisma.bot.findFirst({
             where: {
               id: input.botId,
@@ -6256,6 +6344,7 @@ export function createRouter(deps: RouterDeps) {
           return memberships.map((membership) => messagingChannelDto(membership));
         }),
         respond: authed.messaging.channels.respond.handler(async ({ context, input }) => {
+          if (input.accept) await assertMayManageConnections(context.actor, deps);
           const identities = await messagingIdentitiesFor(deps.prisma, context.actor.userId);
           const membership = identities.length
             ? await deps.prisma.messagingChannelMember.findFirst({
@@ -6321,6 +6410,7 @@ export function createRouter(deps: RouterDeps) {
           );
         }),
         respond: authed.messaging.connections.respond.handler(async ({ context, input }) => {
+          if (input.accept) await assertMayManageConnections(context.actor, deps);
           const identities = await messagingIdentitiesFor(deps.prisma, context.actor.userId);
           const myBotIds = new Set(identities.map((identity) => identity.botId));
           const connection = identities.length
@@ -6438,17 +6528,23 @@ export function createRouter(deps: RouterDeps) {
       list: authed.agentSecrets.list.handler(async ({ context }) =>
         listAgentSecrets({ prisma: deps.prisma, secrets: deps.secrets }, context.actor),
       ),
-      put: authed.agentSecrets.put.handler(async ({ context, input, signal }) =>
-        putAgentSecret(
+      put: authed.agentSecrets.put.handler(async ({ context, input, signal }) => {
+        await assertMayManageConnections(context.actor, deps);
+        return putAgentSecret(
           { prisma: deps.prisma, secrets: deps.secrets },
           context.actor,
           input,
           signal,
-        ),
-      ),
-      remove: authed.agentSecrets.remove.handler(async ({ context, input }) =>
-        deleteAgentSecret({ prisma: deps.prisma, secrets: deps.secrets }, context.actor, input.id),
-      ),
+        );
+      }),
+      remove: authed.agentSecrets.remove.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
+        return deleteAgentSecret(
+          { prisma: deps.prisma, secrets: deps.secrets },
+          context.actor,
+          input.id,
+        );
+      }),
     },
     botSecrets: {
       list: authed.botSecrets.list.handler(async ({ context, input }) => {
@@ -6460,6 +6556,7 @@ export function createRouter(deps: RouterDeps) {
         return rows.map(botSecretMetadataDto);
       }),
       put: authed.botSecrets.put.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         const bot = await repos.getBot(context.actor, input.botId);
         const scope = botSecretScope(context.actor, bot.id);
         let row: Awaited<ReturnType<typeof getBotSecretMetadata>>;
@@ -6478,6 +6575,7 @@ export function createRouter(deps: RouterDeps) {
         return botSecretMetadataDto(row);
       }),
       remove: authed.botSecrets.remove.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
         const bot = await repos.getBot(context.actor, input.botId);
         await forgetBotSecret(deps.prisma, botSecretScope(context.actor, bot.id), input.name);
         return { ok: true as const };
@@ -6840,8 +6938,9 @@ export function createRouter(deps: RouterDeps) {
           }),
         );
       }),
-      connect: authed.voice.connect.handler(async ({ context, input }) =>
-        persistVoiceCredential(deps, context.actor, {
+      connect: authed.voice.connect.handler(async ({ context, input }) => {
+        await assertMayManageConnections(context.actor, deps);
+        return persistVoiceCredential(deps, context.actor, {
           provider: input.provider,
           plaintext: input.apiKey,
           voiceId: input.voiceId,
@@ -6850,8 +6949,8 @@ export function createRouter(deps: RouterDeps) {
           ttsModel: input.ttsModel,
           sttModel: input.sttModel,
           signal: context.signal,
-        }),
-      ),
+        });
+      }),
       disconnect: authed.voice.disconnect.handler(async ({ context, input }) =>
         disconnectVoiceCredential(deps, context.actor, { provider: input.provider }),
       ),
@@ -7121,9 +7220,11 @@ function hostCredentials(active: boolean, provider: string) {
 }
 
 async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
-  const [user, setup] = await Promise.all([
+  const [user, setup, canManageConnections, canShareConnections] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({ where: { id: actor.userId } }),
     modelSetup(deps, actor),
+    mayManageConnections(actor, deps),
+    mayShareConnections(actor, deps),
   ]);
   return {
     ticketBoardEnabled: deps.env.ticketBoardEnabled === true,
@@ -7135,6 +7236,8 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     spaceId: actor.spaceId,
     isDeploymentOwner: actor.isDeploymentOwner,
     isSpaceOwner: isSpaceOwner(actor),
+    canManageConnections,
+    canShareConnections,
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??
@@ -7476,6 +7579,7 @@ async function deploymentDto(prisma: PrismaClient, sandboxProvider: string) {
     canChooseHostComputer: sandboxProvider === "docker",
     sandboxProvider,
     companySpaceId: settings?.companySpaceId ?? null,
+    connectionsAdminOnly: settings?.connectionsAdminOnly ?? false,
   };
 }
 

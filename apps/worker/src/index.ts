@@ -1,5 +1,6 @@
 import type { JobPublisher, JobWorkerHost } from "@rakazo/adapter-kit";
 import { ComposioConnector, IntegrationProviderSettings } from "@rakazo/adapters";
+import { createPersonTokenSource } from "@rakazo/auth";
 import { phoneCallSettings } from "@rakazo/core";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { startWorkerHealth } from "./health.js";
@@ -144,6 +145,8 @@ async function main() {
       ...mcpStdioOptionsFromEnv(process.env),
       events,
       allowPrivateEndpoint,
+      // Only reads the person's SSO token the API stored; the API refreshes it.
+      personToken: createPersonTokenSource({ prisma, secrets }),
     },
     mcpOAuth,
   );
