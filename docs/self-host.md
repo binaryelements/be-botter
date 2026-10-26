@@ -366,7 +366,7 @@ invalid, expired or wrong-account codes fail. No password needs to be created fo
 
 ### Company connections and Microsoft 365
 
-An owner of the company Space can add an MCP server with **Share with the company**. Bots in the
+An owner of the company Space can add a public HTTPS MCP server with **Share with the company**. Bots in the
 chosen **Departments** (none means all) get its tools for whoever talks to them, and staff connect
 nothing. **Sign in as** decides whose credentials the server sees:
 
@@ -415,10 +415,10 @@ In Entra, add the same scopes (without `offline_access`) as Microsoft Graph dele
 on the sign-in app registration, and grant admin consent once. Passing them as `--allowed-scopes`
 keeps the tool list in line with what the token can do.
 
-Redeploy, sign in again, then as a company Space owner add an MCP server with URL
-`http://ms365:3000/mcp`, **Share with the company** on, **Sign in as** **Each person**. The
-private-network URL is accepted because the deployment owner adds it (see
-[Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`). Teams and shared
+Redeploy, sign in again, then, as the deployment owner, add an MCP server with URL
+`http://ms365:3000/mcp`, **Share with the company** on, **Sign in as** **Each person**. Only the
+deployment owner can use a private-network URL (company Space owners can add public HTTPS servers;
+see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`). Teams and shared
 mailboxes are not covered by these scopes.
 
 ### Mobile push notifications
