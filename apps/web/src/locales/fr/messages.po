@@ -3610,7 +3610,7 @@ msgid "on the 1st at {0}"
 msgstr "le 1er à {0}"
 
 #: src/components/ConnectionsAdminOnlySetting.tsx
-msgid "Only admins add connections"
+msgid "Only admins add bots and connections"
 msgstr ""
 
 #: src/pages/Shell.tsx

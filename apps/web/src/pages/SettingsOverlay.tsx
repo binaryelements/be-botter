@@ -97,7 +97,7 @@ export function SettingsOverlay({
   onVoiceStatusMaybeChanged,
 }: {
   /** The space the per-space sections act on; it need not be the selected space. */
-  space?: { id: string; name: string } | null;
+  space?: { id: string; name: string; canRename?: boolean } | null;
   spaces?: { id: string; name: string }[];
   /** The space the app is showing; its memory config comes from the shell. */
   currentSpaceId?: string | null;
@@ -144,7 +144,7 @@ export function SettingsOverlay({
   const panelBusy = memoryBusy || voiceBusy;
   const spaceScoped = SPACE_SECTIONS.has(section);
   const spaceId = spaceScoped ? (space?.id ?? null) : null;
-  // Departments appear in the nav once the space has one; the first is created from a bot's page.
+  // Owners always see Departments; members once the space has one. canRename marks a space owner.
   const [hasDepartments, setHasDepartments] = useState(false);
   useEffect(() => {
     if (!space?.id) return;
@@ -241,7 +241,7 @@ export function SettingsOverlay({
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
-    ...(hasDepartments || section === "departments"
+    ...(hasDepartments || isDeploymentOwner || space?.canRename || section === "departments"
       ? [{ id: "departments" as const, label: t`Departments`, icon: Users }]
       : []),
     { id: "usage", label: t`Usage`, icon: Gauge },

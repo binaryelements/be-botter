@@ -378,9 +378,10 @@ On an OIDC sign-in the API keeps the person's access and refresh tokens in the e
 store and refreshes them on that person's requests and in a background pass every ten minutes. The
 worker only reads the current access token; it holds no auth or OIDC secret. People who signed in
 before this feature existed must sign in once more. The deployment owner switch **Only admins add
-connections** (deployment settings) limits adding model keys, MCP servers, plugins and connectors,
-secrets, voice and memory providers, messaging links, and creating Spaces to the deployment owner
-and company Space owners.
+bots and connections** (deployment settings) limits creating and duplicating bots (including bots a
+run spawns), adding model keys, MCP servers, plugins and connectors, secrets, voice and memory
+providers, and messaging links to the deployment owner and company Space owners, and creating Spaces
+to the deployment owner.
 
 To give bots Microsoft 365, run the open-source
 [`softeria/ms-365-mcp-server`](https://github.com/Softeria/ms-365-mcp-server) (MIT) next to the

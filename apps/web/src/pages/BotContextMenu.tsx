@@ -48,7 +48,8 @@ export function BotContextMenu({
   onRenameSection?: (sectionId: string) => void;
   onToggleUnread: () => void;
   onEdit: () => void;
-  onDuplicate: () => void;
+  /** Omitted when the person may not add this copy. */
+  onDuplicate?: () => void;
   onClear: () => void;
   onArchive: () => void;
   onDelete: () => void;
@@ -104,10 +105,12 @@ export function BotContextMenu({
         <Pencil />
         {t`Edit Profile`}
       </ContextMenuItem>
-      <ContextMenuItem onClick={onDuplicate}>
-        <Copy />
-        {t`Duplicate`}
-      </ContextMenuItem>
+      {onDuplicate ? (
+        <ContextMenuItem onClick={onDuplicate}>
+          <Copy />
+          {t`Duplicate`}
+        </ContextMenuItem>
+      ) : null}
       <ContextMenuSeparator />
       <ContextMenuItem onClick={onClear}>
         <Eraser />

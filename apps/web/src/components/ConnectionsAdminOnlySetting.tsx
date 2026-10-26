@@ -40,7 +40,7 @@ export function ConnectionsAdminOnlySetting() {
         onCheckedChange={(checked) => void change(checked).catch(showError)}
       />
       <Label htmlFor={id} className="text-[14px] font-normal text-foreground/75">
-        <Trans>Only admins add connections</Trans>
+        <Trans>Only admins add bots and connections</Trans>
       </Label>
     </div>
   );

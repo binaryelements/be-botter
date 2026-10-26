@@ -230,7 +230,13 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
   const [groups, setGroups] = useState<MobileGroup[]>([]);
   const [botSections, setBotSections] = useState<MobileBotSection[]>([]);
   const [spaces, setSpaces] = useState<MobileSpace[]>([]);
-  const [me, setMe] = useState<Pick<MobileMe, "userId" | "spaceId" | "name"> | null>(null);
+  // The saved inbox has no canManageConnections; the live `me` fills it in.
+  const [me, setMe] = useState<
+    | (Pick<MobileMe, "userId" | "spaceId" | "name"> &
+        Partial<Pick<MobileMe, "canManageConnections">>)
+    | null
+  >(null);
+  const canAddBots = me?.canManageConnections !== false;
   const [error, setError] = useState<string | null>(null);
   // Kept apart from action errors so a failed action never borrows the load's title.
   const [inboxLoading, setInboxLoading] = useState(false);
@@ -727,13 +733,13 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
       t("Create"),
       undefined,
       [
-        { text: t("New bot"), onPress: () => runCreateAction("bot") },
+        ...(canAddBots ? [{ text: t("New bot"), onPress: () => runCreateAction("bot") }] : []),
         { text: t("New group"), onPress: () => runCreateAction("group") },
         { text: t("New space"), onPress: () => runCreateAction("space") },
       ],
       { cancelable: true },
     );
-  }, [runCreateAction, t]);
+  }, [canAddBots, runCreateAction, t]);
 
   useLayoutEffect(() => {
     if (!nativeHeader) return;
@@ -773,12 +779,16 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
           icon: { type: "sfSymbol" as const, name: "plus" },
           menu: {
             items: [
-              {
-                type: "action" as const,
-                label: t("New bot"),
-                icon: { type: "sfSymbol" as const, name: "person.crop.circle.badge.plus" },
-                onPress: () => runCreateAction("bot"),
-              },
+              ...(canAddBots
+                ? [
+                    {
+                      type: "action" as const,
+                      label: t("New bot"),
+                      icon: { type: "sfSymbol" as const, name: "person.crop.circle.badge.plus" },
+                      onPress: () => runCreateAction("bot"),
+                    },
+                  ]
+                : []),
               {
                 type: "action" as const,
                 label: t("New group"),
@@ -805,6 +815,7 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
     activityMode,
     toggleActivityMode,
     runCreateAction,
+    canAddBots,
     router,
     t,
     locale,
@@ -1290,9 +1301,17 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
             ) : (
               <MenuView
                 actions={[
-                  { id: "bot", title: t("New bot"), image: "person.crop.circle.badge.plus" },
-                  { id: "group", title: t("New group"), image: "person.2" },
-                  { id: "space", title: t("New space"), image: "square.grid.2x2" },
+                  ...(canAddBots
+                    ? [
+                        {
+                          id: "bot",
+                          title: t("New bot"),
+                          image: "person.crop.circle.badge.plus" as const,
+                        },
+                      ]
+                    : []),
+                  { id: "group", title: t("New group"), image: "person.2" as const },
+                  { id: "space", title: t("New space"), image: "square.grid.2x2" as const },
                 ]}
                 colorScheme={appearance}
                 onPressAction={({ nativeEvent }) => {
@@ -1371,12 +1390,14 @@ function Home({ embedded, onSelectSpace }: InboxPaneProps & { embedded: boolean 
                   onSignIn={() => void signInAgain()}
                 />
               ) : (
-                <Text style={styles.empty}>{me ? t("Tap + to create a bot") : null}</Text>
+                <Text style={styles.empty}>
+                  {me && canAddBots ? t("Tap + to create a bot") : null}
+                </Text>
               )
             }
             ListFooterComponent={
               <>
-                {!showLoadFailure && inboxNeedsCreateHint(listData) ? (
+                {!showLoadFailure && canAddBots && inboxNeedsCreateHint(listData) ? (
                   <Text style={styles.empty}>{t("Tap + to create a bot")}</Text>
                 ) : null}
                 <ArchivedChatsRow

@@ -3610,8 +3610,8 @@ msgid "on the 1st at {0}"
 msgstr "on the 1st at {0}"
 
 #: src/components/ConnectionsAdminOnlySetting.tsx
-msgid "Only admins add connections"
-msgstr "Only admins add connections"
+msgid "Only admins add bots and connections"
+msgstr "Only admins add bots and connections"
 
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."

@@ -599,6 +599,9 @@ function SpaceShell() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
+  const canAddBots = bootstrapMe?.canManageConnections !== false;
+  const canAddBotsRef = useRef(canAddBots);
+  canAddBotsRef.current = canAddBots;
   const callsEnabledRef = useRef(false);
   useEffect(() => {
     callsEnabledRef.current = bootstrapMe?.phoneCallsEnabled === true;
@@ -1015,7 +1018,9 @@ function SpaceShell() {
           archived?.length === 0 &&
           groupList.length === 0 &&
           archivedGroupList?.length === 0 &&
-          !navigation.spaces.some((space) => space.hasContent)
+          !navigation.spaces.some((space) => space.hasContent) &&
+          // Onboarding creates a bot, which only admins may while the switch is on.
+          canAddBotsRef.current
         ) {
           // Only the very first bot everywhere needs onboarding. An empty
           // current space with content elsewhere stays in the app so the
@@ -1266,7 +1271,8 @@ function SpaceShell() {
           bootstrap.archivedBots.length === 0 &&
           groupList.length === 0 &&
           bootstrap.archivedGroups.length === 0 &&
-          !bootstrap.spaces.some((space) => space.hasContent)
+          !bootstrap.spaces.some((space) => space.hasContent) &&
+          bootstrap.me.canManageConnections !== false
         ) {
           navigate("/onboarding", { replace: true });
           return;
@@ -3099,16 +3105,20 @@ function SpaceShell() {
         setRestoredPanelKey(destKey);
         setBotMenu(null);
       }}
-      onDuplicate={() => {
-        setBotMenu(null);
-        const request = contextBot
-          ? rpc.bots.duplicate({ botId: contextBot.id })
-          : rpc.groups.duplicate({ groupId: contextGroup!.id });
-        void request.then(async (chat) => {
-          await refreshBots();
-          navigate(contextBot ? `/app/${chat.id}` : `/app/g/${chat.id}`);
-        });
-      }}
+      onDuplicate={
+        contextBot && !canAddBots
+          ? undefined
+          : () => {
+              setBotMenu(null);
+              const request = contextBot
+                ? rpc.bots.duplicate({ botId: contextBot.id })
+                : rpc.groups.duplicate({ groupId: contextGroup!.id });
+              void request.then(async (chat) => {
+                await refreshBots();
+                navigate(contextBot ? `/app/${chat.id}` : `/app/g/${chat.id}`);
+              });
+            }
+      }
       onClear={() => {
         setClearTarget(
           contextBot ? { kind: "bot", chat: contextBot } : { kind: "group", chat: contextGroup! },
@@ -3520,10 +3530,12 @@ function SpaceShell() {
         <CallReturnBar />
         {!active && !activeGroup && initialBotsLoaded ? (
           <div className="grid flex-1 place-items-center">
-            <Button onClick={() => setPanel("create")}>
-              <Plus size={16} aria-hidden="true" />
-              <Trans>Create new Bot</Trans>
-            </Button>
+            {canAddBots ? (
+              <Button onClick={() => setPanel("create")}>
+                <Plus size={16} aria-hidden="true" />
+                <Trans>Create new Bot</Trans>
+              </Button>
+            ) : null}
           </div>
         ) : (
           <Transcript
@@ -4193,9 +4205,7 @@ function SpaceShell() {
 
   return (
     <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>
-      <ConnectionsAccess value={bootstrapMe?.canManageConnections !== false}>
-        {shell}
-      </ConnectionsAccess>
+      <ConnectionsAccess value={canAddBots}>{shell}</ConnectionsAccess>
     </AvatarStyleProvider>
   );
 }
