@@ -199,6 +199,11 @@ export function OnboardingPage() {
       rpc.integrationSetup.get().catch(() => null),
     ])
       .then(([me, models, integrations]) => {
+        // Onboarding creates a bot, which the admin-only switch refuses for this person.
+        if (!me.canManageConnections) {
+          navigate("/app", { replace: true });
+          return;
+        }
         setIntegrationSetup(integrations);
         setCatalog(models);
         deploymentDefaultModelRef.current = me.defaultModel;

@@ -27,7 +27,7 @@ export function DepartmentsSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([rpc.departments.list(), rpc.me(), rpc.bots.list()])
+    Promise.all([rpc.departments.list(), rpc.me(), rpc.bots.list().catch(() => [])])
       .then(([list, me, botList]) => {
         if (cancelled) return;
         setDepartments(list);
