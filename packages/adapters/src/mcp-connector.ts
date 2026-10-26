@@ -204,12 +204,11 @@ function sharedServerWhere(spaceId: string, botId: string) {
 
 /**
  * A server signed in as each person carries the run's person's own token, so it is offered
- * only on runs that person started for themselves: their own message or their own routine.
- * Channels, webhooks, tickets, other bots and spawns run as the bot's owner, who did not ask.
+ * only on that person's own runs in their private thread (see `personRunFor`). Channels,
+ * webhooks, tickets, other bots and spawns run as the bot's owner, who did not ask.
  */
-const PERSON_RUN_TRIGGERS = new Set(["user", "routine"]);
 const grantUsable = (grant: ServerGrant, context: AdapterContext) =>
-  grant.server.signIn !== "person" || PERSON_RUN_TRIGGERS.has(context.trigger ?? "");
+  grant.server.signIn !== "person" || context.personRun === true;
 
 const sharedGrant = (server: McpServer): ServerGrant => ({
   serverId: server.id,

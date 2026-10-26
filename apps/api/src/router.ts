@@ -3876,6 +3876,7 @@ export function createRouter(deps: RouterDeps) {
             modelId: input.modelId,
             thinkingLevel: input.thinkingLevel,
             ...(input.watch ? { watch: input.watch as Prisma.InputJsonValue } : {}),
+            personCreated: true,
             nextRunAt,
           },
         });

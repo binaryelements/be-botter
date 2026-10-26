@@ -61,6 +61,8 @@ export type RoutineWatchTarget = {
   botId: string;
   watch: unknown;
   watchState: unknown;
+  /** Its checks may read with the person's own sign-in; see `personRunFor`. */
+  personRun?: boolean;
 };
 
 /** Thrown when a check cannot be completed; the routine is paused and the bot says why. */
@@ -292,7 +294,7 @@ function context(routine: RoutineWatchTarget): AdapterContext {
     spaceId: routine.spaceId,
     userId: routine.userId,
     botId: routine.botId,
-    trigger: "routine",
+    personRun: routine.personRun === true,
     signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
   };
 }

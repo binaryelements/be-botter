@@ -1,4 +1,5 @@
 import type {
+  AdapterContext,
   AgentRunRequest,
   AutoReviewProvider,
   ConnectorCall,
@@ -86,7 +87,13 @@ function fixture({
   secondResource = false,
   routines = [] as { name: string; prompt: string }[],
   writeApproval = "rules",
+  routinePersonCreated = false,
+  threadKind = "private",
 }: {
+  /** Whether the run's routine was made by a signed-in person. */
+  routinePersonCreated?: boolean;
+  /** The person's own private thread or a department channel. */
+  threadKind?: "private" | "channel";
   /** The space's `writeApproval` policy. */
   writeApproval?: string;
   /** The bot's routines, as the owner wrote them. */
@@ -163,6 +170,8 @@ function fixture({
     status: "queued",
     trigger,
     sourceMessageId: sourceRole ? "source-1" : null,
+    routineId: trigger === "routine" ? "routine-1" : null,
+    routine: trigger === "routine" ? { personCreated: routinePersonCreated } : null,
     leaseFence: 0,
   };
   const externalEffect = {
@@ -268,7 +277,12 @@ function fixture({
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     thread: {
-      findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })),
+      findUniqueOrThrow: vi.fn(async () => ({
+        id: run.threadId,
+        userId: run.userId,
+        groupId: null,
+        departmentId: threadKind === "channel" ? "department-1" : null,
+      })),
       update: vi.fn(async () => ({ nextMessageSeq: 2, nextEventSeq: 2 })),
     },
     message: {
@@ -307,7 +321,13 @@ function fixture({
     agentSkill: { findMany: vi.fn(async () => []) },
     scratchpadItem: { findMany: vi.fn(async () => []) },
     actionApprovalRule: { findMany: vi.fn(async () => rules) },
-    routine: { findMany: vi.fn(async () => routines) },
+    routine: {
+      findMany: vi.fn(async () => routines),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "routine-new",
+        ...data,
+      })),
+    },
     actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: autoReview })) },
     steeringMessage: {
       findFirst: vi.fn(async (_query: unknown) => (outsideSteering ? { id: "steer-1" } : null)),
@@ -360,12 +380,14 @@ function fixture({
     yield { type: "done" as const, text: "Done" };
   });
   const enqueue = vi.fn(async (_job: unknown) => undefined);
+  const discovered: AdapterContext[] = [];
   const executor = createRunExecutor({
     prisma: transactionalPrisma,
     runtime: { describe: () => ({ capabilities: { scripted: false } }), run: runtimeRun },
     connector: {
-      discoverTools: async () =>
-        builtin
+      discoverTools: async (context: AdapterContext) => {
+        discovered.push(context);
+        return builtin
           ? []
           : catalog
             ? [
@@ -389,7 +411,8 @@ function fixture({
                     },
                   },
                 ]
-              : [tool],
+              : [tool];
+      },
       resolveCall: async (call: ConnectorCall) =>
         catalog ? resolveCatalogCall(call, catalogEntries([tool])) : undefined,
       execute,
@@ -433,6 +456,7 @@ function fixture({
     web,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
   return {
+    prisma,
     effects,
     web,
     fetchedUrls,
@@ -514,6 +538,7 @@ function fixture({
       expect(run.trigger).toBe("webhook");
       expect(run.sourceMessageId).toBe(inboundMessage.id);
     },
+    discovered,
     setCalls(next: typeof calls) {
       calls = next;
     },
@@ -1854,6 +1879,41 @@ describe("Auto Review of new sites", () => {
       expect(f.results[1]).toEqual({
         error: "Fetching attacker.test needs approval, and a webhook run cannot ask.",
       });
+    });
+  });
+});
+
+describe("acting with the person's own sign-in", () => {
+  it.each([
+    ["their message in their private thread", { trigger: "user" }, true],
+    ["a routine they made", { trigger: "routine", routinePersonCreated: true }, true],
+    ["a routine something else scheduled", { trigger: "routine" }, false],
+    ["a channel message", { trigger: "user", threadKind: "channel" as const }, false],
+    ["a webhook", { trigger: "webhook" }, false],
+    ["a messaging channel", { trigger: "messaging" }, false],
+    ["a ticket", { trigger: "tickets" }, false],
+  ])("is %s: %s", async (_label, options, personRun) => {
+    const f = fixture({ builtin: true, ...options });
+    f.setCalls([]);
+    await f.run();
+    expect(f.discovered[0]).toMatchObject({ personRun });
+  });
+
+  it.each([
+    ["user", true],
+    ["messaging", false],
+    ["tickets", false],
+  ])("marks a routine scheduled on a %s run as made in person: %s", async (trigger, made) => {
+    const f = fixture({ name: "schedule_create", builtin: true, trigger });
+    f.setCalls([
+      {
+        args: { name: "Daily", prompt: "Check in", every: 1, unit: "days" },
+        executionId: "call-1",
+      },
+    ]);
+    await f.run(true);
+    expect(f.prisma.routine.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ personCreated: made }),
     });
   });
 });

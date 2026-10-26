@@ -940,6 +940,8 @@ model Routine {
   watch          Json?
   /// Last check's result (RoutineWatchStateSchema), written by the checker.
   watchState     Json?
+  /// A signed-in person made it in the app, or in a run they started themselves.
+  personCreated  Boolean   @default(false)
   lastRunAt      DateTime?
   nextRunAt      DateTime?
   createdAt      DateTime  @default(now())

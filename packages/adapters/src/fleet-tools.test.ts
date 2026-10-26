@@ -1569,6 +1569,16 @@ describe("createChildRoutine", () => {
     expect(deps.append).not.toHaveBeenCalled();
   });
 
+  it("marks the child's routine as made in person only on a run the person started", async () => {
+    for (const personCreated of [false, true]) {
+      const { prisma } = fakeFleet(fleet);
+      await createChildRoutine(writeDeps(prisma), run, canonical, personCreated);
+      expect(prisma.routine.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ personCreated }),
+      });
+    }
+  });
+
   it("keeps the routine name on one line in the routine, its result and its notification", async () => {
     const { prisma } = fakeFleet(fleet);
     const deps = writeDeps(prisma);

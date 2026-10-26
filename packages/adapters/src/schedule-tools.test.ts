@@ -278,6 +278,30 @@ describe("schedule tool persistence", () => {
     expect(enqueue).toHaveBeenCalledOnce();
   });
 
+  it("marks a routine made in person only when the caller says so", async () => {
+    const create = vi.fn(async (args: { data: Record<string, unknown> }) => ({
+      id: "routine-1",
+      ...args.data,
+    }));
+    const deps = {
+      prisma: { bot: { findFirst: vi.fn(async () => ({ computer: null })) }, routine: { create } },
+      events: { append: vi.fn(async () => undefined) },
+      jobs: { enqueue: vi.fn(async () => undefined), cancel: vi.fn(async () => undefined) },
+    } as unknown as Parameters<typeof createScheduleFromTool>[0];
+    const input = {
+      spaceId: "ws-1",
+      botId: "bot-1",
+      userId: "user-1",
+      threadId: "thread-1",
+      name: "Morning joke",
+      prompt: "Tell a joke",
+    };
+    const every = { every: 1, unit: "minutes" };
+    await createScheduleFromTool(deps, { ...input, schedule: every });
+    await createScheduleFromTool(deps, { ...input, schedule: every, personCreated: true });
+    expect(create.mock.calls.map(([args]) => args.data.personCreated)).toEqual([false, true]);
+  });
+
   it("createScheduleFromTool creates the routine for the target bot and thread", async () => {
     const append = vi.fn(async () => undefined);
     const enqueue = vi.fn(async () => undefined);
@@ -600,6 +624,14 @@ describe("schedule_create with a watch", () => {
       }),
     });
     expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks a watch made in person only when the caller says so", async () => {
+    const { deps: d, create } = deps();
+    const schedule = { watch: { kind: "files", paths: ["inbox/"] } };
+    await createScheduleFromTool(d, { ...base, schedule });
+    await createScheduleFromTool(d, { ...base, schedule, personCreated: true });
+    expect(create.mock.calls.map(([args]) => args.data.personCreated)).toEqual([false, true]);
   });
 
   it("rejects a team path escape before persisting", async () => {

@@ -5357,6 +5357,9 @@ describe("routine live Codex model validation", () => {
         undefined,
       );
       expect(save).toHaveBeenCalledOnce();
+      // Made by a signed-in person in the app.
+      if (operation === "create")
+        expect(save.mock.calls[0]?.[0].data).toMatchObject({ personCreated: true });
       await expect(call("gpt-6-luna-unlisted")).rejects.toMatchObject({
         code: "BAD_REQUEST",
         message: "Unknown model for that provider",
