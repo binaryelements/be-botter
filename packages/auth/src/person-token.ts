@@ -93,18 +93,24 @@ export function createPersonTokenSource(
   };
 }
 
+/** After a failed refresh (often a revoked grant), try that person again no sooner than this. */
+const FAILURE_BACKOFF = 60 * 60_000;
+
 /**
- * Refreshes a person's stored SSO token against the identity provider when it expires within
- * 45 minutes. Checked at most once per person every 5 minutes; never throws.
+ * Keeps people's stored SSO tokens fresh against the identity provider: `refresh` on a
+ * person's own requests (checked at most once per person every 5 minutes) and `renewDue` for
+ * everyone, so access does not lapse while someone is away. Both renew a token that expires
+ * within 45 minutes, back off an hour after a failure, never throw and log nothing.
  */
 export function createSsoTokenRefresher(
   deps: SsoTokenStore & { oidc: OidcConfig; fetch?: typeof fetch; now?: () => number },
-): (userId: string) => Promise<void> {
-  const { oidc } = deps;
+): { refresh: (userId: string) => Promise<void>; renewDue: () => Promise<number> } {
+  const { oidc, prisma, secrets } = deps;
   const doFetch = deps.fetch ?? fetch;
   const now = deps.now ?? Date.now;
   const scope = [...new Set(["openid", "email", "profile", ...oidc.scopes])].join(" ");
   const checked = new Map<string, number>();
+  const failed = new Map<string, number>();
   let endpoint: Promise<string> | undefined;
   const tokenEndpoint = () =>
     (endpoint ??= doFetch(`${oidc.issuer.replace(/\/$/, "")}/.well-known/openid-configuration`)
@@ -120,13 +126,12 @@ export function createSsoTokenRefresher(
         throw e;
       }));
 
-  return async (userId) => {
+  /** Renews one person's token when it is due. Returns whether it was renewed. */
+  const renew = async (userId: string, token: SsoToken | null): Promise<boolean> => {
     const at = now();
-    if (at - (checked.get(userId) ?? Number.NEGATIVE_INFINITY) < RETRY_AFTER) return;
-    checked.set(userId, at);
+    if (!token?.refreshToken || token.expiresAt - at > REFRESH_WITHIN) return false;
+    if (at - (failed.get(userId) ?? Number.NEGATIVE_INFINITY) < FAILURE_BACKOFF) return false;
     try {
-      const token = await readSsoToken(deps, userId);
-      if (!token?.refreshToken || token.expiresAt - at > REFRESH_WITHIN) return;
       const response = await doFetch(await tokenEndpoint(), {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -138,21 +143,65 @@ export function createSsoTokenRefresher(
           scope,
         }),
       });
-      if (!response.ok) return;
-      const body = (await response.json()) as {
-        access_token?: unknown;
-        refresh_token?: unknown;
-        expires_in?: unknown;
-      };
-      if (typeof body.access_token !== "string" || typeof body.expires_in !== "number") return;
+      const body = response.ok
+        ? ((await response.json()) as {
+            access_token?: unknown;
+            refresh_token?: unknown;
+            expires_in?: unknown;
+          })
+        : {};
+      if (typeof body.access_token !== "string" || typeof body.expires_in !== "number") {
+        failed.set(userId, at);
+        return false;
+      }
       await saveSsoToken(deps, userId, {
         accessToken: body.access_token,
         expiresAt: now() + body.expires_in * 1000,
         refreshToken:
           typeof body.refresh_token === "string" ? body.refresh_token : token.refreshToken,
       });
+      failed.delete(userId);
+      return true;
     } catch {
       // The person is asked to sign in again once the token lapses.
+      failed.set(userId, at);
+      return false;
     }
+  };
+
+  let renewing = false;
+  return {
+    refresh: async (userId) => {
+      const at = now();
+      if (at - (checked.get(userId) ?? Number.NEGATIVE_INFINITY) < RETRY_AFTER) return;
+      checked.set(userId, at);
+      await renew(userId, await readSsoToken(deps, userId).catch(() => null));
+    },
+    renewDue: async () => {
+      // A slow pass is not stacked on by the next tick.
+      if (renewing) return 0;
+      renewing = true;
+      let renewed = 0;
+      try {
+        // The expiry is only inside the sealed value, so each token is opened; one row per
+        // person, which is fine at company scale.
+        const rows = await prisma.secret.findMany({
+          where: { kind: KIND, spaceId: null },
+          select: { id: true, userId: true, ciphertext: true },
+        });
+        for (const row of rows) {
+          const token = await secrets
+            .load(row.ciphertext, { recordId: row.id })
+            .then((plaintext) => JSON.parse(plaintext) as SsoToken)
+            .catch(() => null);
+          if (await renew(row.userId, token)) renewed += 1;
+        }
+      } catch {
+        // The next tick tries again.
+      } finally {
+        renewing = false;
+      }
+      return renewed;
+    },
   };
 }

@@ -164,6 +164,9 @@ import { mountWebhookHttpRoutes } from "./webhook.js";
  * exp:// origin is trusted: it would accept any Expo host as a redirect target.
  * The loopback entries are the Expo web dev server.
  */
+/** How often the API renews SSO tokens that expire within 45 minutes. */
+const SSO_RENEWAL_INTERVAL_MS = 10 * 60_000;
+
 export const MOBILE_AUTH_ORIGINS = [
   "rakazo://",
   "http://localhost:8081",
@@ -760,17 +763,27 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return response;
   });
   mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
-  const refreshSsoToken = env.oidc
+  const ssoTokens = env.oidc
     ? createSsoTokenRefresher({ prisma, secrets, oidc: env.oidc })
     : undefined;
+  // Renews everyone's SSO token, so access does not lapse while a person is away (routines
+  // run as them overnight). The API alone holds the OIDC client secret.
+  const ssoRenewal =
+    ssoTokens &&
+    setInterval(
+      () =>
+        void runAsSystem("sso token renewal", () => ssoTokens.renewDue()).catch(() => undefined),
+      SSO_RENEWAL_INTERVAL_MS,
+    );
+  ssoRenewal?.unref?.();
   const requestSession = async (request: Request) => {
     // The bearer plugin turns a signed `Authorization: Bearer` into the session cookie.
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user) return null;
     const userId = session.user.id;
     // Keeps the person's SSO token fresh for servers that act as them; never awaited.
-    if (refreshSsoToken)
-      void runAsSystem("sso token refresh", () => refreshSsoToken(userId)).catch(() => undefined);
+    if (ssoTokens)
+      void runAsSystem("sso token refresh", () => ssoTokens.refresh(userId)).catch(() => undefined);
     const actor = await actorFromMembership(
       requireMembership(prisma, session.user.id, request.headers.get("x-rakazo-space-id")),
     );
@@ -1133,6 +1146,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       // Abort in-flight continueRun boot waits before draining jobs so stop() cannot sit
       // on waitForComputerReady for the full boot-wait window during shared Postgres journeys.
       auth.disposeOidcDiscovery();
+      if (ssoRenewal) clearInterval(ssoRenewal);
       shutdown.abort();
       oauthLogins.abortAll();
       messagingStopped = true;

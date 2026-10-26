@@ -38,6 +38,9 @@ function memoryStore(initial?: SsoToken) {
   };
   const prisma = {
     secret: {
+      findMany: vi.fn(async ({ where }: { where: { kind: string } }) =>
+        rows.filter((row) => row.kind === where.kind),
+      ),
       findFirst: vi.fn(async ({ where }: { where: { userId: string; kind: string } }) =>
         rows.findLast((row) => row.userId === where.userId && row.kind === where.kind),
       ),
@@ -126,13 +129,13 @@ describe("SSO token refresher", () => {
         ? Response.json({ token_endpoint: `${issuer}/token` })
         : respond(),
     );
-    const refresh = createSsoTokenRefresher({
+    const { refresh, renewDue } = createSsoTokenRefresher({
       ...store.deps,
       oidc,
       fetch: fetch as unknown as typeof globalThis.fetch,
       now: () => now,
     });
-    return { ...store, refresh, fetch, advance: (ms: number) => (now += ms) };
+    return { ...store, refresh, renewDue, fetch, advance: (ms: number) => (now += ms) };
   }
   const tokenCalls = (fetch: { mock: { calls: unknown[][] } }) =>
     fetch.mock.calls.filter(([url]) => String(url) === `${issuer}/token`);
@@ -178,19 +181,21 @@ describe("SSO token refresher", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("checks a person at most once every 5 minutes", async () => {
-    const { refresh, fetch, advance } = await setup(
-      { accessToken: "a", refreshToken: "r", expiresAt: NOW },
-      () => Response.json({ error: "invalid_grant" }, { status: 400 }),
-    );
+  it("checks a person on their requests at most once every 5 minutes", async () => {
+    const { refresh, secrets, advance } = await setup({
+      accessToken: "a",
+      refreshToken: "r",
+      expiresAt: NOW + 50 * MINUTE,
+    });
+    secrets.load.mockClear();
     await refresh("u1");
     await refresh("u1");
     advance(4 * MINUTE);
     await refresh("u1");
-    expect(tokenCalls(fetch)).toHaveLength(1);
+    expect(secrets.load).toHaveBeenCalledTimes(1);
     advance(MINUTE);
     await refresh("u1");
-    expect(tokenCalls(fetch)).toHaveLength(2);
+    expect(secrets.load).toHaveBeenCalledTimes(2);
   });
 
   it("never throws and keeps the stored token on a failed refresh", async () => {
@@ -199,5 +204,69 @@ describe("SSO token refresher", () => {
     });
     await expect(failed.refresh("u1")).resolves.toBeUndefined();
     expect(failed.stored().map((row) => row.value.accessToken)).toEqual(["a"]);
+  });
+
+  it("renews due tokens in the background and leaves fresh ones alone", async () => {
+    const { deps, renewDue, fetch, stored } = await setup(
+      { accessToken: "due", refreshToken: "due-refresh", expiresAt: NOW + 30 * MINUTE },
+      () => Response.json({ access_token: "renewed", expires_in: 3600 }),
+    );
+    await saveSsoToken(deps, "u2", {
+      accessToken: "fresh",
+      refreshToken: "fresh-refresh",
+      expiresAt: NOW + 120 * MINUTE,
+    });
+    const log = vi.spyOn(console, "log");
+    const warn = vi.spyOn(console, "warn");
+    const error = vi.spyOn(console, "error");
+    try {
+      expect(await renewDue()).toBe(1);
+      const bodies = tokenCalls(fetch).map(([, init]) =>
+        new URLSearchParams(String((init as RequestInit).body)).get("refresh_token"),
+      );
+      expect(bodies).toEqual(["due-refresh"]);
+      expect(
+        Object.fromEntries(stored().map((row) => [row.userId, row.value.accessToken])),
+      ).toEqual({ u1: "renewed", u2: "fresh" });
+      expect([...log.mock.calls, ...warn.mock.calls, ...error.mock.calls]).toEqual([]);
+    } finally {
+      log.mockRestore();
+      warn.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it("tries a person whose refresh failed at most once an hour", async () => {
+    const { renewDue, refresh, fetch, advance } = await setup(
+      { accessToken: "a", refreshToken: "revoked", expiresAt: NOW + 30 * MINUTE },
+      () => Response.json({ error: "invalid_grant" }, { status: 400 }),
+    );
+    await renewDue();
+    expect(tokenCalls(fetch)).toHaveLength(1);
+    for (let i = 0; i < 5; i += 1) {
+      advance(10 * MINUTE);
+      await renewDue();
+      await refresh("u1");
+    }
+    expect(tokenCalls(fetch)).toHaveLength(1);
+    advance(10 * MINUTE);
+    await renewDue();
+    expect(tokenCalls(fetch)).toHaveLength(2);
+  });
+
+  it("keeps renewing other people when one cannot be read", async () => {
+    const { deps, secrets, renewDue, stored } = await setup({
+      accessToken: "a",
+      refreshToken: "r",
+      expiresAt: NOW,
+    });
+    await saveSsoToken(deps, "u2", { accessToken: "b", refreshToken: "r2", expiresAt: NOW });
+    secrets.load.mockRejectedValueOnce(new Error("store down"));
+    expect(await renewDue()).toBe(1);
+    expect(
+      stored()
+        .map((row) => row.value.accessToken)
+        .sort(),
+    ).toEqual(["a", "new"]);
   });
 });
