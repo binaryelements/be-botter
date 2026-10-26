@@ -342,6 +342,8 @@ model DeploymentSettings {
   computerHost                    String?
   /// The Space that people signing in through SSO join as members; the owner's default Space at first.
   companySpaceId                  String?
+  /// When true only admins add connections (MCP servers) in the company Space.
+  connectionsAdminOnly            Boolean  @default(false)
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
 
@@ -537,6 +539,7 @@ model Department {
   updatedAt DateTime         @updatedAt
   users     DepartmentUser[]
   bots      DepartmentBot[]
+  servers   McpServerDepartment[]
   threads   Thread[]
 
   @@unique([spaceId, name])
@@ -1351,12 +1354,29 @@ model McpServer {
   healthCheckedAt DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+  /// Shared with the whole company Space rather than only its owner.
+  shared        Boolean           @default(false)
+  /// How a shared server signs in: "server" (one shared token) | "person" (each person's own).
+  signIn        String            @default("server")
   assignments   BotMcpServer[]
   oauthSessions McpOAuthSession[]
+  departments   McpServerDepartment[]
 
   @@unique([spaceId, userId, slug])
   @@index([spaceId, userId])
   @@map("mcp_servers")
+}
+
+/// Limits a shared server to these departments; none means the whole company.
+model McpServerDepartment {
+  serverId     String
+  server       McpServer  @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, departmentId])
+  @@index([departmentId])
+  @@map("mcp_server_departments")
 }
 
 model McpOAuthSession {
