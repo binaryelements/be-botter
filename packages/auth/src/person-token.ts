@@ -10,7 +10,7 @@ export type SsoToken = PersonToken & { refreshToken?: string };
 
 type SsoTokenStore = {
   prisma: Pick<PrismaClient, "secret">;
-  secrets: Pick<SecretStore, "put" | "load">;
+  secrets: Pick<SecretStore, "put" | "load" | "delete">;
 };
 
 /** Account-level secret (no Space): the secrets scope check lists it with model and voice. */
@@ -47,12 +47,19 @@ export async function saveSsoToken(
     userId,
     signal: new AbortController().signal,
   });
-  await prisma.secret.create({
+  const created = await prisma.secret.create({
     data: { id: stored.id, userId, spaceId: null, kind: KIND, ciphertext: stored.ciphertext },
   });
-  await prisma.secret.deleteMany({
-    where: { userId, spaceId: null, kind: KIND, id: { not: stored.id } },
+  // Only rows older than this one: a concurrent save keeps its own (or a newer) token.
+  const replaced = await prisma.secret.findMany({
+    where: { userId, spaceId: null, kind: KIND, createdAt: { lt: created.createdAt } },
+    select: { id: true, ciphertext: true },
   });
+  if (replaced.length === 0) return;
+  await prisma.secret.deleteMany({ where: { id: { in: replaced.map((row) => row.id) } } });
+  // A remote store (Infisical) would otherwise keep a live refresh token. Best effort, silent.
+  for (const row of replaced)
+    await secrets.delete(row.ciphertext, { recordId: row.id }).catch(() => undefined);
 }
 
 /** The SSO token Better Auth just stored for an OIDC sign-in, decrypted with its key. */

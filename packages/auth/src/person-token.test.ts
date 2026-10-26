@@ -26,7 +26,8 @@ const MINUTE = 60_000;
 /** A secret table and store in memory: put seals nothing, the row holds a ref to the value. */
 function memoryStore(initial?: SsoToken) {
   const values = new Map<string, string>();
-  let rows: Array<{ id: string; userId: string; kind: string; ciphertext: string }> = [];
+  type Row = { id: string; userId: string; kind: string; ciphertext: string; createdAt: Date };
+  let rows: Row[] = [];
   let seq = 0;
   const secrets = {
     put: vi.fn(async (plaintext: string) => {
@@ -35,37 +36,59 @@ function memoryStore(initial?: SsoToken) {
       return { id, ciphertext: `ref-${id}` };
     }),
     load: vi.fn(async (ref: string) => values.get(ref) ?? ""),
+    delete: vi.fn(async (ref: string) => {
+      values.delete(ref);
+    }),
   };
+  let created = 0;
   const prisma = {
     secret: {
-      findMany: vi.fn(async ({ where }: { where: { kind: string } }) =>
-        rows.filter((row) => row.kind === where.kind),
+      findMany: vi.fn(
+        async ({ where }: { where: { kind: string; userId?: string; createdAt?: { lt: Date } } }) =>
+          rows.filter(
+            (row) =>
+              row.kind === where.kind &&
+              (!where.userId || row.userId === where.userId) &&
+              (!where.createdAt || row.createdAt < where.createdAt.lt),
+          ),
       ),
       findFirst: vi.fn(async ({ where }: { where: { userId: string; kind: string } }) =>
         rows.findLast((row) => row.userId === where.userId && row.kind === where.kind),
       ),
-      create: vi.fn(async ({ data }: { data: (typeof rows)[number] }) => {
-        rows.push(data);
-        return data;
+      create: vi.fn(async ({ data }: { data: Omit<Row, "createdAt"> }) => {
+        const row = { ...data, createdAt: new Date(NOW + ++created) };
+        rows.push(row);
+        return row;
       }),
-      deleteMany: vi.fn(async ({ where }: { where: { userId: string; id: { not: string } } }) => {
-        rows = rows.filter((row) => row.userId !== where.userId || row.id === where.id.not);
-        return { count: 0 };
+      deleteMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => {
+        const before = rows.length;
+        rows = rows.filter((row) => !where.id.in.includes(row.id));
+        return { count: before - rows.length };
       }),
     },
   };
   const deps = {
     prisma: prisma as unknown as Pick<PrismaClient, "secret">,
-    secrets: secrets as unknown as Pick<SecretStore, "put" | "load">,
+    secrets: secrets as unknown as Pick<SecretStore, "put" | "load" | "delete">,
   };
   const stored = () =>
-    rows.map((row) => ({ ...row, value: JSON.parse(values.get(row.ciphertext) ?? "null") }));
-  return { deps, prisma, secrets, stored, ready: initial && saveSsoToken(deps, "u1", initial) };
+    rows.map(({ createdAt: _, ...row }) => ({
+      ...row,
+      value: JSON.parse(values.get(row.ciphertext) ?? "null"),
+    }));
+  return {
+    deps,
+    prisma,
+    secrets,
+    values,
+    stored,
+    ready: initial && saveSsoToken(deps, "u1", initial),
+  };
 }
 
 describe("saveSsoToken", () => {
   it("keeps one account-level sso-token secret per person, sealed by the secret store", async () => {
-    const { deps, stored } = memoryStore();
+    const { deps, stored, secrets, values } = memoryStore();
     await saveSsoToken(deps, "u1", { accessToken: "a1", expiresAt: NOW });
     await saveSsoToken(deps, "u1", { accessToken: "a2", expiresAt: NOW, refreshToken: "r2" });
     expect(stored()).toEqual([
@@ -78,6 +101,39 @@ describe("saveSsoToken", () => {
         value: { accessToken: "a2", expiresAt: NOW, refreshToken: "r2" },
       },
     ]);
+    // The replaced value leaves the secret store too, not just the table.
+    expect(secrets.delete).toHaveBeenCalledWith("ref-secret-1", { recordId: "secret-1" });
+    expect([...values.keys()]).toEqual(["ref-secret-2"]);
+  });
+
+  it("still saves when the secret store cannot delete the old value", async () => {
+    const { deps, stored, secrets } = memoryStore();
+    secrets.delete.mockRejectedValue(new Error("store down"));
+    await saveSsoToken(deps, "u1", { accessToken: "a1", expiresAt: NOW });
+    await saveSsoToken(deps, "u1", { accessToken: "a2", expiresAt: NOW });
+    expect(stored().map((row) => row.value.accessToken)).toEqual(["a2"]);
+  });
+
+  it("keeps a token when two saves for a person interleave", async () => {
+    const { deps, prisma, stored } = memoryStore();
+    // Both rows exist before either save removes the ones it replaces.
+    const create = prisma.secret.create.getMockImplementation()!;
+    let release!: () => void;
+    const bothCreated = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pending = 2;
+    prisma.secret.create.mockImplementation(async (args) => {
+      const row = await create(args);
+      if (--pending === 0) release();
+      await bothCreated;
+      return row;
+    });
+    await Promise.all([
+      saveSsoToken(deps, "u1", { accessToken: "a", expiresAt: NOW }),
+      saveSsoToken(deps, "u1", { accessToken: "b", expiresAt: NOW }),
+    ]);
+    expect(stored().map((row) => row.value.accessToken)).toEqual(["b"]);
   });
 });
 
