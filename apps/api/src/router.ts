@@ -4046,6 +4046,8 @@ export function createRouter(deps: RouterDeps) {
                 : {}),
             },
             data: {
+              // An edit by anyone but its maker makes it no longer the maker's own.
+              personCreated: existing.personCreated && existing.userId === context.actor.userId,
               name: input.name,
               prompt: input.prompt,
               crons: input.crons,

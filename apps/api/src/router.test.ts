@@ -5499,6 +5499,17 @@ describe("routines.update", () => {
     expect(enqueue).toHaveBeenCalledOnce();
   });
 
+  it("keeps a routine made in person only while its maker edits it", async () => {
+    // The owner edits their own routine: it stays theirs.
+    const own = fixture(false, false, { personCreated: true });
+    expect((await own.call({ prompt: "say more" })).response.status).toBe(200);
+    expect(own.update.mock.calls[0]?.[0].data).toMatchObject({ personCreated: true });
+    // Someone else with access to the bot edits it: it no longer counts as the maker's own.
+    const theirs = fixture(false, false, { personCreated: true, userId: "someone-else" });
+    expect((await theirs.call({ prompt: "read my mail" })).response.status).toBe(200);
+    expect(theirs.update.mock.calls[0]?.[0].data).toMatchObject({ personCreated: false });
+  });
+
   it("does not re-arm when the bot is archived between the read and the write", async () => {
     const { enqueue, call } = fixture(false, true);
     const { response } = await call();
