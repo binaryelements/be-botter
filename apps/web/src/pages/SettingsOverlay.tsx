@@ -277,6 +277,8 @@ export function SettingsOverlay({
     const observer =
       typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(revealSection);
     observer?.observe(nav);
+    // Tabs widen without resizing the nav (late fonts, a tab added after loading).
+    for (const tab of nav.children) observer?.observe(tab);
     return () => {
       nav.removeEventListener("scroll", measure);
       observer?.disconnect();
