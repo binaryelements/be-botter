@@ -889,6 +889,9 @@ describe("MCP prepared credential updates", () => {
       env: {},
       headers: {},
       command: null,
+      shared: false,
+      signIn: "server",
+      departments: [],
       createdAt: new Date(0),
       updatedAt: new Date(0),
     };
@@ -907,7 +910,10 @@ describe("MCP prepared credential updates", () => {
         }: {
           data: { secretId: string; revision: { increment: number } };
         }) => {
-          Object.assign(server, data, { revision: server.revision + data.revision.increment });
+          Object.assign(server, data, {
+            revision: server.revision + data.revision.increment,
+            departments: [],
+          });
           return { ...server };
         },
       },
@@ -1022,6 +1028,9 @@ describe("MCP pre-registered OAuth client", () => {
         headers: {},
         secretId: "secret-0",
         enabled: true,
+        shared: false,
+        signIn: "server",
+        departments: [],
         revision: 1,
         createdAt: new Date(0),
         updatedAt: new Date(0),
@@ -1032,12 +1041,13 @@ describe("MCP pre-registered OAuth client", () => {
         findFirst: vi.fn(async () => (server ? { ...server } : null)),
         update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           const { revision: _revision, ...rest } = data;
-          server = { ...server, ...rest, revision: Number(server?.revision) + 1 };
+          server = { ...server, ...rest, revision: Number(server?.revision) + 1, departments: [] };
           return server;
         }),
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           server = {
             ...data,
+            departments: [],
             id: "server-1",
             revision: 1,
             createdAt: new Date(0),
@@ -1551,6 +1561,7 @@ describe("MCP loopback endpoints", () => {
   function mcpDeps() {
     const create = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
       ...data,
+      departments: [],
       id: "server-1",
       secretId: null,
       revision: 1,
@@ -1673,6 +1684,9 @@ describe("MCP server health", () => {
     headers: {},
     secretId: null,
     enabled: true,
+    shared: false,
+    signIn: "server",
+    departments: [],
     revision: 1,
     healthStatus: "unknown",
     healthMessage: null,
@@ -1708,12 +1722,12 @@ describe("MCP server health", () => {
           matches(where) ? { ...server } : null,
         ),
         create: vi.fn(async ({ data }: { data: Row }) => {
-          server = baseRow({ ...data, id: "server-1" });
+          server = baseRow({ ...data, id: "server-1", departments: [] });
           return { ...server };
         }),
         update: vi.fn(async ({ data }: { data: Row }) => {
           const { revision: _revision, ...rest } = data;
-          server = { ...server, ...rest, revision: Number(server?.revision) + 1 };
+          server = { ...server, ...rest, revision: Number(server?.revision) + 1, departments: [] };
           return { ...server };
         }),
         updateMany,
@@ -2032,6 +2046,7 @@ describe("private API connectors", () => {
     }));
     const prisma = {
       capabilityInstall: { create },
+      deploymentSettings: { findUnique: vi.fn(async () => null) },
       $transaction: vi.fn(async (run: (tx: unknown) => Promise<unknown>) => run(prisma)),
     } as unknown as PrismaClient;
     const deps = {
@@ -3557,6 +3572,7 @@ describe("model credential persistence", () => {
       prisma: {
         userModelCredential,
         spaceModelPreference,
+        deploymentSettings: { findUnique: vi.fn(async () => null) },
         $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
       },
       secrets: {
