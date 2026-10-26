@@ -2590,6 +2590,41 @@ describe("MCP connector company servers", () => {
       }
     });
 
+    it("sends none of the admin's stored credentials on a person's session", async () => {
+      const state = {
+        failNext: false,
+        initializations: 0,
+        headers: [] as Record<string, string>[],
+      };
+      vi.stubGlobal("fetch", mcpFetch(state));
+      const server = { ...PERSONAL, secretId: "secret-1" };
+      const prisma = companyPrisma(server, {
+        secret: { findFirst: vi.fn(async () => ({ id: "secret-1", ciphertext: "encrypted" })) },
+      });
+      const connector = new McpConnector(
+        prisma as never,
+        {
+          load: vi.fn(async () =>
+            JSON.stringify({ secret: "admin-token", headers: { "X-Api-Key": "admin-key" } }),
+          ),
+        } as never,
+        {
+          network: TEST_NETWORK,
+          personToken: async () => ({
+            accessToken: "token-of-u2",
+            expiresAt: Date.now() + 60 * 60_000,
+          }),
+        },
+      );
+      try {
+        await connector.discoverTools(contextFor("u2"));
+        expect(state.headers[0]?.authorization).toBe("Bearer token-of-u2");
+        expect(state.headers[0]).not.toHaveProperty("x-api-key");
+      } finally {
+        await connector.close();
+      }
+    });
+
     it("reconnects with a fresh token once the person's token expires", async () => {
       const state = {
         failNext: false,

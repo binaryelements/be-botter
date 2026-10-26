@@ -296,6 +296,20 @@ describePostgres("company connections and the admin-only switch (PostgreSQL)", (
         signIn: "person",
       }),
     ).toBe(400);
+    // Each person signs in with their own token, so no stored credential rides along.
+    for (const credential of [
+      { secret: "fake-admin-token" },
+      { headers: { "X-Api-Key": "fake-admin-key" } },
+    ]) {
+      expect(
+        await status(
+          app,
+          owner.cookie,
+          "mcp/servers/create",
+          remoteServer("person-credential", { shared: true, signIn: "person", ...credential }),
+        ),
+      ).toBe(400);
+    }
     // No OAuth client on a shared server.
     expect(
       await status(

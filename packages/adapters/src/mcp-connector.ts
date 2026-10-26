@@ -1205,8 +1205,9 @@ export class McpConnector implements ConnectorProvider {
           !localHttp && this.oauth && !server.shared
             ? await this.oauth.providerFor(server, context, loaded, onPersisted)
             : undefined;
+        // A person session carries only that person's token, never the admin's stored headers.
         const headers = {
-          ...(material.headers ?? {}),
+          ...(server.signIn === "person" ? {} : (material.headers ?? {})),
           ...(staticToken ? { Authorization: staticToken } : {}),
         };
         await session.connectRemote({

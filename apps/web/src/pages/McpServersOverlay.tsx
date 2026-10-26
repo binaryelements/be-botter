@@ -215,9 +215,12 @@ export function McpServersOverlay({
     setSaving(true);
     try {
       const slug = deriveMcpSlug(name);
-      const headers = headerValue.trim()
-        ? { [headerName.trim() || "Authorization"]: headerValue.trim() }
-        : {};
+      // Each person signs in with their own token: drop any credential typed before choosing it.
+      const person = shared && signInAs === "person";
+      const headers =
+        !person && headerValue.trim()
+          ? { [headerName.trim() || "Authorization"]: headerValue.trim() }
+          : {};
       // Shared servers sign in with a static credential or each person's token, never OAuth.
       const company = shared ? { shared, signIn: signInAs, departmentIds } : {};
       const oauthBase =
@@ -258,7 +261,7 @@ export function McpServersOverlay({
               transport,
               endpoint: endpoint.trim(),
               headers,
-              secret: secret || undefined,
+              secret: person ? undefined : secret || undefined,
               oauthClient: oauthBase,
               enabled: true,
               ...company,

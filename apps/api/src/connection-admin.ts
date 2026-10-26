@@ -64,13 +64,17 @@ export type CompanyServerFields = {
 /**
  * The company fields an MCP server create or update ends up with. Only owners share, and only
  * in the company space; a shared server signs in with a static credential or each person's
- * SSO token (remote only), never its own OAuth, and is limited to this space's departments.
+ * SSO token (remote only, with no stored credential), never its own OAuth, and is limited to this space's departments.
  * Omitted fields keep the existing shared server's values.
  */
 export async function resolveCompanyServer(
   deps: Deps,
   actor: Actor,
-  input: Partial<CompanyServerFields> & { transport: string },
+  input: Partial<CompanyServerFields> & {
+    transport: string;
+    secret?: string;
+    headers?: Record<string, string>;
+  },
   existing: CompanyServerFields | null,
   hasOAuthClient: boolean,
 ): Promise<CompanyServerFields> {
@@ -84,6 +88,10 @@ export async function resolveCompanyServer(
   }
   if (!(await mayShareConnections(actor, deps))) throw new ORPCError("FORBIDDEN");
   if ((signIn === "person" && input.transport === "stdio") || hasOAuthClient) {
+    throw new ORPCError("BAD_REQUEST");
+  }
+  // Each person signs in with their own token; a stored admin credential would ride along.
+  if (signIn === "person" && (input.secret || Object.keys(input.headers ?? {}).length > 0)) {
     throw new ORPCError("BAD_REQUEST");
   }
   if (departmentIds.length > 0) {

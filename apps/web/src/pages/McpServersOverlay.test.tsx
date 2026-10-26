@@ -64,8 +64,17 @@ vi.mock("@rakazo/ui-web", async () => {
     ],
     [
       "Input",
-      ({ id, value, onChange }: { id?: string; value?: string; onChange?: () => void }) =>
-        createElement("input", { id, value, onChange }),
+      ({
+        id,
+        value,
+        onChange,
+        "aria-label": label,
+      }: {
+        id?: string;
+        value?: string;
+        onChange?: () => void;
+        "aria-label"?: string;
+      }) => createElement("input", { id, value, onChange, "aria-label": label }),
     ],
     [
       "Switch",
@@ -212,6 +221,9 @@ it("shares a server with the company, signed in as each person, for one departme
     expect(host.textContent).toContain("OAuth client ID");
     await type(host, "#mcp-name", "Graph");
     await type(host, "#mcp-endpoint", "https://mcp.example.test/mcp");
+    // Typed under Advanced before choosing Each person: never sent.
+    await type(host, "#mcp-secret", "fake-admin-token");
+    await type(host, '[aria-label="Header value"]', "fake-admin-key");
     await act(async () => (host.querySelector("#mcp-shared") as HTMLInputElement).click());
     expect(host.textContent).toContain("Sign in as");
     expect(host.textContent).not.toContain("OAuth client ID");
@@ -227,6 +239,8 @@ it("shares a server with the company, signed in as each person, for one departme
         signIn: "person",
         departmentIds: ["sales"],
         oauthClient: undefined,
+        secret: undefined,
+        headers: {},
       }),
     );
   } finally {
