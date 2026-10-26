@@ -11,12 +11,14 @@ export function WelcomePage() {
       </div>
       <main className="flex flex-1 flex-col items-center justify-center gap-11 px-5 pb-[90px]">
         <div className="flex items-center gap-[18px] sm:gap-[26px]">
-          <div className="flex size-16 items-center justify-center gap-[9px] rounded-full bg-accent sm:size-[88px] sm:gap-[13px]">
-            <span className="h-[17px] w-2 rounded-full bg-card sm:h-6 sm:w-[11px]" />
-            <span className="h-[17px] w-2 rounded-full bg-card sm:h-6 sm:w-[11px]" />
+          <div
+            aria-hidden="true"
+            className="flex size-16 items-center justify-center rounded-full bg-accent text-[24px] font-semibold tracking-[-0.04em] text-foreground sm:size-[88px] sm:text-[33px]"
+          >
+            BE
           </div>
           <h1 className="text-[56px] leading-none tracking-[-0.03em] text-foreground sm:text-[76px]">
-            Rakazo
+            BE Botter
           </h1>
         </div>
         <p className="max-w-[600px] text-center text-[27px] leading-[1.4] text-foreground/75">

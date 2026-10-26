@@ -103,7 +103,7 @@ export function CompatibleModelFields({
         summary={<Trans>Setup help</Trans>}
       >
         <p className="mt-1">
-          {t`Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed.`}
+          {t`Paste the OpenAI-compatible address from your server. BE Botter adds /v1 if needed.`}
         </p>
       </Disclosure>
       <div className="mt-3 flex items-center gap-2">
