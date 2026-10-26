@@ -104,7 +104,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Configure a plugin catalog on the server to connect apps.":
     "Richte auf dem Server einen Plugin-Katalog ein, um Apps zu verbinden.",
   "Paste the OpenAI-compatible address from your server. BE Botter adds /v1 if needed.":
-    "Füge die OpenAI-kompatible Adresse deines Servers ein. Rakazo ergänzt /v1 bei Bedarf.",
+    "Füge die OpenAI-kompatible Adresse deines Servers ein. BE Botter ergänzt /v1 bei Bedarf.",
   "Settings: General": "Einstellungen: Allgemein",
   "Settings: Usage": "Einstellungen: Nutzung",
   "Sign-in did not return a session": "Die Anmeldung hat keine Sitzung zurückgegeben",
