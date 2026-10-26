@@ -140,7 +140,7 @@ export function ModelSettingsOverlay({
         </div>
       )}
 
-      {me?.isSpaceOwner ? (
+      {me?.isSpaceOwner && me.canManageConnections ? (
         <div className="mx-6 mt-4 sm:mx-8">
           <CompanyModel {...model} />
         </div>

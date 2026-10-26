@@ -339,6 +339,13 @@ describePostgres("company connections and the admin-only switch (PostgreSQL)", (
     );
     expect((await rpc<Me>(app, owner.cookie, "me")).canManageConnections).toBe(true);
     expect((await rpc<Me>(app, deployer.cookie, "me")).canManageConnections).toBe(true);
+    expect((await rpc<Me>(app, owner.cookie, "me")).canShareConnections).toBe(true);
+    expect((await rpc<Me>(app, staff.cookie, "me", {}, companySpaceId)).canShareConnections).toBe(
+      false,
+    );
+    expect((await rpc<Me>(app, staff.cookie, "me", {}, personalSpaceId)).canShareConnections).toBe(
+      false,
+    );
 
     for (const [procedure, body] of GUARDED) {
       for (const spaceId of [companySpaceId, personalSpaceId]) {

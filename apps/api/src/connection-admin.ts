@@ -50,6 +50,11 @@ export async function companySpaceIdOf(deps: Deps): Promise<string | null> {
   return (await readSwitch(deps))?.companySpaceId ?? null;
 }
 
+/** Owners share connections with the company, from the company space only. */
+export async function mayShareConnections(actor: Actor, deps: Deps): Promise<boolean> {
+  return isSpaceOwner(actor) && (await companySpaceIdOf(deps)) === actor.spaceId;
+}
+
 export type CompanyServerFields = {
   shared: boolean;
   signIn: "server" | "person";
@@ -77,9 +82,7 @@ export async function resolveCompanyServer(
     if (signIn !== "server" || departmentIds.length > 0) throw new ORPCError("BAD_REQUEST");
     return { shared, signIn, departmentIds };
   }
-  if (!isSpaceOwner(actor) || (await companySpaceIdOf(deps)) !== actor.spaceId) {
-    throw new ORPCError("FORBIDDEN");
-  }
+  if (!(await mayShareConnections(actor, deps))) throw new ORPCError("FORBIDDEN");
   if ((signIn === "person" && input.transport === "stdio") || hasOAuthClient) {
     throw new ORPCError("BAD_REQUEST");
   }

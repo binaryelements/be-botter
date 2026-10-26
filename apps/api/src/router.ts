@@ -296,6 +296,7 @@ import {
   assertMayCreateSpace,
   assertMayManageConnections,
   mayManageConnections,
+  mayShareConnections,
   resolveCompanyServer,
 } from "./connection-admin.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
@@ -7216,10 +7217,11 @@ function hostCredentials(active: boolean, provider: string) {
 }
 
 async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
-  const [user, setup, canManageConnections] = await Promise.all([
+  const [user, setup, canManageConnections, canShareConnections] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({ where: { id: actor.userId } }),
     modelSetup(deps, actor),
     mayManageConnections(actor, deps),
+    mayShareConnections(actor, deps),
   ]);
   return {
     ticketBoardEnabled: deps.env.ticketBoardEnabled === true,
@@ -7232,6 +7234,7 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     isDeploymentOwner: actor.isDeploymentOwner,
     isSpaceOwner: isSpaceOwner(actor),
     canManageConnections,
+    canShareConnections,
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??

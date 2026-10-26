@@ -1588,6 +1588,8 @@ export const MeSchema = z.object({
   isSpaceOwner: z.boolean().optional(),
   /** False while only admins add connections and the user is not one. */
   canManageConnections: z.boolean().default(true),
+  /** True for owners of the company space while it is active: they share connections. */
+  canShareConnections: z.boolean().default(false),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),

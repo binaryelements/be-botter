@@ -2165,6 +2165,7 @@ msgstr "거부됨"
 msgid "Deny"
 msgstr "거부"
 
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
@@ -2332,6 +2333,10 @@ msgstr "예: Hivenet Agent, Presales, 근무표 봇"
 #: src/pages/McpServersOverlay.tsx
 msgid "Each name can be used once."
 msgstr "각 이름은 한 번만 사용할 수 있습니다."
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Each person"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Edit"
@@ -3604,6 +3609,10 @@ msgstr "일정에 따라"
 msgid "on the 1st at {0}"
 msgstr "매월 1일 {0}에"
 
+#: src/components/ConnectionsAdminOnlySetting.tsx
+msgid "Only admins add connections"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr ""
@@ -4560,6 +4569,10 @@ msgstr "설정 도움말"
 msgid "Shape"
 msgstr "모양"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Share with the company"
+msgstr ""
+
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -4576,6 +4589,10 @@ msgstr "공유 문서"
 #: src/pages/KnowledgeSection.tsx
 msgid "Shared skills"
 msgstr "공유 스킬"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Shared token"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "Show all"
@@ -4635,6 +4652,10 @@ msgstr "로그인"
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Sign in again"
 msgstr "다시 로그인"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Sign in as"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Sign in to BE Botter"

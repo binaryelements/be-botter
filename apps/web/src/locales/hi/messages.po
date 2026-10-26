@@ -2165,6 +2165,7 @@ msgstr "अस्वीकृत"
 msgid "Deny"
 msgstr "अस्वीकार करें"
 
+#: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
@@ -2332,6 +2333,10 @@ msgstr "उदा. Hivenet Agent, Presales, टाइमशीट बॉट"
 #: src/pages/McpServersOverlay.tsx
 msgid "Each name can be used once."
 msgstr "हर नाम का उपयोग केवल एक बार किया जा सकता है।"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Each person"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Edit"
@@ -3604,6 +3609,10 @@ msgstr ""
 msgid "on the 1st at {0}"
 msgstr "1 तारीख को {0} बजे"
 
+#: src/components/ConnectionsAdminOnlySetting.tsx
+msgid "Only admins add connections"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Only empty spaces can be deleted. Delete its bots and groups first."
 msgstr ""
@@ -4560,6 +4569,10 @@ msgstr "सेटअप सहायता"
 msgid "Shape"
 msgstr "आकार"
 
+#: src/pages/McpServersOverlay.tsx
+msgid "Share with the company"
+msgstr ""
+
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
 msgid "Shared"
@@ -4576,6 +4589,10 @@ msgstr "साझा दस्तावेज़"
 #: src/pages/KnowledgeSection.tsx
 msgid "Shared skills"
 msgstr "साझा स्किल्स"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Shared token"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "Show all"
@@ -4635,6 +4652,10 @@ msgstr "साइन इन करें"
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Sign in again"
 msgstr "फिर से साइन इन करें"
+
+#: src/pages/McpServersOverlay.tsx
+msgid "Sign in as"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Sign in to BE Botter"

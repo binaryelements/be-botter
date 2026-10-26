@@ -6,6 +6,7 @@ import {
   ModelPreflightFeedback,
   modelPreflightTestingLabel,
 } from "../../components/ModelConnectionPreflightNotice";
+import { useCanManageConnections } from "../../lib/connections-access";
 
 import type { ModelSettingsState } from "./use-model-settings";
 
@@ -78,7 +79,8 @@ export function ConnectionControls({
   | "updateApiKey"
 >) {
   const { t } = useLingui();
-  return !isOpenAiCompatible ? (
+  const canManageConnections = useCanManageConnections();
+  return !isOpenAiCompatible && canManageConnections ? (
     <>
       {subscriptionSignIn ? (
         <div className="mt-5 first:mt-0">
@@ -376,7 +378,8 @@ export function CompatibleKeyControls({
   | "updateApiKey"
 >) {
   const { t } = useLingui();
-  return isOpenAiCompatible ? (
+  const canManageConnections = useCanManageConnections();
+  return isOpenAiCompatible && canManageConnections ? (
     <div className="mt-5">
       <Disclosure className="text-[13.5px] text-muted-foreground" summary={<Trans>API key</Trans>}>
         <Input

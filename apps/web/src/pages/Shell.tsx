@@ -148,6 +148,7 @@ import {
   screenFrameStarted,
 } from "../lib/computer-screen";
 import { connectedAppMarks } from "../lib/connected-apps";
+import { ConnectionsAccess } from "../lib/connections-access";
 import { scheduleFocusPrompt } from "../lib/focus-prompt";
 import { localTimezone } from "../lib/local-timezone";
 import {
@@ -4076,7 +4077,12 @@ function SpaceShell() {
             }}
           />
         ) : null}
-        {mcpOpen ? <McpServersOverlay onClose={() => setMcpOpen(false)} /> : null}
+        {mcpOpen ? (
+          <McpServersOverlay
+            canShare={bootstrapMe?.canShareConnections === true}
+            onClose={() => setMcpOpen(false)}
+          />
+        ) : null}
         {messagingSettingsOpen ? (
           <MessagingSettingsOverlay onClose={() => setMessagingSettingsOpen(false)} />
         ) : null}
@@ -4186,7 +4192,11 @@ function SpaceShell() {
   );
 
   return (
-    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>{shell}</AvatarStyleProvider>
+    <AvatarStyleProvider value={bootstrapMe?.avatarStyle ?? "organic"}>
+      <ConnectionsAccess value={bootstrapMe?.canManageConnections !== false}>
+        {shell}
+      </ConnectionsAccess>
+    </AvatarStyleProvider>
   );
 }
 
