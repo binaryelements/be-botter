@@ -17,35 +17,6 @@ export interface OidcConfig {
   allowSignupBypass: boolean;
 }
 
-/** OIDC sign-in settings, read the same way by the API and the worker; undefined when unset. */
-export function oidcConfigFromEnv(source: NodeJS.ProcessEnv): OidcConfig | undefined {
-  const issuer = source.OIDC_ISSUER?.trim() || undefined;
-  const clientId = source.OIDC_CLIENT_ID?.trim() || undefined;
-  const clientSecret = source.OIDC_CLIENT_SECRET?.trim() || undefined;
-  const credentials = [issuer, clientId, clientSecret];
-  if (credentials.some(Boolean) && !credentials.every(Boolean)) {
-    throw new Error(
-      "OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET must be configured together",
-    );
-  }
-  if (!issuer || !clientId || !clientSecret) return undefined;
-  try {
-    const url = new URL(issuer);
-    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash)
-      throw new Error();
-  } catch {
-    throw new Error("OIDC_ISSUER must be an HTTPS issuer URL");
-  }
-  return {
-    issuer,
-    clientId,
-    clientSecret,
-    name: source.OIDC_NAME?.trim() || "SSO",
-    scopes: (source.OIDC_SCOPES?.trim() || "openid email profile").split(/[\s,]+/).filter(Boolean),
-    allowSignupBypass: source.OIDC_ALLOW_SIGNUP_BYPASS === "true",
-  };
-}
-
 /** Discovery never gates API startup. Failed attempts share exponential backoff. */
 export function oidcDiscovery(config: OidcConfig) {
   const generic = genericOAuth({

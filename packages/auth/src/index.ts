@@ -39,14 +39,19 @@ import { breachedPasswordCheck } from "./breached-password.js";
 import type { OidcConfig } from "./oidc.js";
 import { isCurrentOidcAccount, oidcDiscovery } from "./oidc.js";
 import { passkeyRelyingParty } from "./passkey.js";
+import type { SsoToken } from "./person-token.js";
+import { ssoTokenFromAccount } from "./person-token.js";
 import type { TokenKey } from "./token-storage.js";
 import { encryptStoredOAuthTokens, openIdToken, sealIdToken } from "./token-storage.js";
 
 export type { OidcConfig } from "./oidc.js";
-export { oidcConfigFromEnv } from "./oidc.js";
 export { passkeyRelyingParty } from "./passkey.js";
-export type { PersonToken } from "./person-token.js";
-export { createPersonTokenSource } from "./person-token.js";
+export type { PersonToken, SsoToken } from "./person-token.js";
+export {
+  createPersonTokenSource,
+  createSsoTokenRefresher,
+  saveSsoToken,
+} from "./person-token.js";
 
 export interface AuthEnv {
   analytics?: ProductAnalytics;
@@ -70,6 +75,8 @@ export interface AuthEnv {
   afterDeleteSession?: (session: AuthSession) => Promise<void>;
   /** Runs when a password change replaces the caller's own session instead of ending it. */
   afterReplaceSession?: (previous: AuthSession, session: AuthSession) => Promise<void>;
+  /** Keeps the person's SSO token from an OIDC sign-in, for servers that act as them. */
+  onSsoToken?: (userId: string, token: SsoToken) => Promise<void>;
 }
 
 type AuthSession = { id: string; userId: string };
@@ -763,6 +770,18 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                 value: session.userId,
                 expiresAt: new Date(context.reauthExpiresAt),
               });
+            }
+            if (ctx && isOidcCallback(ctx) && env.onSsoToken) {
+              try {
+                const accounts = await ctx.context.internalAdapter.findAccounts(session.userId);
+                const account = accounts
+                  .filter((candidate) => candidate.providerId === "oidc")
+                  .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
+                const token = account && (await ssoTokenFromAccount(await tokenKey(), account));
+                if (token) await env.onSsoToken(session.userId, token);
+              } catch {
+                // Never fails a sign-in; servers that act as the person ask them to sign in again.
+              }
             }
             const previous = replacedSession(ctx);
             if (previous) await env.afterReplaceSession?.(previous, session);

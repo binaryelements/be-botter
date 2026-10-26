@@ -78,8 +78,10 @@ import {
 import {
   createAuth,
   createPersonTokenSource,
+  createSsoTokenRefresher,
   isBlockedAuthPath,
   loopbackTwinOrigins,
+  saveSsoToken,
 } from "@rakazo/auth";
 import type { Actor, AuthCapabilities } from "@rakazo/contracts";
 import { SERVER_BUILD_HEADER } from "@rakazo/contracts";
@@ -378,9 +380,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       network: remoteConnectors,
       events,
       allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
-      personToken: env.oidc
-        ? createPersonTokenSource({ prisma, key: env.authSecret, oidc: env.oidc })
-        : undefined,
+      personToken: createPersonTokenSource({ prisma, secrets }),
     },
     mcpOAuth,
   );
@@ -482,6 +482,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     onEmailError: (error) => getLogger().error("transactional email delivery failed", error),
     extraOrigins: MOBILE_AUTH_ORIGINS,
     androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
+    onSsoToken: (userId, token) => saveSsoToken({ prisma, secrets }, userId, token),
     beforeDeleteUser: async (userId) => {
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);
@@ -759,10 +760,17 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     return response;
   });
   mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
+  const refreshSsoToken = env.oidc
+    ? createSsoTokenRefresher({ prisma, secrets, oidc: env.oidc })
+    : undefined;
   const requestSession = async (request: Request) => {
     // The bearer plugin turns a signed `Authorization: Bearer` into the session cookie.
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session?.user) return null;
+    const userId = session.user.id;
+    // Keeps the person's SSO token fresh for servers that act as them; never awaited.
+    if (refreshSsoToken)
+      void runAsSystem("sso token refresh", () => refreshSsoToken(userId)).catch(() => undefined);
     const actor = await actorFromMembership(
       requireMembership(prisma, session.user.id, request.headers.get("x-rakazo-space-id")),
     );

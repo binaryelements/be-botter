@@ -2615,6 +2615,29 @@ describe("MCP connector company servers", () => {
       }
     });
 
+    it("refuses a command-line server, which cannot carry the person's token", async () => {
+      const connectStdio = vi.spyOn(McpSession.prototype, "connectStdio");
+      const personToken = vi.fn(async () => ({
+        accessToken: "t",
+        expiresAt: Date.now() + 3_600_000,
+      }));
+      const server = { ...PERSONAL, transport: "stdio", endpoint: null, command: "node" };
+      const connector = new McpConnector(companyPrisma(server as never) as never, {} as never, {
+        stdioEnabled: true,
+        allowedCommands: ["node"],
+        personToken,
+      });
+      try {
+        const tools = await connector.discoverTools(contextFor("u2"));
+        expect(tools).toEqual(unavailableOnly("company"));
+        expect(connectStdio).not.toHaveBeenCalled();
+        expect(personToken).not.toHaveBeenCalled();
+      } finally {
+        connectStdio.mockRestore();
+        await connector.close();
+      }
+    });
+
     it("asks the person to sign in again when there is no token", async () => {
       const fetch = vi.fn();
       vi.stubGlobal("fetch", fetch);

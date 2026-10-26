@@ -1,11 +1,16 @@
+import type { SecretStore } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
-import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
+import { symmetricEncrypt } from "better-auth/crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { OidcConfig } from "./oidc.js";
-import { createPersonTokenSource } from "./person-token.js";
-import type { TokenKey } from "./token-storage.js";
+import type { SsoToken } from "./person-token.js";
+import {
+  createPersonTokenSource,
+  createSsoTokenRefresher,
+  saveSsoToken,
+  ssoTokenFromAccount,
+} from "./person-token.js";
 
-const key: TokenKey = "offline-test-secret-with-at-least-32-characters";
 const issuer = "https://identity.example.test";
 const oidc: OidcConfig = {
   issuer,
@@ -16,97 +21,183 @@ const oidc: OidcConfig = {
   allowSignupBypass: false,
 };
 const NOW = 1_700_000_000_000;
+const MINUTE = 60_000;
 
-async function setup(
-  account: { accessToken?: string; refreshToken?: string | null; exp?: number } | null,
-  token: () => Response = () => Response.json({ access_token: "new-access", expires_in: 3600 }),
-) {
-  const row = account && {
-    id: "acc1",
-    accessToken: await symmetricEncrypt({ key, data: account.accessToken ?? "old-access" }),
-    refreshToken:
-      account.refreshToken === null
-        ? null
-        : await symmetricEncrypt({ key, data: account.refreshToken ?? "old-refresh" }),
-    accessTokenExpiresAt: new Date(account.exp ?? NOW + 3_600_000),
+/** A secret table and store in memory: put seals nothing, the row holds a ref to the value. */
+function memoryStore(initial?: SsoToken) {
+  const values = new Map<string, string>();
+  let rows: Array<{ id: string; userId: string; kind: string; ciphertext: string }> = [];
+  let seq = 0;
+  const secrets = {
+    put: vi.fn(async (plaintext: string) => {
+      const id = `secret-${++seq}`;
+      values.set(`ref-${id}`, plaintext);
+      return { id, ciphertext: `ref-${id}` };
+    }),
+    load: vi.fn(async (ref: string) => values.get(ref) ?? ""),
   };
-  const findFirst = vi.fn(async () => row);
-  const update = vi.fn(async () => ({}));
-  const fetch = vi.fn(async (url: string | URL | Request, _init?: RequestInit) =>
-    String(url) === `${issuer}/.well-known/openid-configuration`
-      ? Response.json({ token_endpoint: `${issuer}/token` })
-      : token(),
-  );
-  const source = createPersonTokenSource({
-    prisma: { account: { findFirst, update } } as unknown as Pick<PrismaClient, "account">,
-    key,
-    oidc,
-    fetch: fetch as unknown as typeof globalThis.fetch,
-    now: () => NOW,
-  });
-  return { source, findFirst, update, fetch };
+  const prisma = {
+    secret: {
+      findFirst: vi.fn(async ({ where }: { where: { userId: string; kind: string } }) =>
+        rows.findLast((row) => row.userId === where.userId && row.kind === where.kind),
+      ),
+      create: vi.fn(async ({ data }: { data: (typeof rows)[number] }) => {
+        rows.push(data);
+        return data;
+      }),
+      deleteMany: vi.fn(async ({ where }: { where: { userId: string; id: { not: string } } }) => {
+        rows = rows.filter((row) => row.userId !== where.userId || row.id === where.id.not);
+        return { count: 0 };
+      }),
+    },
+  };
+  const deps = {
+    prisma: prisma as unknown as Pick<PrismaClient, "secret">,
+    secrets: secrets as unknown as Pick<SecretStore, "put" | "load">,
+  };
+  const stored = () =>
+    rows.map((row) => ({ ...row, value: JSON.parse(values.get(row.ciphertext) ?? "null") }));
+  return { deps, prisma, secrets, stored, ready: initial && saveSsoToken(deps, "u1", initial) };
 }
 
-describe("person token source", () => {
-  it("returns the stored token while more than 5 minutes remain", async () => {
-    const { source, findFirst, fetch } = await setup({ exp: NOW + 6 * 60_000 });
-    expect(await source("u1")).toEqual({ accessToken: "old-access", expiresAt: NOW + 6 * 60_000 });
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: "u1", providerId: "oidc" },
-        orderBy: { createdAt: "desc" },
+describe("saveSsoToken", () => {
+  it("keeps one account-level sso-token secret per person, sealed by the secret store", async () => {
+    const { deps, stored } = memoryStore();
+    await saveSsoToken(deps, "u1", { accessToken: "a1", expiresAt: NOW });
+    await saveSsoToken(deps, "u1", { accessToken: "a2", expiresAt: NOW, refreshToken: "r2" });
+    expect(stored()).toEqual([
+      {
+        id: "secret-2",
+        userId: "u1",
+        spaceId: null,
+        kind: "sso-token",
+        ciphertext: "ref-secret-2",
+        value: { accessToken: "a2", expiresAt: NOW, refreshToken: "r2" },
+      },
+    ]);
+  });
+});
+
+describe("ssoTokenFromAccount", () => {
+  it("decrypts what Better Auth stored for the sign-in", async () => {
+    const key = "offline-test-secret-with-at-least-32-characters";
+    expect(
+      await ssoTokenFromAccount(key, {
+        accessToken: await symmetricEncrypt({ key, data: "access" }),
+        refreshToken: await symmetricEncrypt({ key, data: "refresh" }),
+        accessTokenExpiresAt: new Date(NOW),
       }),
-    );
-    expect(fetch).not.toHaveBeenCalled();
+    ).toEqual({ accessToken: "access", refreshToken: "refresh", expiresAt: NOW });
+    expect(await ssoTokenFromAccount(key, { accessToken: null })).toBeNull();
+  });
+});
+
+describe("person token source", () => {
+  it("returns the stored access token while more than a minute remains", async () => {
+    const store = memoryStore({ accessToken: "a", refreshToken: "r", expiresAt: NOW + 2 * MINUTE });
+    await store.ready;
+    const source = createPersonTokenSource({ ...store.deps, now: () => NOW });
+    expect(await source("u1")).toEqual({ accessToken: "a", expiresAt: NOW + 2 * MINUTE });
   });
 
-  it("refreshes under 5 minutes, stores encrypted rotated tokens and returns the new one", async () => {
-    const { source, update, fetch } = await setup({ exp: NOW + 4 * 60_000 }, () =>
-      Response.json({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 }),
+  it("returns null for a missing, expiring or unreadable token", async () => {
+    const empty = memoryStore();
+    expect(await createPersonTokenSource({ ...empty.deps, now: () => NOW })("u1")).toBeNull();
+    const expiring = memoryStore({ accessToken: "a", expiresAt: NOW + MINUTE });
+    await expiring.ready;
+    expect(await createPersonTokenSource({ ...expiring.deps, now: () => NOW })("u1")).toBeNull();
+    const broken = memoryStore({ accessToken: "a", expiresAt: NOW + 10 * MINUTE });
+    await broken.ready;
+    broken.secrets.load.mockRejectedValueOnce(new Error("store down"));
+    expect(await createPersonTokenSource({ ...broken.deps, now: () => NOW })("u1")).toBeNull();
+  });
+});
+
+describe("SSO token refresher", () => {
+  async function setup(
+    token: SsoToken,
+    respond: () => Response = () => Response.json({ access_token: "new", expires_in: 3600 }),
+  ) {
+    const store = memoryStore(token);
+    await store.ready;
+    let now = NOW;
+    const fetch = vi.fn(async (url: string | URL | Request, _init?: RequestInit) =>
+      String(url) === `${issuer}/.well-known/openid-configuration`
+        ? Response.json({ token_endpoint: `${issuer}/token` })
+        : respond(),
     );
-    expect(await source("u1")).toEqual({ accessToken: "new-access", expiresAt: NOW + 3_600_000 });
-    const init = fetch.mock.calls[1]?.[1] as RequestInit;
-    expect(fetch.mock.calls[1]?.[0]).toBe(`${issuer}/token`);
-    const body = new URLSearchParams(String(init.body));
-    expect(Object.fromEntries(body)).toEqual({
+    const refresh = createSsoTokenRefresher({
+      ...store.deps,
+      oidc,
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      now: () => now,
+    });
+    return { ...store, refresh, fetch, advance: (ms: number) => (now += ms) };
+  }
+  const tokenCalls = (fetch: { mock: { calls: unknown[][] } }) =>
+    fetch.mock.calls.filter(([url]) => String(url) === `${issuer}/token`);
+
+  it("refreshes a token expiring within 45 minutes and stores the rotated one", async () => {
+    const { refresh, fetch, stored } = await setup(
+      { accessToken: "old", refreshToken: "old-refresh", expiresAt: NOW + 40 * MINUTE },
+      () => Response.json({ access_token: "new", refresh_token: "new-refresh", expires_in: 3600 }),
+    );
+    await refresh("u1");
+    const init = tokenCalls(fetch)[0]?.[1] as RequestInit;
+    expect(Object.fromEntries(new URLSearchParams(String(init.body)))).toEqual({
       grant_type: "refresh_token",
       refresh_token: "old-refresh",
       client_id: "client-id",
       client_secret: "client-secret",
       scope: "openid email profile offline_access https://graph.example.test/Mail.Read",
     });
-    const call = update.mock.calls[0] as unknown as [
-      { where: { id: string }; data: Record<string, unknown> },
-    ];
-    expect(call[0].where).toEqual({ id: "acc1" });
-    const { data } = call[0];
-    expect(await symmetricDecrypt({ key, data: data.accessToken as string })).toBe("new-access");
-    expect(await symmetricDecrypt({ key, data: data.refreshToken as string })).toBe("new-refresh");
-    expect(data.accessTokenExpiresAt).toEqual(new Date(NOW + 3_600_000));
+    expect(stored().map((row) => row.value)).toEqual([
+      { accessToken: "new", refreshToken: "new-refresh", expiresAt: NOW + 3_600_000 },
+    ]);
   });
 
-  it("keeps the refresh token when none is rotated and fetches discovery once", async () => {
-    const { source, update, fetch } = await setup({ exp: NOW });
-    await source("u1");
-    await source("u1");
-    const data = (update.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0].data;
-    expect(data).not.toHaveProperty("refreshToken");
-    expect(
-      fetch.mock.calls.filter(([u]) => String(u).endsWith("/openid-configuration")),
-    ).toHaveLength(1);
-  });
-
-  it("returns null without throwing for missing account, refresh token or refresh error", async () => {
-    expect(await (await setup(null)).source("u1")).toBeNull();
-    expect(await (await setup({ exp: NOW, refreshToken: null })).source("u1")).toBeNull();
-    const failed = await setup({ exp: NOW }, () =>
-      Response.json({ error: "invalid_grant" }, { status: 400 }),
-    );
-    expect(await failed.source("u1")).toBeNull();
-    expect(failed.update).not.toHaveBeenCalled();
-    const down = await setup({ exp: NOW }, () => {
-      throw new Error("network old-refresh");
+  it("keeps the refresh token when none is rotated", async () => {
+    const { refresh, stored } = await setup({
+      accessToken: "old",
+      refreshToken: "kept",
+      expiresAt: NOW,
     });
-    expect(await down.source("u1")).toBeNull();
+    await refresh("u1");
+    expect(stored().map((row) => row.value)).toEqual([
+      { accessToken: "new", refreshToken: "kept", expiresAt: NOW + 3_600_000 },
+    ]);
+  });
+
+  it("leaves a token with more than 45 minutes alone", async () => {
+    const { refresh, fetch } = await setup({
+      accessToken: "a",
+      refreshToken: "r",
+      expiresAt: NOW + 50 * MINUTE,
+    });
+    await refresh("u1");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("checks a person at most once every 5 minutes", async () => {
+    const { refresh, fetch, advance } = await setup(
+      { accessToken: "a", refreshToken: "r", expiresAt: NOW },
+      () => Response.json({ error: "invalid_grant" }, { status: 400 }),
+    );
+    await refresh("u1");
+    await refresh("u1");
+    advance(4 * MINUTE);
+    await refresh("u1");
+    expect(tokenCalls(fetch)).toHaveLength(1);
+    advance(MINUTE);
+    await refresh("u1");
+    expect(tokenCalls(fetch)).toHaveLength(2);
+  });
+
+  it("never throws and keeps the stored token on a failed refresh", async () => {
+    const failed = await setup({ accessToken: "a", refreshToken: "r", expiresAt: NOW }, () => {
+      throw new Error("network r");
+    });
+    await expect(failed.refresh("u1")).resolves.toBeUndefined();
+    expect(failed.stored().map((row) => row.value.accessToken)).toEqual(["a"]);
   });
 });

@@ -382,14 +382,6 @@ services:
     environment:
       <<: *app-environment
       GRAPHILE_WORKER_CONCURRENCY:
-      # Company MCP servers that sign in as each person read and refresh that person's SSO token.
-      BETTER_AUTH_SECRET:
-      OIDC_ISSUER: ${OIDC_ISSUER:-}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      OIDC_NAME: ${OIDC_NAME:-SSO}
-      OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile}
-      OIDC_ALLOW_SIGNUP_BYPASS: ${OIDC_ALLOW_SIGNUP_BYPASS:-false}
     volumes:
       - appdata:/data
     networks:

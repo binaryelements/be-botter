@@ -1056,6 +1056,9 @@ export class McpConnector implements ConnectorProvider {
       };
       let accessTokenExpiresAtMs: number | undefined;
       if (server.transport === "stdio") {
+        // A launched process has no per-request header to carry each person's token.
+        if (server.signIn === "person")
+          throw new Error("MCP servers that sign in as each person must use HTTP");
         if (!this.options.stdioEnabled) throw new Error("MCP stdio is disabled");
         const command = String(server.command ?? "");
         const allowedCommands = this.options.allowedCommands ?? [];
