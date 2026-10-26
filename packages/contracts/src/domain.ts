@@ -114,6 +114,8 @@ export const BotSchema = z.object({
   fleetManagement: z.boolean().default(false),
   disabledBuiltinTools: z.array(z.string()).default([]),
   webhookConfigured: z.boolean(),
+  /** What the user may change: everything, only the persona (a department head), or nothing. */
+  editAccess: z.enum(["all", "persona", "none"]).optional(),
   /** Present when created with an idempotency key (e.g. onboarding:first). */
   spawnKey: z.string().nullable(),
   /** The bot is ringing the user right now. */
@@ -397,6 +399,11 @@ export const BOT_NAME_MAX_LENGTH = 80;
 export const BOT_TITLE_MAX_LENGTH = 500;
 export const BOT_DESCRIPTION_MAX_LENGTH = 4000;
 export const BOT_INSTRUCTIONS_MAX_LENGTH = 20000;
+
+/** Persona a new department's bot starts from; `{department}` stands for its name. */
+export const DepartmentBotTemplateSchema = z.object({
+  instructions: z.string().trim().min(1).max(BOT_INSTRUCTIONS_MAX_LENGTH),
+});
 
 export const CreateBotInput = z.object({
   name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),

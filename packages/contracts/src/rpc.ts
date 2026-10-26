@@ -54,6 +54,7 @@ import {
   CreateGroupInput,
   CreateRoutineInput,
   CreateScratchpadItemInput,
+  DepartmentBotTemplateSchema,
   DepartmentName,
   DepartmentRoleSchema,
   DepartmentSchema,
@@ -390,6 +391,9 @@ export const appContract = {
         }),
       )
       .output(DepartmentSchema),
+    /** The persona each new department's bot starts from. */
+    template: oc.output(DepartmentBotTemplateSchema),
+    setTemplate: oc.input(DepartmentBotTemplateSchema).output(DepartmentBotTemplateSchema),
   },
   groups: {
     create: oc.input(CreateGroupInput).output(GroupSchema),

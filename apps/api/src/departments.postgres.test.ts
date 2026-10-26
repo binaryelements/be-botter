@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComposioConnector, FakeComposioClient } from "@rakazo/adapters";
-import type { Department, Me, SpaceNavigation } from "@rakazo/contracts";
+import type { Bot, Department, Me, SpaceNavigation } from "@rakazo/contracts";
 import { asSystem, homeThread } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { createApp } from "./app.js";
@@ -140,7 +140,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       id: itDepartmentId,
       name: "IT",
       users: [],
-      botIds: [],
+      botIds: [expect.any(String)],
       canManageUsers: true,
     });
     const updated = await rpc<Department>(app, owner.cookie, "departments/setUsers", {
@@ -202,7 +202,14 @@ describePostgres("departments over the API (PostgreSQL)", () => {
   });
 
   it("gives a department member the department's bots and their threads", async () => {
-    expect(await rpc<unknown[]>(app, staff.cookie, "bots/list", {}, companySpaceId)).toEqual([]);
+    const before = await rpc<{ name: string }[]>(
+      app,
+      staff.cookie,
+      "bots/list",
+      {},
+      companySpaceId,
+    );
+    expect(before.map((bot) => bot.name)).toEqual(["IT Assistant"]);
     const assigned = await rpc<{ departmentIds: string[] }>(
       app,
       owner.cookie,
@@ -217,7 +224,7 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       {},
       companySpaceId,
     );
-    expect(bots.map((bot) => bot.name)).toEqual(["IT Support"]);
+    expect(bots.map((bot) => bot.name).sort()).toEqual(["IT Assistant", "IT Support"]);
     expect(await status(app, staff.cookie, "bots/get", { botId: chiefBotId }, companySpaceId)).toBe(
       404,
     );
@@ -341,7 +348,8 @@ describePostgres("departments over the API (PostgreSQL)", () => {
     expect(skills.map((skill) => skill.id)).toEqual([shared.skill.id]);
     expect(await nothing("skills/list", { botId: chiefBotId })).toBe(true);
     const memory = await call<{ path: string }[]>("memory/list", {});
-    expect(memory.map((doc) => doc.path)).toEqual(["it/notes.md"]);
+    // MEMORY.md is the department's own bot's.
+    expect(memory.map((doc) => doc.path).sort()).toEqual(["MEMORY.md", "it/notes.md"]);
     const runs = JSON.stringify(await call("runs/list", { filter: "recent" }));
     expect(runs).toContain(shared.run.id);
     expect(runs).not.toContain(hidden.run.id);
@@ -702,5 +710,78 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       }
       await settle();
     }
+  });
+
+  it("gives a new department its own bot from the company persona template", async () => {
+    const starter = await rpc<{ instructions: string }>(app, owner.cookie, "departments/template");
+    expect(starter.instructions).toContain("{department}");
+    expect(
+      await status(
+        app,
+        staff.cookie,
+        "departments/setTemplate",
+        { instructions: "Staff persona" },
+        companySpaceId,
+      ),
+    ).toBe(403);
+    await rpc(app, owner.cookie, "departments/setTemplate", {
+      instructions: "You help the {department} team.",
+    });
+    const finance = await rpc<Department>(app, owner.cookie, "departments/create", {
+      name: "Finance",
+    });
+    expect(finance.botIds).toHaveLength(1);
+    const bot = await rpc<Bot>(app, owner.cookie, "bots/get", { botId: finance.botIds[0] });
+    expect(bot).toMatchObject({
+      name: "Finance Assistant",
+      instructions: "You help the Finance team.",
+      editAccess: "all",
+    });
+  });
+
+  it("lets a department head change the bot's persona and nothing else, and staff nothing", async () => {
+    const memberEmail = `dept-member-${stamp}@rakazo.test`;
+    const member = await signup(app, memberEmail, "Member");
+    const ops = await rpc<Department>(app, owner.cookie, "departments/create", { name: "Ops" });
+    await rpc(app, owner.cookie, "departments/setUsers", {
+      departmentId: ops.id,
+      users: [
+        { email: staffEmail, role: "head" },
+        { email: memberEmail, role: "member" },
+      ],
+    });
+    const botId = ops.botIds[0]!;
+    const head = await rpc<Bot>(app, staff.cookie, "bots/get", { botId }, companySpaceId);
+    expect(head.editAccess).toBe("persona");
+    const changed = await rpc<Bot>(
+      app,
+      staff.cookie,
+      "bots/update",
+      { botId, instructions: "Head persona", expectedInstructions: head.instructions },
+      companySpaceId,
+    );
+    expect(changed.instructions).toBe("Head persona");
+    for (const [procedure, body] of [
+      ["bots/update", { botId, name: "Renamed" }],
+      ["bots/update", { botId, selfUpdateInstructions: true }],
+      ["bots/archive", { botId }],
+      ["bots/remove", { botId }],
+    ] as const) {
+      expect(await status(app, staff.cookie, procedure, body, companySpaceId)).toBe(403);
+    }
+    const seen = await rpc<Bot>(app, member.cookie, "bots/get", { botId }, companySpaceId);
+    expect(seen.editAccess).toBe("none");
+    expect(
+      await status(
+        app,
+        member.cookie,
+        "bots/update",
+        { botId, instructions: "Member persona", expectedInstructions: "Head persona" },
+        companySpaceId,
+      ),
+    ).toBe(403);
+    expect((await rpc<Bot>(app, owner.cookie, "bots/get", { botId })).instructions).toBe(
+      "Head persona",
+    );
   });
 });
