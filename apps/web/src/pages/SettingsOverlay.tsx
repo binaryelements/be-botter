@@ -235,13 +235,16 @@ export function SettingsOverlay({
     }
   }, [section, onUsageOpen]);
 
+  const showDepartments = Boolean(
+    hasDepartments || isDeploymentOwner || space?.canRename || section === "departments",
+  );
   const navItems: NavItem[] = [
     { id: "general", label: t`General`, icon: Settings },
     { id: "models", label: t`Models`, icon: Cpu },
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
-    ...(hasDepartments || isDeploymentOwner || space?.canRename || section === "departments"
+    ...(showDepartments
       ? [{ id: "departments" as const, label: t`Departments`, icon: Users }]
       : []),
     { id: "usage", label: t`Usage`, icon: Gauge },
