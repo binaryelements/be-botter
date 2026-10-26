@@ -160,13 +160,16 @@ export function DepartmentsSettings() {
     <div data-testid="departments-settings" className="pt-5">
       {isOwner ? (
         <form
-          className="flex items-end gap-2"
+          className="flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             void addDepartment();
           }}
         >
-          <label htmlFor={`${ids}-name`} className="flex-1 text-[14px] text-muted-foreground">
+          <label
+            htmlFor={`${ids}-name`}
+            className="min-w-48 flex-1 text-[14px] text-muted-foreground"
+          >
             <Trans>New department</Trans>
             <Input
               id={`${ids}-name`}
@@ -361,13 +364,16 @@ function DepartmentCard({
       ) : null}
       {canManage ? (
         <form
-          className="mt-3 flex items-end gap-2"
+          className="mt-3 flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             void addPerson();
           }}
         >
-          <label htmlFor={`${ids}-email`} className="flex-1 text-[14px] text-muted-foreground">
+          <label
+            htmlFor={`${ids}-email`}
+            className="min-w-48 flex-1 text-[14px] text-muted-foreground"
+          >
             <Trans>Email</Trans>
             <Input
               id={`${ids}-email`}

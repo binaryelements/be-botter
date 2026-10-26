@@ -42,6 +42,13 @@ test("an owner sets up a department's people and bots from Settings", async ({
   await panel.getByRole("button", { name: "Add department", exact: true }).click();
   await expect(panel.getByRole("button", { name: "Remove Sales Assistant" })).toBeVisible();
   await captureScreenshot(page, testInfo, "departments-persona");
+
+  // On a phone the email field keeps a usable width; the buttons wrap below it.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const email = department.getByLabel("Email");
+  await expect.poll(async () => (await email.boundingBox())?.width ?? 0).toBeGreaterThan(180);
+  await email.scrollIntoViewIfNeeded();
+  await captureScreenshot(page, testInfo, "departments-phone");
 });
 
 test("an owner shares a bot with a department and its member can reach it", async ({
