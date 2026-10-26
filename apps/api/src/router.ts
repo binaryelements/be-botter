@@ -212,6 +212,7 @@ import {
   commitBotUpdate,
   comparePreferenceOrder,
   createDepartmentRepos,
+  createDepartmentWithBot,
   createExternalConversationRepos,
   createGroupRepos,
   createRepos,
@@ -222,7 +223,6 @@ import {
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
-  departmentBotInstructions,
   ensureBoard,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
@@ -2378,29 +2378,13 @@ export function createRouter(deps: RouterDeps) {
         departmentRepos.listDepartments(context.actor),
       ),
       create: authed.departments.create.handler(({ context, input }) =>
-        departmentCall(async () => {
-          const department = await departmentRepos.createDepartment(context.actor, input);
-          // Each department starts with one bot, its persona taken from the company template.
-          const bot = await repos
-            .createBot(context.actor, {
-              name: `${department.name} Assistant`,
-              title: "",
-              description: "",
-              instructions: departmentBotInstructions(
-                await departmentRepos.botTemplate(context.actor),
-                department.name,
-              ),
-              notifyOnFinish: true,
-            })
-            .catch((error: unknown) => {
+        departmentCall(() =>
+          createDepartmentWithBot(deps.prisma, context.actor, input.name).catch(
+            (error: unknown) => {
               throw mapSpaceLifecycleError(error);
-            });
-          await departmentRepos.setBotDepartments(context.actor, {
-            botId: bot.id,
-            departmentIds: [department.id],
-          });
-          return { ...department, botIds: [bot.id] };
-        }),
+            },
+          ),
+        ),
       ),
       template: authed.departments.template.handler(async ({ context }) => ({
         instructions: await departmentRepos.botTemplate(context.actor),
