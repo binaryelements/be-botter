@@ -641,4 +641,66 @@ describePostgres("departments over the API (PostgreSQL)", () => {
       )?.unread,
     ).toBe(true);
   });
+
+  it("lets a channel message steer or answer only the sender's own runs", async () => {
+    const channel = { botId: itBotId, departmentId: itDepartmentId };
+    const { threadId } = await rpc<{ threadId: string }>(app, owner.cookie, "threads/get", channel);
+    // The owner's run in the channel, held so nothing else picks it up.
+    const ownerRun = async (status: string) => {
+      const task = await db.task.create({
+        data: {
+          spaceId: companySpaceId,
+          botId: itBotId,
+          threadId,
+          userId: owner.userId,
+          prompt: "Owner asks",
+          status: "running",
+        },
+      });
+      return db.run.create({
+        data: {
+          spaceId: companySpaceId,
+          botId: itBotId,
+          threadId,
+          taskId: task.id,
+          userId: owner.userId,
+          status,
+          trigger: "user",
+          leaseOwner: "test",
+          leaseExpiresAt: new Date(Date.now() + 10 * 60_000),
+        },
+      });
+    };
+    const send = (user: { cookie: string }, text: string) =>
+      rpc<{ runIds: string[] }>(
+        app,
+        user.cookie,
+        "threads/send",
+        { ...channel, text },
+        companySpaceId,
+      );
+
+    const settle = () =>
+      db.run.updateMany({
+        where: { threadId, status: { notIn: ["completed", "failed", "cancelled"] } },
+        data: { status: "cancelled" },
+      });
+    await settle();
+    for (const status of ["running", "waiting_input"]) {
+      const theirs = await ownerRun(status);
+      const sent = await send(staff, `Staff while owner is ${status}`);
+      expect(sent.runIds).not.toContain(theirs.id);
+      const [own] = await db.run.findMany({ where: { id: { in: sent.runIds } } });
+      expect(own).toMatchObject({ userId: staff.userId, trigger: "user" });
+      expect(await db.run.findUnique({ where: { id: theirs.id } })).toMatchObject({ status });
+      expect(await db.steeringMessage.count({ where: { runId: theirs.id } })).toBe(0);
+      // The owner's own message still steers the owner's run.
+      if (status === "running") {
+        const steered = await send(owner, "Owner adds");
+        expect(steered.runIds).toEqual([theirs.id]);
+        expect(await db.steeringMessage.count({ where: { runId: theirs.id } })).toBe(1);
+      }
+      await settle();
+    }
+  });
 });
