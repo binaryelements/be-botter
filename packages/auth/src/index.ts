@@ -44,6 +44,8 @@ import { encryptStoredOAuthTokens, openIdToken, sealIdToken } from "./token-stor
 
 export type { OidcConfig } from "./oidc.js";
 export { passkeyRelyingParty } from "./passkey.js";
+export type { PersonToken } from "./person-token.js";
+export { createPersonTokenSource } from "./person-token.js";
 
 export interface AuthEnv {
   analytics?: ProductAnalytics;
