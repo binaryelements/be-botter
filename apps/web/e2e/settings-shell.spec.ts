@@ -6,9 +6,11 @@ test("changing language updates settings overflow without resizing", async ({ pa
   await signup(page, `settings-language-${stamp}@rakazo.test`, "password12", "Settings");
   await completeOnboarding(page);
   const settings = await openUserSettings(page);
-  // Wide enough for every English tab, including Departments, but not for German.
-  await page.setViewportSize({ width: 840, height: 700 });
+  await page.setViewportSize({ width: 740, height: 700 });
   const nav = settings.getByTestId("settings-nav");
+  // Just wide enough for the English tabs (owners also get Departments), so German overflows.
+  const overflow = await nav.evaluate((node) => node.scrollWidth - node.clientWidth);
+  await page.setViewportSize({ width: 740 + Math.max(0, overflow) + 8, height: 700 });
   const next = settings.getByRole("button", { name: "Next settings sections" });
   await expect.poll(() => nav.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   await expect(next).toBeHidden();
