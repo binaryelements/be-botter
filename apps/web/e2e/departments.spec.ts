@@ -25,10 +25,23 @@ test("an owner sets up a department's people and bots from Settings", async ({
   await panel.getByRole("button", { name: "Add department", exact: true }).click();
   const department = panel.locator('li[data-testid^="department-"]').first();
   await expect(department.getByRole("heading", { name: "IT", exact: true })).toBeVisible();
+  // Each department starts with its own bot.
+  await expect(department.getByRole("button", { name: "Remove IT Assistant" })).toBeVisible();
   await department.getByRole("combobox", { name: "Bots" }).selectOption({ label: botName });
   await department.getByRole("button", { name: "Add", exact: true }).click();
   await expect(department.getByRole("button", { name: `Remove ${botName}` })).toBeVisible();
   await captureScreenshot(page, testInfo, "departments-admin");
+
+  // The persona new department bots start from.
+  await panel.getByText("Department bot persona", { exact: true }).click();
+  const persona = panel.getByRole("textbox", { name: "Department bot persona" });
+  await expect(persona).toHaveValue(/\{department\}/);
+  await persona.fill("You help the {department} team.");
+  await persona.blur();
+  await panel.getByLabel("New department").fill("Sales");
+  await panel.getByRole("button", { name: "Add department", exact: true }).click();
+  await expect(panel.getByRole("button", { name: "Remove Sales Assistant" })).toBeVisible();
+  await captureScreenshot(page, testInfo, "departments-persona");
 });
 
 test("an owner shares a bot with a department and its member can reach it", async ({

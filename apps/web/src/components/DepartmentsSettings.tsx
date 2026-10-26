@@ -1,6 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Department, DepartmentRole } from "@rakazo/contracts";
-import { Button, Input, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
+import { BOT_INSTRUCTIONS_MAX_LENGTH } from "@rakazo/contracts";
+import {
+  Button,
+  Disclosure,
+  Input,
+  NativeSelect,
+  NativeSelectOption,
+  Textarea,
+} from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { useSpaceRpc } from "../lib/space-rpc";
@@ -24,15 +32,24 @@ export function DepartmentsSettings() {
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("");
   const [bots, setBots] = useState<BotOption[]>([]);
+  const [template, setTemplate] = useState("");
+  const [savedTemplate, setSavedTemplate] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([rpc.departments.list(), rpc.me(), rpc.bots.list().catch(() => [])])
-      .then(([list, me, botList]) => {
+    Promise.all([
+      rpc.departments.list(),
+      rpc.me(),
+      rpc.bots.list().catch(() => []),
+      rpc.departments.template().catch(() => ({ instructions: "" })),
+    ])
+      .then(([list, me, botList, persona]) => {
         if (cancelled) return;
         setDepartments(list);
         setIsOwner(me.isSpaceOwner === true);
         setBots(botList.map((bot) => ({ id: bot.id, name: bot.name })));
+        setTemplate(persona.instructions);
+        setSavedTemplate(persona.instructions);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(errorText(err, t`Could not load departments`));
@@ -57,6 +74,9 @@ export function DepartmentsSettings() {
       const created = await rpc.departments.create({ name });
       setDepartments((current) => [...(current ?? []), created]);
       setNewName("");
+      // The department comes with its own bot; fetch the roster so it shows by name.
+      const botList = await rpc.bots.list().catch(() => null);
+      if (botList) setBots(botList.map((bot) => ({ id: bot.id, name: bot.name })));
     } catch (err) {
       setError(errorText(err, t`Could not save`));
     } finally {
@@ -72,6 +92,22 @@ export function DepartmentsSettings() {
       setDepartments((current) =>
         (current ?? []).filter((department) => department.id !== departmentId),
       );
+    } catch (err) {
+      setError(errorText(err, t`Could not save`));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTemplate() {
+    const instructions = template.trim();
+    if (!instructions || instructions === savedTemplate || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await rpc.departments.setTemplate({ instructions });
+      setTemplate(saved.instructions);
+      setSavedTemplate(saved.instructions);
     } catch (err) {
       setError(errorText(err, t`Could not save`));
     } finally {
@@ -147,6 +183,23 @@ export function DepartmentsSettings() {
             <Trans>Add department</Trans>
           </Button>
         </form>
+      ) : null}
+      {isOwner && savedTemplate ? (
+        <Disclosure
+          className="mt-4"
+          summary={<Trans>Department bot persona</Trans>}
+          summaryClassName="text-[14px] text-muted-foreground"
+        >
+          <Textarea
+            aria-label={t`Department bot persona`}
+            value={template}
+            maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
+            disabled={busy}
+            onChange={(event) => setTemplate(event.target.value)}
+            onBlur={() => void saveTemplate()}
+            className="mt-2"
+          />
+        </Disclosure>
       ) : null}
       {error ? (
         <p role="alert" className="mt-3 text-[13px] text-destructive">

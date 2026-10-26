@@ -13,6 +13,8 @@ const client = vi.hoisted(() => ({
     update: vi.fn(),
     remove: vi.fn(),
     setUsers: vi.fn(),
+    template: vi.fn(),
+    setTemplate: vi.fn(),
   },
   bots: { list: vi.fn(), setDepartments: vi.fn() },
   me: vi.fn(),
@@ -33,6 +35,13 @@ vi.mock("@rakazo/ui-web", () => ({
     <button type="button" {...props} />
   ),
   Input: (props: ComponentProps<"input">) => <input {...props} />,
+  Textarea: (props: ComponentProps<"textarea">) => <textarea {...props} />,
+  Disclosure: ({ summary, children }: { summary: ReactNode; children: ReactNode }) => (
+    <div>
+      {summary}
+      {children}
+    </div>
+  ),
   NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
   NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
 }));
@@ -59,6 +68,7 @@ let root: Root;
 async function render(departments: Department[], isSpaceOwner: boolean) {
   client.departments.list.mockResolvedValue(departments);
   client.me.mockResolvedValue({ isSpaceOwner });
+  client.departments.template.mockResolvedValue({ instructions: "You help {department}." });
   client.bots.list.mockResolvedValue([
     { id: "bot-1", name: "Scout" },
     { id: "bot-2", name: "Painter" },
@@ -122,6 +132,39 @@ describe("DepartmentsSettings", () => {
     expect(nameInput.value).toBe("");
   });
 
+  it("shows the department's new bot once the department is added", async () => {
+    await render([], true);
+    client.departments.create.mockResolvedValue({
+      id: "dept-hr",
+      name: "HR",
+      users: [],
+      botIds: ["bot-hr"],
+      canManageUsers: true,
+    });
+    client.bots.list.mockResolvedValue([{ id: "bot-hr", name: "HR Assistant" }]);
+    const nameInput = container.querySelector<HTMLInputElement>('input[name="department-name"]')!;
+    await act(async () => setValue(nameInput, "HR"));
+    await act(async () => button("Add department").click());
+    expect(container.querySelector('[aria-label="Remove HR Assistant"]')).not.toBeNull();
+  });
+
+  it("lets an owner change the persona new department bots start from", async () => {
+    await render([it_], true);
+    const persona = container.querySelector<HTMLTextAreaElement>("textarea");
+    if (!persona) throw new Error("Missing persona template");
+    expect(persona.value).toBe("You help {department}.");
+    client.departments.setTemplate.mockResolvedValue({ instructions: "Be brief, {department}." });
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(persona, "Be brief, {department}.");
+      persona.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => persona.dispatchEvent(new FocusEvent("focusout", { bubbles: true })));
+    expect(client.departments.setTemplate).toHaveBeenCalledWith({
+      instructions: "Be brief, {department}.",
+    });
+  });
+
   it("lets an owner add and remove a department's bots", async () => {
     await render([it_], true);
     const removeButton = (name: string) => container.querySelector(`[aria-label="Remove ${name}"]`);
@@ -151,6 +194,7 @@ describe("DepartmentsSettings", () => {
     expect(container.textContent).toContain("Hana Head");
     expect(container.querySelector('input[name="department-name"]')).toBeNull();
     expect(container.querySelector('input[type="email"]')).toBeNull();
+    expect(container.querySelector("textarea")).toBeNull();
     expect([...container.querySelectorAll("button")]).toHaveLength(0);
   });
 

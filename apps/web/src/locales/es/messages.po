@@ -2167,6 +2167,10 @@ msgstr "Denegado"
 msgid "Deny"
 msgstr "Denegar"
 
+#: src/components/DepartmentsSettings.tsx
+msgid "Department bot persona"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/shell/bot-departments.tsx

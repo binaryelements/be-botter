@@ -1,4 +1,4 @@
-import type { ComputerMode, ThinkingLevel } from "@rakazo/contracts";
+import type { Bot, ComputerMode, ThinkingLevel } from "@rakazo/contracts";
 import {
   BOT_AVATAR_SHAPE_COUNT,
   BOT_COLORS,
@@ -48,9 +48,10 @@ import { createQueuedSave } from "../lib/queued-save";
 import { errorText } from "../lib/user-error";
 import { stopVoicePlayback } from "../lib/voice";
 
-type BotSettingsRecord = MobileBot & {
-  description?: string;
-};
+type BotSettingsRecord = MobileBot &
+  Pick<Bot, "editAccess"> & {
+    description?: string;
+  };
 
 export default function BotSettingsScreen() {
   const tokens = useMobileTokens();
@@ -404,6 +405,9 @@ export default function BotSettingsScreen() {
     voiceRowContent
   );
 
+  // Department bots: a head changes only the persona; other staff change nothing (the server enforces it).
+  const canEditAll = (bot?.editAccess ?? "all") === "all";
+
   return (
     <>
       <Stack.Screen options={glassHeaderOptions(t("Chat settings"))} />
@@ -436,6 +440,7 @@ export default function BotSettingsScreen() {
           value={name}
           maxLength={BOT_NAME_MAX_LENGTH}
           onChangeText={setName}
+          editable={canEditAll}
           placeholder={t("Name this bot")}
           placeholderTextColor={tokens.mutedForeground}
           style={fieldStyle}
@@ -447,6 +452,7 @@ export default function BotSettingsScreen() {
           value={title}
           maxLength={BOT_TITLE_MAX_LENGTH}
           onChangeText={setTitle}
+          editable={canEditAll}
           placeholder={t("Describe what this bot does")}
           placeholderTextColor={tokens.mutedForeground}
           style={fieldStyle}
@@ -458,6 +464,7 @@ export default function BotSettingsScreen() {
           value={description}
           maxLength={BOT_DESCRIPTION_MAX_LENGTH}
           onChangeText={setDescription}
+          editable={canEditAll}
           placeholder={t("What this bot is for")}
           placeholderTextColor={tokens.mutedForeground}
           multiline
@@ -563,6 +570,7 @@ export default function BotSettingsScreen() {
                 maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
                 value={instructions}
                 onChangeText={setInstructions}
+                editable={bot?.editAccess !== "none"}
                 style={[fieldStyle, styles.multilineField]}
               />
               {bot?.instructionHistory?.length && instructions === bot.instructions ? (
