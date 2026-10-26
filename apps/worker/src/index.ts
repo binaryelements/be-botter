@@ -1,5 +1,6 @@
 import type { JobPublisher, JobWorkerHost } from "@rakazo/adapter-kit";
 import { ComposioConnector, IntegrationProviderSettings } from "@rakazo/adapters";
+import { createPersonTokenSource, oidcConfigFromEnv } from "@rakazo/auth";
 import { phoneCallSettings } from "@rakazo/core";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { startWorkerHealth } from "./health.js";
@@ -54,7 +55,12 @@ import {
   shutdownPiTelemetry,
   withSecretPersistence,
 } from "@rakazo/adapters";
-import { resolveEncryptionKey, resolveSupervisorToken, uploadSizeFromEnv } from "@rakazo/core";
+import {
+  resolveAuthSecret,
+  resolveEncryptionKey,
+  resolveSupervisorToken,
+  uploadSizeFromEnv,
+} from "@rakazo/core";
 import {
   contentEncryptionOf,
   createBoardEvents,
@@ -131,6 +137,8 @@ async function main() {
     prisma,
   });
   const allowPrivateEndpoint = process.env.MCP_ALLOW_PRIVATE_ENDPOINT === "true";
+  // Company servers that sign in as each person need the person's SSO token.
+  const oidc = oidcConfigFromEnv(process.env);
   const mcpOAuth = new McpOAuthBroker(prisma, secrets, {}, allowPrivateEndpoint);
   const mcp = new McpConnector(
     prisma,
@@ -144,6 +152,9 @@ async function main() {
       ...mcpStdioOptionsFromEnv(process.env),
       events,
       allowPrivateEndpoint,
+      personToken: oidc
+        ? createPersonTokenSource({ prisma, key: resolveAuthSecret(process.env), oidc })
+        : undefined,
     },
     mcpOAuth,
   );

@@ -43,6 +43,7 @@ import type { TokenKey } from "./token-storage.js";
 import { encryptStoredOAuthTokens, openIdToken, sealIdToken } from "./token-storage.js";
 
 export type { OidcConfig } from "./oidc.js";
+export { oidcConfigFromEnv } from "./oidc.js";
 export { passkeyRelyingParty } from "./passkey.js";
 export type { PersonToken } from "./person-token.js";
 export { createPersonTokenSource } from "./person-token.js";

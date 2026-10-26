@@ -55,11 +55,11 @@ const NOT_PASSED: Record<string, string> = {
 };
 
 /**
- * Shared-package reads the worker must not receive. Only the API signs sessions and talks to
- * the identity provider, so the worker resolves no auth secret. Only the API's start command
- * migrates, so the worker never holds the owner database login.
+ * Shared-package reads the worker must not receive. Only the API's start command migrates, so
+ * the worker never holds the owner database login. (The worker does hold the auth secret and
+ * OIDC client: company MCP servers that sign in as each person read and refresh their token.)
  */
-const WORKER_DENIED = new Set(["BETTER_AUTH_SECRET", "DATABASE_MIGRATION_URL"]);
+const WORKER_DENIED = new Set(["DATABASE_MIGRATION_URL"]);
 
 /** Reads a source scan cannot see: names held in constants or read by third-party SDKs. */
 const INDIRECT = {
@@ -180,11 +180,18 @@ describe("api and worker environment allowlists", () => {
   it("finds the reads it is meant to find", () => {
     const api = expectedKeys("api");
     const worker = expectedKeys("worker");
-    for (const key of ["DATABASE_URL", "ENCRYPTION_KEY", "OPENROUTER_API_KEY", "E2B_API_KEY"]) {
+    for (const key of [
+      "DATABASE_URL",
+      "ENCRYPTION_KEY",
+      "OPENROUTER_API_KEY",
+      "E2B_API_KEY",
+      "BETTER_AUTH_SECRET",
+      "OIDC_CLIENT_SECRET",
+    ]) {
       expect(api).toContain(key);
       expect(worker).toContain(key);
     }
-    for (const key of ["BETTER_AUTH_SECRET", "OIDC_CLIENT_SECRET", "SCREEN_PROXY_SECRET"]) {
+    for (const key of ["SCREEN_PROXY_SECRET"]) {
       expect(api).toContain(key);
       expect(worker).not.toContain(key);
     }
@@ -212,12 +219,10 @@ describe("api and worker environment allowlists", () => {
   );
 
   it.each(STACKS.map((files) => [files.join(" + "), files] as const))(
-    "%s keeps auth and database superuser secrets out of the worker",
+    "%s keeps API-only and database superuser secrets out of the worker",
     (_name, files) => {
       const worker = stackEnvironment(files, "worker");
       for (const key of [
-        "BETTER_AUTH_SECRET",
-        "OIDC_CLIENT_SECRET",
         "SCREEN_PROXY_SECRET",
         "RAKAZO_UPDATER_TOKEN",
         "STRIPE_SECRET_KEY",

@@ -10,6 +10,7 @@ import {
   telegramBotsFromEnv,
 } from "@rakazo/adapters";
 import type { OidcConfig } from "@rakazo/auth";
+import { oidcConfigFromEnv } from "@rakazo/auth";
 import type { MinimumClientBuilds } from "@rakazo/contracts";
 import { parseMinimumClientBuilds } from "@rakazo/contracts";
 import {
@@ -148,24 +149,7 @@ export interface AppEnv {
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   secretStoreOptionsFromEnv(source);
-  const issuer = optional(source.OIDC_ISSUER);
-  const clientId = optional(source.OIDC_CLIENT_ID);
-  const clientSecret = optional(source.OIDC_CLIENT_SECRET);
-  const credentials = [issuer, clientId, clientSecret];
-  if (credentials.some(Boolean) && !credentials.every(Boolean)) {
-    throw new Error(
-      "OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET must be configured together",
-    );
-  }
-  if (issuer) {
-    try {
-      const url = new URL(issuer);
-      if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash)
-        throw new Error();
-    } catch {
-      throw new Error("OIDC_ISSUER must be an HTTPS issuer URL");
-    }
-  }
+  const oidc = oidcConfigFromEnv(source);
   for (const key of [
     "AUTH_PASSWORD_ENABLED",
     "AUTH_BREACHED_PASSWORD_CHECK_ENABLED",
@@ -176,21 +160,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
       throw new Error(`${key} must be true or false`);
   }
   const passwordAuth = source.AUTH_PASSWORD_ENABLED !== "false";
-  if (!passwordAuth && !issuer)
+  if (!passwordAuth && !oidc)
     throw new Error("AUTH_PASSWORD_ENABLED=false requires OIDC configuration");
-  const oidc =
-    issuer && clientId && clientSecret
-      ? {
-          issuer,
-          clientId,
-          clientSecret,
-          name: optional(source.OIDC_NAME) ?? "SSO",
-          scopes: (optional(source.OIDC_SCOPES) ?? "openid email profile")
-            .split(/[\s,]+/)
-            .filter(Boolean),
-          allowSignupBypass: source.OIDC_ALLOW_SIGNUP_BYPASS === "true",
-        }
-      : undefined;
   const authSecret = resolveAuthSecret(source);
   const sandboxProvider = resolveSandboxProvider(source);
   const cloudAgentProvider = resolveCloudAgentProvider(source);

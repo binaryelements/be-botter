@@ -75,7 +75,12 @@ import {
   toTeamChatInbound,
   withSecretPersistence,
 } from "@rakazo/adapters";
-import { createAuth, isBlockedAuthPath, loopbackTwinOrigins } from "@rakazo/auth";
+import {
+  createAuth,
+  createPersonTokenSource,
+  isBlockedAuthPath,
+  loopbackTwinOrigins,
+} from "@rakazo/auth";
 import type { Actor, AuthCapabilities } from "@rakazo/contracts";
 import { SERVER_BUILD_HEADER } from "@rakazo/contracts";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
@@ -373,6 +378,9 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       network: remoteConnectors,
       events,
       allowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
+      personToken: env.oidc
+        ? createPersonTokenSource({ prisma, key: env.authSecret, oidc: env.oidc })
+        : undefined,
     },
     mcpOAuth,
   );
