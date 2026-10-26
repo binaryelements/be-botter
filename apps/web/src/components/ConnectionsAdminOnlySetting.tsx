@@ -1,7 +1,10 @@
 import { Trans } from "@lingui/react/macro";
-import { Label, Switch } from "@rakazo/ui-web";
+import { Label, Switch, toast } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { rpc } from "../lib/rpc";
+import { errorText } from "../lib/user-error";
+
+const showError = (error: unknown) => toast.error(errorText(error));
 
 /** The deployment owner's switch that stops staff adding servers, tokens and accounts. */
 export function ConnectionsAdminOnlySetting() {
@@ -13,7 +16,7 @@ export function ConnectionsAdminOnlySetting() {
     void rpc.deployment
       .get()
       .then((settings) => setOn(settings.connectionsAdminOnly))
-      .catch(() => undefined);
+      .catch(showError);
   }, []);
 
   async function change(next: boolean) {
@@ -34,7 +37,7 @@ export function ConnectionsAdminOnlySetting() {
         className="mt-0.5"
         checked={on}
         disabled={pending}
-        onCheckedChange={(checked) => void change(checked).catch(() => undefined)}
+        onCheckedChange={(checked) => void change(checked).catch(showError)}
       />
       <Label htmlFor={id} className="text-[14px] font-normal text-foreground/75">
         <Trans>Only admins add connections</Trans>
