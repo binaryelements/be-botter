@@ -7,6 +7,34 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("reads the company servers each person signs into with SSO", () => {
+    const sso = {
+      ...base,
+      OIDC_ISSUER: "https://login.example.test/tenant/v2.0",
+      OIDC_CLIENT_ID: "client",
+      OIDC_CLIENT_SECRET: "secret",
+    };
+    expect(loadEnv(sso).companySsoMcpServers).toEqual([]);
+    expect(
+      loadEnv({
+        ...sso,
+        OIDC_MCP_SERVERS: "Microsoft 365=http://ms365:3000/mcp, Docs=https://docs.example.test/mcp",
+      }).companySsoMcpServers,
+    ).toEqual([
+      { name: "Microsoft 365", endpoint: "http://ms365:3000/mcp" },
+      { name: "Docs", endpoint: "https://docs.example.test/mcp" },
+    ]);
+    expect(() => loadEnv({ ...sso, OIDC_MCP_SERVERS: "Microsoft 365" })).toThrow(
+      "OIDC_MCP_SERVERS",
+    );
+    expect(() => loadEnv({ ...sso, OIDC_MCP_SERVERS: "M365=ftp://ms365/mcp" })).toThrow(
+      "OIDC_MCP_SERVERS",
+    );
+    // Without SSO nobody has a token to sign in with.
+    expect(() => loadEnv({ ...base, OIDC_MCP_SERVERS: "M365=http://ms365:3000/mcp" })).toThrow(
+      "OIDC_MCP_SERVERS",
+    );
+  });
   it("keeps calls off unless explicitly enabled", () => {
     expect(loadEnv(base).phoneCallsEnabled).toBe(false);
     for (const value of ["false", "1", ""]) {
