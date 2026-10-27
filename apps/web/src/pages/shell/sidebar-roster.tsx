@@ -60,6 +60,7 @@ export function SidebarRoster({
   activeSnapshot,
   botMenuContent,
   mini = false,
+  activeDepartmentId,
 }: {
   sidebarGroups: ReturnType<
     typeof sidebarGroupsForSpaces<Space["bots"][number], Space["groups"][number]>
@@ -94,6 +95,8 @@ export function SidebarRoster({
   activeSnapshot: ThreadSnapshot | null;
   botMenuContent: ReactNode;
   mini?: boolean;
+  /** The department channel open in the chat, so its row under that department is the selected one. */
+  activeDepartmentId?: string;
 }) {
   const { t } = useLingui();
   return (
@@ -272,7 +275,10 @@ export function SidebarRoster({
               {nestedRows.map(({ item, depth, hasChildren, parentId }) => {
                 const parentCollapsed = hasChildren && collapsedRosterParents.has(item.chat.id);
                 const selected =
-                  (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
+                  (item.kind === "bot" &&
+                    !inGroup &&
+                    active?.id === item.chat.id &&
+                    (!group.departmentId || group.departmentId === activeDepartmentId)) ||
                   (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
                 const compact = botsSidebarDensity === "compact";
                 const workStatusLabel =
@@ -396,7 +402,11 @@ export function SidebarRoster({
                     onClick={() => {
                       openSpaceChat(
                         item.chat.spaceId,
-                        item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
+                        item.kind === "group"
+                          ? `/app/g/${item.chat.id}`
+                          : group.departmentId
+                            ? `/app/${item.chat.id}?channel=${group.departmentId}`
+                            : `/app/${item.chat.id}`,
                       );
                     }}
                     // Focus the row so closing the menu returns focus here.

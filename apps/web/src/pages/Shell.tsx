@@ -6,6 +6,7 @@ import type {
   ComputerMode,
   ComputerReleaseReason,
   ComputerStatus,
+  Department,
   Group,
   Me,
   MessageReaction,
@@ -166,7 +167,13 @@ import {
   rightPanelStorageKey,
   writeRightPanelState,
 } from "../lib/right-panel-state";
-import { clearSpaceSelection, createSpaceRpc, selectedSpaceId, selectSpace } from "../lib/rpc";
+import {
+  clearSpaceSelection,
+  createSpaceRpc,
+  rpcForSpace,
+  selectedSpaceId,
+  selectSpace,
+} from "../lib/rpc";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
 import { useSignOut } from "../lib/sign-out";
 import {
@@ -817,7 +824,7 @@ function SpaceShell() {
   routeGroupId.current = groupId;
   const activeBotId = useRef<string | undefined>(inGroup ? undefined : active?.id);
   activeBotId.current = inGroup ? undefined : active?.id;
-  const botThreads = useBotThreads(active?.id);
+  const botThreads = useBotThreads(active?.id, searchParams.get("channel") ?? undefined);
   const threadScopeRef = useRef<ThreadScope>({});
   threadScopeRef.current = botThreads.scope;
   const threadScopeKey = botThreads.scope.departmentId ?? botThreads.scope.userId;
@@ -1634,13 +1641,50 @@ function SpaceShell() {
           : [],
     [bootstrapMe, botSections, bots, groups, spaces],
   );
+  // The departments a person is in (admins: all of them) get their own sidebar headings,
+  // in every space they belong to: a member's company bots live in the company space.
+  const [sidebarDepartments, setSidebarDepartments] = useState<Record<string, Department[]>>({});
+  const [departmentsVersion, setDepartmentsVersion] = useState(0);
+  const departmentSpaceKey = sidebarSpaces
+    .map((space) => `${space.id}:${space.canRename === true}`)
+    .join(",");
+  useEffect(() => {
+    if (!bootstrapMe || settingsOpen || !departmentSpaceKey) return;
+    let cancelled = false;
+    const targets = departmentSpaceKey.split(",").map((entry) => {
+      const [spaceId = "", owner] = entry.split(":");
+      return { spaceId, admin: owner === "true" || bootstrapMe.isDeploymentOwner };
+    });
+    void Promise.all(
+      targets.map(({ spaceId, admin }) =>
+        rpcForSpace(spaceId)
+          .departments.list()
+          .then((list) => [
+            spaceId,
+            admin
+              ? list
+              : list.filter((department) =>
+                  department.users.some((user) => user.userId === bootstrapMe.userId),
+                ),
+          ])
+          .catch(() => [spaceId, []]),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setSidebarDepartments(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapMe, settingsOpen, departmentSpaceKey, departmentsVersion]);
   const sidebarGroups = useMemo(
     () =>
-      sidebarGroupsForSpaces(sidebarSpaces, miniSidebar ? "" : query, {
-        pinned: t`Pinned`,
-        unassigned: t`Unassigned`,
-      }),
-    [sidebarSpaces, query, miniSidebar, t],
+      sidebarGroupsForSpaces(
+        sidebarSpaces,
+        miniSidebar ? "" : query,
+        { pinned: t`Pinned`, unassigned: t`Unassigned` },
+        sidebarDepartments,
+      ),
+    [sidebarSpaces, query, miniSidebar, t, sidebarDepartments],
   );
   // The Dock badge ignores the roster search box: a filter must not hide unread chats.
   const unreadChatCount = useMemo(
@@ -3340,6 +3384,7 @@ function SpaceShell() {
               <SidebarRoster
                 mini={miniSidebar}
                 sidebarGroups={sidebarGroups}
+                activeDepartmentId={botThreads.scope.departmentId}
                 collapsedSidebarSections={collapsedSidebarSections}
                 collapsedRosterParents={collapsedRosterParents}
                 bootstrapMe={bootstrapMe}
@@ -3810,6 +3855,7 @@ function SpaceShell() {
                 memoryProviderConfigured={memoryProviderConfig != null}
                 settingsOpen={settingsOpen}
                 onOpenDepartments={() => openSettings("departments")}
+                onDepartmentsChanged={() => setDepartmentsVersion((version) => version + 1)}
                 onSkillsChange={setAgentSkills}
                 onSave={async ({ computerMode, ...patch }) => {
                   if (computerMode !== undefined && computerMode !== active.computerMode) {

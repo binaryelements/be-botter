@@ -43,13 +43,53 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
   spaces: readonly SidebarSpace<TBot, TGroup>[],
   query: string,
   labels?: { pinned: string; unassigned: string },
+  /** The caller's departments by space id: their bots move under a heading per department. */
+  departments?: Readonly<
+    Record<string, readonly { id: string; name: string; botIds: readonly string[] }[]>
+  >,
 ) {
   const needle = query.toLowerCase();
   const showSpaceNames = spaces.length > 1;
   return spaces.flatMap((space) => {
-    const visibleBots = space.bots.filter((bot) =>
+    const matchingBots = space.bots.filter((bot) =>
       `${bot.name} ${bot.title ?? ""} ${bot.preview ?? ""}`.toLowerCase().includes(needle),
     );
+    const spaceDepartments = departments?.[space.id] ?? [];
+    const departmentSections = spaceDepartments.flatMap((department) => {
+      const bots = matchingBots.filter((bot) => department.botIds.includes(bot.id));
+      if (bots.length === 0) return [];
+      return [
+        {
+          key: showSpaceNames
+            ? `space:${space.id}:department:${department.id}`
+            : `department:${department.id}`,
+          title: showSpaceNames ? `${space.name} · ${department.name}` : department.name,
+          bots: bots.map((chat) => ({
+            kind: "bot" as const,
+            chat,
+            id: chat.id,
+            parentBotId: null,
+            pinned: chat.pinned,
+            sectionId: chat.sectionId,
+          })),
+          sectionId: null as string | null,
+          departmentId: department.id as string | undefined,
+          showLock: showSpaceNames,
+          emptySpaceId: undefined as string | undefined,
+          spaceId: space.id,
+          spaceName: space.name,
+          ...spaceHeaderMenu(space, false),
+        },
+      ];
+    });
+    return [...ownSections(space, matchingBots), ...departmentSections];
+  });
+
+  function ownSections(space: SidebarSpace<TBot, TGroup>, matchingBots: readonly TBot[]) {
+    const departmentBotIds = new Set(
+      (departments?.[space.id] ?? []).flatMap((department) => department.botIds),
+    );
+    const visibleBots = matchingBots.filter((bot) => !departmentBotIds.has(bot.id));
     const visibleGroups = space.groups.filter((group) =>
       `${group.name} ${group.preview ?? ""}`.toLowerCase().includes(needle),
     );
@@ -100,6 +140,7 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
           : group.title,
       showLock: showSpaceNames,
       emptySpaceId: undefined as string | undefined,
+      departmentId: undefined as string | undefined,
       spaceId: space.id,
       spaceName: space.name,
       ...spaceHeaderMenu(space, index === 0),
@@ -118,6 +159,7 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
           sectionId: section.id as string | null,
           showLock: showSpaceNames,
           emptySpaceId: undefined as string | undefined,
+          departmentId: undefined as string | undefined,
           spaceId: space.id,
           spaceName: space.name,
           ...spaceHeaderMenu(space, false),
@@ -135,21 +177,24 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
         sectionId: null,
         showLock: showSpaceNames,
         emptySpaceId: showSpaceNames ? space.id : undefined,
+        departmentId: undefined as string | undefined,
         spaceId: space.id,
         spaceName: space.name,
         ...spaceHeaderMenu(space, true),
       },
       ...emptySections,
     ];
-  });
+  }
 }
 
 /** Count the unread flags the roster renders. Pass unfiltered groups for the app badge. */
 export function countUnreadChats(
-  sections: readonly { bots: readonly { chat: { unread?: boolean } }[] }[],
+  sections: readonly { bots: readonly { chat: { id: string; unread?: boolean } }[] }[],
 ): number {
-  return sections.reduce(
-    (count, section) => count + section.bots.filter((item) => item.chat.unread).length,
-    0,
-  );
+  // A bot shared with two departments is listed twice but is one chat.
+  return new Set(
+    sections.flatMap((section) =>
+      section.bots.flatMap((item) => (item.chat.unread ? [item.chat.id] : [])),
+    ),
+  ).size;
 }
