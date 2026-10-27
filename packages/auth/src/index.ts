@@ -17,7 +17,12 @@ import {
   signupPolicyFromEnv,
 } from "@rakazo/core";
 import type { PrismaClient, SecurityEventType } from "@rakazo/db";
-import { bootstrapUserSpace, joinCompanySpace, recordSecurityEvent } from "@rakazo/db";
+import {
+  bootstrapUserSpace,
+  joinCompanySpace,
+  readCompanySetup,
+  recordSecurityEvent,
+} from "@rakazo/db";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
@@ -36,6 +41,12 @@ import {
   signedBearer,
 } from "./account-security.js";
 import { breachedPasswordCheck } from "./breached-password.js";
+import {
+  admitCompanyPerson,
+  isAdmittedCompanyPerson,
+  oidcIdentity,
+  refusesNewcomerWithoutSso,
+} from "./company-admission.js";
 import type { OidcConfig } from "./oidc.js";
 import { isCurrentOidcAccount, oidcDiscovery } from "./oidc.js";
 import { passkeyRelyingParty } from "./passkey.js";
@@ -77,6 +88,8 @@ export interface AuthEnv {
   afterReplaceSession?: (previous: AuthSession, session: AuthSession) => Promise<void>;
   /** Keeps the person's SSO token from an OIDC sign-in, for servers that act as them. */
   onSsoToken?: (userId: string, token: SsoToken) => Promise<void>;
+  /** Runs after an invited person becomes head of these departments. Never fails a sign-in. */
+  onDepartmentHeadsChanged?: (departmentIds: string[]) => Promise<void>;
 }
 
 type AuthSession = { id: string; userId: string };
@@ -332,6 +345,43 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
   // Better Auth's own token key, so every stored token shares one cipher and key.
   let authContext: Promise<{ secretConfig: TokenKey }> | undefined;
   const tokenKey = async () => (await authContext!).secretConfig;
+  const accountDeletion = {
+    enabled: true,
+    beforeDelete: async (user: { id: string }) => {
+      await env.beforeDeleteUser?.(user.id);
+      const memberships = await prisma.member.findMany({
+        where: { userId: user.id },
+        select: {
+          organizationId: true,
+          organization: { select: { members: { select: { userId: true } } } },
+        },
+      });
+      const personalOrganizationIds = memberships
+        .filter(({ organization }) =>
+          organization.members.every((member) => member.userId === user.id),
+        )
+        .map(({ organizationId }) => organizationId);
+
+      await prisma.$transaction(async (tx) => {
+        await tx.deploymentSettings.updateMany({
+          where: { ownerUserId: user.id },
+          data: { ownerUserId: null },
+        });
+        // Messaging identities are deliberately FK-free, so clear them
+        // here or the unique address would point at a deleted bot forever.
+        await tx.messagingIdentity.deleteMany({
+          where: { userId: user.id },
+        });
+        await tx.passkey.deleteMany({ where: { userId: user.id } });
+        await tx.organization.deleteMany({
+          where: { id: { in: personalOrganizationIds } },
+        });
+      });
+    },
+    afterDelete: async (user: { id: string }) => {
+      await recordSecurityEvent({ type: "auth.account.deleted", userId: user.id });
+    },
+  };
   const auth = betterAuth({
     appName: "BE Botter",
     logger: env.logger,
@@ -409,6 +459,8 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           return;
         }
         if (source.action === "create-user") {
+          // A handed-over company decides at the session who gets in: owner, invitations or tenant.
+          if ((await readCompanySetup(prisma)).readyAt) return;
           const policy = await resolveSignupPolicy(prisma, env);
           if (!policy.enabled) return { error: "REGISTRATION_CLOSED" };
           if (!env.oidc?.allowSignupBypass && !emailAllowed(email, policy.allowlist))
@@ -428,43 +480,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           await ctx.context.internalAdapter.updateUser(user.id, { email, emailVerified: verified });
         }
       },
-      deleteUser: {
-        enabled: true,
-        beforeDelete: async (user) => {
-          await env.beforeDeleteUser?.(user.id);
-          const memberships = await prisma.member.findMany({
-            where: { userId: user.id },
-            select: {
-              organizationId: true,
-              organization: { select: { members: { select: { userId: true } } } },
-            },
-          });
-          const personalOrganizationIds = memberships
-            .filter(({ organization }) =>
-              organization.members.every((member) => member.userId === user.id),
-            )
-            .map(({ organizationId }) => organizationId);
-
-          await prisma.$transaction(async (tx) => {
-            await tx.deploymentSettings.updateMany({
-              where: { ownerUserId: user.id },
-              data: { ownerUserId: null },
-            });
-            // Messaging identities are deliberately FK-free, so clear them
-            // here or the unique address would point at a deleted bot forever.
-            await tx.messagingIdentity.deleteMany({
-              where: { userId: user.id },
-            });
-            await tx.passkey.deleteMany({ where: { userId: user.id } });
-            await tx.organization.deleteMany({
-              where: { id: { in: personalOrganizationIds } },
-            });
-          });
-        },
-        afterDelete: async (user) => {
-          await recordSecurityEvent({ type: "auth.account.deleted", userId: user.id });
-        },
-      },
+      deleteUser: accountDeletion,
     },
     plugins: [
       signedBearer,
@@ -632,7 +648,8 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                     if (accounts.some((account) => account.providerId === "oidc")) return session;
                   }
                   policy ??= await resolveSignupPolicy(prisma, env);
-                  return policy.allowlist.length === 0 ? session : null;
+                  if (policy.allowlist.length === 0) return session;
+                  return (await isAdmittedCompanyPerson(prisma, session.user.id)) ? session : null;
                 },
               },
             },
@@ -700,7 +717,48 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                 message: "Email verification required",
               });
             }
-            if (!user.emailVerified && policy.allowlist.length > 0 && !bypassAllowlist) {
+            const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
+            if (oidcSignIn && ctx && !membership) {
+              // A handed-over company's sign-in switch is authoritative over the signup policy.
+              const settings = await prisma.deploymentSettings.findUnique({
+                where: { id: "default" },
+                select: { ownerUserId: true },
+              });
+              // Trust comes from the ID token alone: the signup bypass never makes an email trusted.
+              const identity = await oidcIdentity(
+                await tokenKey(),
+                await ctx.context.internalAdapter.findAccounts(user.id),
+              );
+              const admission = await admitCompanyPerson(
+                prisma,
+                {
+                  userId: user.id,
+                  email: user.email,
+                  ...identity,
+                  isDeploymentOwner: settings?.ownerUserId === user.id,
+                },
+                env.onDepartmentHeadsChanged,
+              );
+              if (admission === "denied")
+                throw new APIError("FORBIDDEN", {
+                  code: "NOT_INVITED",
+                  message: "Ask your administrator for an invitation",
+                });
+              // The superadmin keeps a Space of their own and is never a company member by default.
+              if (admission === "superadmin") await bootstrapUserSpace(prisma, user, env);
+              if (admission !== "not-managed") return;
+            }
+            if (!oidcSignIn && !membership && (await refusesNewcomerWithoutSso(prisma, user.id)))
+              throw new APIError("FORBIDDEN", {
+                code: "NOT_INVITED",
+                message: "Ask your administrator for an invitation",
+              });
+            if (
+              !user.emailVerified &&
+              policy.allowlist.length > 0 &&
+              !bypassAllowlist &&
+              !(await isAdmittedCompanyPerson(prisma, user.id))
+            ) {
               if (oidcSignIn)
                 throw new APIError("FORBIDDEN", {
                   code: "EMAIL_VERIFICATION_REQUIRED",
@@ -725,7 +783,6 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
             }
             // Unverified signup must not provision resources or claim the
             // deployment owner. Bootstrap only at the first admitted session.
-            const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
             if (!membership) {
               if (
                 !policy.enabled ||
@@ -853,6 +910,14 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
     ssoAvailability: () => discovery?.availability(),
     passkeyRpId: relyingParty?.rpID ?? null,
     disposeOidcDiscovery: () => discovery?.dispose(),
+    /** Deletes an account server side, through the same steps as a person deleting their own. */
+    deleteAccount: async (userId: string) => {
+      const { internalAdapter } = await auth.$context;
+      await accountDeletion.beforeDelete({ id: userId });
+      await internalAdapter.deleteUser(userId);
+      await internalAdapter.deleteUserSessions(userId);
+      await accountDeletion.afterDelete({ id: userId });
+    },
   });
 }
 

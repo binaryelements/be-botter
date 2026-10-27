@@ -43,6 +43,7 @@ import {
   BotThreadSchema,
   CapabilityInstallSchema,
   CompanyModelConnectionSchema,
+  CompanySetupSchema,
   ComputerModeSchema,
   ComputerReleaseReasonSchema,
   ComputerStatusSchema,
@@ -64,6 +65,8 @@ import {
   GroupDetailSchema,
   GroupSchema,
   IntegrationCatalogResultSchema,
+  InvitationDepartmentSchema,
+  InvitationSchema,
   McpServerConfigInput,
   McpServerSchema,
   MemoryDocumentSchema,
@@ -80,6 +83,7 @@ import {
   ModelCredentialSchema,
   ModelOAuthBeginSchema,
   OPENAI_COMPATIBLE_PROVIDER_ID,
+  PersonaTemplateSchema,
   REPLY_QUOTE_MAX_LENGTH,
   ReorderBotsInput,
   RoutineSchema,
@@ -394,6 +398,72 @@ export const appContract = {
     /** The persona each new department's bot starts from. */
     template: oc.output(DepartmentBotTemplateSchema),
     setTemplate: oc.input(DepartmentBotTemplateSchema).output(DepartmentBotTemplateSchema),
+  },
+  setup: {
+    get: oc.output(
+      CompanySetupSchema.extend({
+        departments: z.array(
+          z.object({
+            id: Id,
+            name: z.string(),
+            botId: Id.nullable(),
+            botName: z.string().nullable(),
+          }),
+        ),
+      }),
+    ),
+    templates: oc.output(z.array(PersonaTemplateSchema)),
+    createCompany: oc
+      .input(z.object({ name: z.string().trim().min(1).max(120) }))
+      .output(CompanySetupSchema),
+    addDepartment: oc
+      .input(
+        z.object({
+          name: DepartmentName,
+          instructions: z.string().trim().min(1).max(20000),
+          templateId: z.string().optional(),
+        }),
+      )
+      .output(z.object({ departmentId: Id, botId: Id })),
+    update: oc
+      .input(
+        z.object({
+          ownerEmail: z.string().trim().email().optional(),
+          signInMode: z.enum(["invited", "organisation"]).optional(),
+        }),
+      )
+      .output(CompanySetupSchema),
+    markReady: oc.output(CompanySetupSchema),
+    /** Deletes the company's people and their data, keeping its setup. */
+    reset: oc.input(z.object({ confirmName: z.string().max(200) })).output(CompanySetupSchema),
+  },
+  company: {
+    signInMode: {
+      get: oc.output(
+        z.object({
+          mode: CompanySetupSchema.shape.signInMode,
+          ready: z.boolean(),
+          departments: z.array(z.object({ id: Id, name: z.string() })),
+        }),
+      ),
+      set: oc
+        .input(z.object({ mode: CompanySetupSchema.shape.signInMode }))
+        .output(z.object({ mode: CompanySetupSchema.shape.signInMode })),
+    },
+  },
+  invitations: {
+    list: oc.output(z.array(InvitationSchema)),
+    create: oc
+      .input(
+        z.object({
+          email: z.string().trim().email(),
+          departments: z.array(InvitationDepartmentSchema).max(50),
+        }),
+      )
+      .output(
+        z.object({ invitation: InvitationSchema, signInUrl: z.string(), emailed: z.boolean() }),
+      ),
+    revoke: oc.input(z.object({ invitationId: Id })).output(z.object({ ok: z.literal(true) })),
   },
   groups: {
     create: oc.input(CreateGroupInput).output(GroupSchema),

@@ -8,7 +8,7 @@ import {
   isCloudflareAiGatewayProvider,
 } from "./cloudflare-ai-gateway.js";
 import { ThreadMessageSchema } from "./events.js";
-import { Id, MemoryScope, RunStatus, SandboxKind } from "./ids.js";
+import { Id, IsoDate, MemoryScope, RunStatus, SandboxKind } from "./ids.js";
 import {
   McpHeadersSchema,
   McpRemoteEndpointSchema,
@@ -1597,6 +1597,10 @@ export const MeSchema = z.object({
   canManageConnections: z.boolean().default(true),
   /** True for owners of the company space while it is active: they share connections. */
   canShareConnections: z.boolean().default(false),
+  /** True once the superadmin marked the company ready and the active Space is the company's. */
+  companyReady: z.boolean().default(false),
+  /** True for the superadmin while the company Space exists and is not ready yet. */
+  companySetupPending: z.boolean().default(false),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),
@@ -1675,3 +1679,35 @@ export const ExportManifestSchema = z.object({
   history: z.array(ThreadMessageSchema),
 });
 export type ExportManifest = z.infer<typeof ExportManifestSchema>;
+
+export const PersonaTemplateSchema = z.object({
+  id: z.string(),
+  department: z.string(),
+  persona: z.string(),
+  instructions: z.string(),
+  routines: z.array(z.object({ name: z.string(), prompt: z.string(), crons: z.array(z.string()) })),
+});
+export type PersonaTemplate = z.infer<typeof PersonaTemplateSchema>;
+
+/** The company's setup state as the superadmin sees it. */
+export const CompanySetupSchema = z.object({
+  companySpaceId: Id.nullable(),
+  companyName: z.string().nullable(),
+  ownerEmail: z.string().nullable(),
+  readyAt: IsoDate.nullable(),
+  signInMode: z.enum(["invited", "organisation"]),
+  tenantId: z.string().nullable(),
+});
+export type CompanySetup = z.infer<typeof CompanySetupSchema>;
+
+export const InvitationDepartmentSchema = z.object({
+  departmentId: Id,
+  role: DepartmentRoleSchema,
+});
+export const InvitationSchema = z.object({
+  id: Id,
+  email: z.string(),
+  departments: z.array(InvitationDepartmentSchema),
+  acceptedAt: IsoDate.nullable(),
+});
+export type Invitation = z.infer<typeof InvitationSchema>;

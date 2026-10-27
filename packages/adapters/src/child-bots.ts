@@ -593,7 +593,7 @@ async function detachBotFromGroups(tx: Prisma.TransactionClient, botId: string) 
   };
 }
 
-async function removeStoredArtifacts(
+export async function removeStoredArtifacts(
   artifacts: ArtifactStore | undefined,
   storageKeys: string[],
   context: AdapterContext,

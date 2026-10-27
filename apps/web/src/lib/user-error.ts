@@ -30,6 +30,7 @@ export function authErrorText(error: unknown, fallback: string): string {
   if (code === "SSO_UNAVAILABLE") return t`SSO is temporarily unavailable. Try again.`;
   if (code === "account_not_linked") return t`Sign in to your existing account to link SSO`;
   if (code === "REGISTRATION_CLOSED") return t`Registration is closed`;
+  if (code === "NOT_INVITED") return t`Ask your administrator for an invitation`;
   if (code === "EMAIL_NOT_ALLOWED") return t`Email is not allowed to register`;
   if (code === "EMAIL_VERIFICATION_REQUIRED" || code === "unable_to_link_account")
     return t`Email verification required`;

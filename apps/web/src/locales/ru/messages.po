@@ -447,6 +447,7 @@ msgid "Add credential"
 msgstr ""
 
 #: src/components/DepartmentsSettings.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Add department"
 msgstr ""
 
@@ -662,6 +663,10 @@ msgstr "Ответ: {answer}"
 msgid "Any model, with your own key"
 msgstr ""
 
+#: src/components/PeopleSettings.tsx
+msgid "Anyone in our Microsoft organisation"
+msgstr ""
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "API is back, but the update did not finish. Check the host logs."
 msgstr "API вернулся, но обновление не завершилось. Проверьте журналы хоста."
@@ -769,6 +774,10 @@ msgstr ""
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
 msgstr "Попросите владельца сервера настроить этого провайдера."
+
+#: src/lib/user-error.ts
+msgid "Ask your administrator for an invitation"
+msgstr ""
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -1293,7 +1302,16 @@ msgstr ""
 
 #: src/pages/model-settings/company-model.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Company"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Company model"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Company name"
 msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
@@ -1447,6 +1465,10 @@ msgstr "Тест соединения не удался."
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "Соединение с {0} все еще не завершено. Вы можете закрыть это и проверить еще раз."
 
+#: src/pages/SetupWizard.tsx
+msgid "Connections"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1477,6 +1499,7 @@ msgstr "Продолжить по электронной почте"
 msgid "Copied"
 msgstr ""
 
+#: src/components/PeopleSettings.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/message-hover-actions.tsx
@@ -1661,7 +1684,9 @@ msgstr "Не удалось установить коннектор"
 
 #: src/components/ErrorBoundary.tsx
 #: src/components/PasskeySettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Could not load"
 msgstr "Не удалось загрузить"
 
@@ -1820,8 +1845,10 @@ msgid "Could not run routine"
 msgstr "Не удалось запустить задачу"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2167,8 +2194,13 @@ msgstr "Запретить"
 msgid "Department bot persona"
 msgstr ""
 
+#: src/pages/SetupWizard.tsx
+msgid "Department name"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
 msgstr ""
@@ -2349,6 +2381,7 @@ msgid "Edit Profile"
 msgstr "Редактировать профиль"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "Электронная почта"
@@ -2663,6 +2696,7 @@ msgid "Hang up, then enter the code on screen."
 msgstr "Повесьте трубку, затем введите код на экране."
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 msgid "Head"
 msgstr ""
 
@@ -2841,6 +2875,14 @@ msgstr "Единица интервала"
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "Неверный код"
+
+#: src/components/PeopleSettings.tsx
+msgid "Invite"
+msgstr ""
+
+#: src/components/PeopleSettings.tsx
+msgid "Invited people only"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3065,6 +3107,10 @@ msgstr "Отметить как прочитанное"
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "Отметить как непрочитанное"
+
+#: src/pages/SetupWizard.tsx
+msgid "Mark ready"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -3722,8 +3768,13 @@ msgstr "Другая модель…"
 
 #: src/lib/identity-display.ts
 #: src/pages/Board.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Owner"
 msgstr "Владелец"
+
+#: src/pages/SetupWizard.tsx
+msgid "Owner email"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
@@ -3790,6 +3841,14 @@ msgstr "Вставьте API-ключ и повторите тест."
 #: src/pages/RoutineEditor.tsx
 msgid "Paused"
 msgstr "Приостановлено"
+
+#: src/pages/SettingsOverlay.tsx
+msgid "People"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Persona"
+msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
@@ -3916,6 +3975,14 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Читать ответы вслух"
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready for {email}"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -4176,12 +4243,17 @@ msgid "Research & writing"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Reset"
 msgstr "Сбросить"
 
 #: src/pages/ActivityList.tsx
 msgid "Reset all"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Reset company"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
@@ -4277,6 +4349,11 @@ msgstr "Проверьте настройки поставщика и повто
 msgid "Revoke"
 msgstr "Отозвать"
 
+#. placeholder {0}: invitation.email
+#: src/components/PeopleSettings.tsx
+msgid "Revoke {0}"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "Робот"
@@ -4354,6 +4431,7 @@ msgstr "Запускается, когда этот бот получает пр
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4668,6 +4746,10 @@ msgstr "Войдите по подписке или протестируйте A
 msgid "Sign up"
 msgstr "Зарегистрироваться"
 
+#: src/components/PeopleSettings.tsx
+msgid "Sign-in link"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr ""
@@ -4883,6 +4965,10 @@ msgstr "Сообщение Teams"
 #: src/pages/RoutineEditor.tsx
 msgid "Teams not enabled"
 msgstr "Teams не настроен"
+
+#: src/pages/SetupWizard.tsx
+msgid "Template"
+msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
@@ -5138,6 +5224,10 @@ msgstr "Повторите тест."
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Type {company} to confirm"
 msgstr ""
 
 #: src/components/teach/TeachRecordingChrome.tsx

@@ -66,18 +66,26 @@ vi.mock("./AccountSettingsOverlay", () => ({
   UpdatesSettingsPanel: () => null,
   UsageSettingsPanel: () => null,
 }));
-const { memoryConfigs, providerConfig, updaterStatus, departmentsList } = vi.hoisted(() => ({
-  memoryConfigs: [] as unknown[],
-  providerConfig: vi.fn(async (_spaceId: string): Promise<unknown> => null),
-  updaterStatus: vi.fn(async (): Promise<unknown> => ({ installKind: "compose" })),
-  departmentsList: vi.fn(async (_spaceId: string): Promise<unknown[]> => []),
-}));
+const { memoryConfigs, providerConfig, updaterStatus, departmentsList, signInModeGet } = vi.hoisted(
+  () => ({
+    memoryConfigs: [] as unknown[],
+    providerConfig: vi.fn(async (_spaceId: string): Promise<unknown> => null),
+    updaterStatus: vi.fn(async (): Promise<unknown> => ({ installKind: "compose" })),
+    departmentsList: vi.fn(async (_spaceId: string): Promise<unknown[]> => []),
+    signInModeGet: vi.fn(async (): Promise<unknown> => {
+      throw new Error("forbidden");
+    }),
+  }),
+);
 vi.mock("../lib/rpc", () => ({
-  rpc: { updater: { status: updaterStatus } },
+  rpc: { updater: { status: updaterStatus }, company: { signInMode: { get: signInModeGet } } },
   rpcForSpace: (spaceId: string) => ({
     memory: { providerConfig: () => providerConfig(spaceId) },
     departments: { list: () => departmentsList(spaceId) },
   }),
+}));
+vi.mock("../components/PeopleSettings", () => ({
+  PeopleSettings: () => <div data-testid="people-settings" />,
 }));
 vi.mock("./BillingSettingsPanel", () => ({ BillingSettingsPanel: () => null }));
 vi.mock("../components/DepartmentsSettings", () => ({
@@ -89,7 +97,9 @@ vi.mock("./MemorySettingsOverlay", () => ({
     return null;
   },
 }));
-vi.mock("./ModelSettingsOverlay", () => ({ ModelSettingsOverlay: () => null }));
+vi.mock("./ModelSettingsOverlay", () => ({
+  ModelSettingsOverlay: () => <div data-testid="models-panel" />,
+}));
 vi.mock("./VoiceSettingsOverlay", () => ({ VoiceSettingsOverlay: () => null }));
 vi.mock("../components/ComputersUnavailableHint", () => ({
   computersAreUnavailable: () => false,
@@ -258,6 +268,34 @@ it("withholds memory connection controls after a failed load and retries the edi
 const departmentsNav = (container: HTMLElement) =>
   container.querySelector('[data-testid="settings-nav-departments"]');
 
+it("shows People only once the site is ready and the person may manage it", async () => {
+  const nav = (container: HTMLElement) =>
+    container.querySelector('[data-testid="settings-nav-people"]');
+  const hidden = await render({ space: acme, spaces: [acme] });
+  try {
+    await vi.waitFor(() => expect(signInModeGet).toHaveBeenCalled());
+    expect(nav(hidden.container)).toBeNull();
+  } finally {
+    await hidden.cleanup();
+  }
+  signInModeGet.mockClear();
+  signInModeGet.mockResolvedValueOnce({ mode: "invited", ready: false, departments: [] });
+  const notReady = await render({ space: acme, spaces: [acme] });
+  try {
+    await vi.waitFor(() => expect(signInModeGet).toHaveBeenCalled());
+    expect(nav(notReady.container)).toBeNull();
+  } finally {
+    await notReady.cleanup();
+  }
+  signInModeGet.mockResolvedValueOnce({ mode: "invited", ready: true, departments: [] });
+  const shown = await render({ space: acme, spaces: [acme] });
+  try {
+    await vi.waitFor(() => expect(nav(shown.container)).not.toBeNull());
+  } finally {
+    await shown.cleanup();
+  }
+});
+
 it("hides Departments from members until the space has one", async () => {
   const { container, cleanup } = await render({ space: acme, spaces: [acme] });
   try {
@@ -359,5 +397,39 @@ it("leaves Updates for General once the status shows nothing to update", async (
     expect(selected()).toBe("general");
   } finally {
     await cleanup();
+  }
+});
+
+it("hides Models from company people once the company is ready, not from the superadmin", async () => {
+  const staff = await render({ companyReady: true });
+  try {
+    expect(staff.container.querySelector('[data-testid="settings-nav-models"]')).toBeNull();
+  } finally {
+    await staff.cleanup();
+  }
+  const owner = await render({ companyReady: true, isDeploymentOwner: true });
+  try {
+    expect(owner.container.querySelector('[data-testid="settings-nav-models"]')).not.toBeNull();
+  } finally {
+    await owner.cleanup();
+  }
+});
+
+it("never shows the Models panel to company people, even when asked for it", async () => {
+  const staff = await render({ initialSection: "models", companyReady: true });
+  try {
+    expect(staff.container.querySelector('[data-testid="models-panel"]')).toBeNull();
+  } finally {
+    await staff.cleanup();
+  }
+  const owner = await render({
+    initialSection: "models",
+    companyReady: true,
+    isDeploymentOwner: true,
+  });
+  try {
+    expect(owner.container.querySelector('[data-testid="models-panel"]')).not.toBeNull();
+  } finally {
+    await owner.cleanup();
   }
 });

@@ -133,6 +133,7 @@ import {
   useCallSession,
 } from "../lib/call-session";
 import { newClientId } from "../lib/client-id";
+import { firstRunRoute, hidesSetup } from "../lib/company-access";
 import { setComposerUnsavedWork } from "../lib/composer-draft";
 import {
   getComposerEnterToSend,
@@ -610,6 +611,8 @@ function SpaceShell() {
   const canAddBots = bootstrapMe?.canManageConnections !== false;
   const canAddBotsRef = useRef(canAddBots);
   canAddBotsRef.current = canAddBots;
+  const firstRunRouteRef = useRef(firstRunRoute(bootstrapMe));
+  firstRunRouteRef.current = firstRunRoute(bootstrapMe);
   const callsEnabledRef = useRef(false);
   useEffect(() => {
     callsEnabledRef.current = bootstrapMe?.phoneCallsEnabled === true;
@@ -1028,12 +1031,13 @@ function SpaceShell() {
           archivedGroupList?.length === 0 &&
           !navigation.spaces.some((space) => space.hasContent) &&
           // Onboarding creates a bot, which only admins may while the switch is on.
-          canAddBotsRef.current
+          canAddBotsRef.current &&
+          firstRunRouteRef.current
         ) {
           // Only the very first bot everywhere needs onboarding. An empty
           // current space with content elsewhere stays in the app so the
           // space can be switched to or deleted instead of trapping the user.
-          navigate("/onboarding", { replace: true });
+          navigate(firstRunRouteRef.current, { replace: true });
           return;
         }
         const currentGroupId = routeGroupId.current;
@@ -1274,15 +1278,16 @@ function SpaceShell() {
           markOnce("rk:renderer:thread-response");
         }
         if (!applyBotLists) return;
+        const firstRun = firstRunRoute(bootstrap.me);
         if (
           bootstrap.bots.length === 0 &&
           bootstrap.archivedBots.length === 0 &&
           groupList.length === 0 &&
           bootstrap.archivedGroups.length === 0 &&
           !bootstrap.spaces.some((space) => space.hasContent) &&
-          bootstrap.me.canManageConnections !== false
+          firstRun
         ) {
-          navigate("/onboarding", { replace: true });
+          navigate(firstRun, { replace: true });
           return;
         }
         if (groupId) {
@@ -2661,7 +2666,7 @@ function SpaceShell() {
 
   function openSettings(section: SettingsSection = "general") {
     setSettingsSpaceId(null);
-    setSettingsSection(section);
+    setSettingsSection(section === "models" && hidesSetup(bootstrapMe) ? "general" : section);
     setSettingsOpen(true);
   }
 
@@ -3444,10 +3449,14 @@ function SpaceShell() {
             setMenuOpen(open);
             if (!open) setLogOutError(null);
           }}
-          onIntegrations={() => {
-            setMenuOpen(false);
-            setPluginsOpen(true);
-          }}
+          onIntegrations={
+            hidesSetup(bootstrapMe)
+              ? undefined
+              : () => {
+                  setMenuOpen(false);
+                  setPluginsOpen(true);
+                }
+          }
           onBoard={
             bootstrapMe?.ticketBoardEnabled
               ? () => {
@@ -3661,7 +3670,7 @@ function SpaceShell() {
             pendingAttachments={activePendingAttachments}
             attachmentNotice={attachmentNotice}
             sendError={sendError}
-            onOpenModels={() => openSettings("models")}
+            onOpenModels={hidesSetup(bootstrapMe) ? undefined : () => openSettings("models")}
             runError={displayedRunError}
             runErrorId={displayedRunErrorId}
             onRunErrorPresented={handleRunErrorPresented}
@@ -4143,7 +4152,7 @@ function SpaceShell() {
 
         {deleteRoutineDialogProps ? <DeleteItemDialog {...deleteRoutineDialogProps} /> : null}
 
-        {pluginsOpen ? (
+        {pluginsOpen && !hidesSetup(bootstrapMe) ? (
           <PluginsOverlay
             onConnectedAppsChange={setFooterLogos}
             activeBotId={activeBotId.current}
@@ -4154,7 +4163,7 @@ function SpaceShell() {
             }}
           />
         ) : null}
-        {mcpOpen ? (
+        {mcpOpen && !hidesSetup(bootstrapMe) ? (
           <McpServersOverlay
             canShare={bootstrapMe?.canShareConnections === true}
             onClose={() => setMcpOpen(false)}
@@ -4179,6 +4188,7 @@ function SpaceShell() {
             initialSection={settingsSection}
             avatarStyle={bootstrapMe?.avatarStyle ?? "organic"}
             isDeploymentOwner={bootstrapMe?.isDeploymentOwner === true}
+            companyReady={bootstrapMe?.companyReady === true}
             billingEnabled={bootstrapMe?.billingEnabled === true}
             sandboxProvider={bootstrapMe?.sandboxProvider}
             onSandboxProviderChange={(sandboxProvider) =>

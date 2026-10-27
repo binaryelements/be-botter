@@ -5,8 +5,16 @@ import { runAsSystem } from "./row-security.js";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
-/** Make a person a member of a Space and of its organization; already a member means no change. */
-export async function joinSpace(db: Db, spaceId: string, userId: string): Promise<void> {
+/**
+ * Make a person a member of a Space and of its organization; already a member means no change,
+ * except that joining as owner makes them an owner of the Space.
+ */
+export async function joinSpace(
+  db: Db,
+  spaceId: string,
+  userId: string,
+  role: "owner" | "member" = "member",
+): Promise<void> {
   const space = await db.space.findUniqueOrThrow({
     where: { id: spaceId },
     select: { organizationId: true },
@@ -19,19 +27,19 @@ export async function joinSpace(db: Db, spaceId: string, userId: string): Promis
       id: randomUUID(),
       organizationId: space.organizationId,
       userId,
-      role: "member",
+      role,
       createdAt: now,
     },
   });
   await db.spaceMember.upsert({
     where: { spaceId_userId: { spaceId, userId } },
-    update: {},
+    update: role === "owner" ? { role } : {},
     create: {
       id: randomUUID(),
       spaceId,
       organizationId: space.organizationId,
       userId,
-      role: "member",
+      role,
       createdAt: now,
     },
   });

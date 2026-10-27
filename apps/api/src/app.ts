@@ -132,6 +132,7 @@ import {
   withClientIp,
 } from "./client-ip.js";
 import { cspReportRoutes } from "./csp-report.js";
+import { syncDepartmentRoutines, syncHeadRoutines } from "./department-routines.js";
 import { mountDiagramScript } from "./diagram-script.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
@@ -146,6 +147,7 @@ import { createMessagingReceipts } from "./messaging-receipts.js";
 import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
 import { monitoringRoutes } from "./monitoring.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
+import { resetBackup } from "./reset-backup.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
 import { createAuthResponseAudit } from "./security-audit.js";
@@ -216,6 +218,7 @@ type CreateAppOverrides = Partial<AppEnv> & {
   logger?: Logger;
   runtime?: AgentRuntime;
   contextStrategy?: AgentContextStrategy;
+  takeResetBackup?: () => Promise<string>;
 };
 
 async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
@@ -234,6 +237,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     logger: loggerOverride,
     runtime: runtimeOverride,
     contextStrategy,
+    takeResetBackup,
     ...envOverrides
   } = overrides;
   const env = { ...loadEnv(process.env), ...envOverrides };
@@ -491,10 +495,20 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
     onSsoToken: async (userId, token) => {
       await saveSsoToken({ prisma, secrets }, userId, token);
+      // Admission syncs routines before this token exists, so a head's routines start here.
+      await runAsSystem("department routines", () =>
+        syncHeadRoutines({ prisma, jobs }, userId),
+      ).catch((error) => getLogger().error("department routine sync failed", error));
       // The first sign-in creates the company space, so its connections are set up here too.
       await runAsSystem("company sso connections", () =>
         ensureCompanySsoServers(prisma, env.companySsoMcpServers),
       ).catch((error) => getLogger().error("company sso connections setup failed", error));
+    },
+    onDepartmentHeadsChanged: async (departmentIds) => {
+      for (const departmentId of departmentIds)
+        await runAsSystem("department routines", () =>
+          syncDepartmentRoutines({ prisma, jobs }, departmentId),
+        ).catch((error) => getLogger().error("department routine sync failed", error));
     },
     beforeDeleteUser: async (userId) => {
       // First, so a provider failure aborts deletion before anything is destroyed.
@@ -639,6 +653,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
 
   const router = createRouter({
     analytics,
+    email,
     cloudAgent,
     codexCatalog,
     prisma,
@@ -661,6 +676,13 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     remoteConnectors,
     artifacts,
     dataDir: env.dataDir,
+    takeResetBackup:
+      takeResetBackup ??
+      resetBackup({
+        dataDir: env.dataDir,
+        databaseUrl: env.databaseUrl,
+        migrationUrl: process.env.DATABASE_MIGRATION_URL || undefined,
+      }),
     billing,
     messaging: {
       enabled: Boolean(messaging),

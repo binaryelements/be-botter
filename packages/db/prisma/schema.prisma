@@ -219,6 +219,7 @@ model Member {
 }
 
 model Space {
+  spaceInvitations SpaceInvitation[]
   aiDataConsents AiDataConsent[]
   id                          String                       @id
   organizationId              String
@@ -346,6 +347,14 @@ model DeploymentSettings {
   companySpaceId                  String?
   /// When true only admins add connections (MCP servers) in the company Space.
   connectionsAdminOnly            Boolean  @default(false)
+  /// Email of the person who owns the company, set by the setup wizard.
+  companyOwnerEmail               String?
+  /// When the setup wizard finished; null while setup is open.
+  companyReadyAt                  DateTime?
+  /// "invited" (only invited people sign in) or "open".
+  signInMode                      String   @default("invited")
+  /// Tenant id of the company's SSO provider, when one is configured.
+  companyTenantId                 String?
   createdAt                       DateTime @default(now())
   updatedAt                       DateTime @updatedAt
 
@@ -546,6 +555,24 @@ model Department {
 
   @@unique([spaceId, name])
   @@map("departments")
+}
+
+/// Not Better Auth's Invitation (organization invites). A pending invitation to a Space: the email gets these departments when its owner signs in.
+model SpaceInvitation {
+  id              String    @id @default(cuid())
+  spaceId         String
+  space           Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  /// Lower-case.
+  email           String
+  /// [{ departmentId, role }]
+  departments     Json      @default("[]")
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  acceptedAt      DateTime?
+  acceptedUserId  String?
+
+  @@unique([spaceId, email])
+  @@map("invitations")
 }
 
 model DepartmentUser {
@@ -944,6 +971,10 @@ model Routine {
   watchState     Json?
   /// A signed-in person made it in the app, or in a run they started themselves.
   personCreated  Boolean   @default(false)
+  /// Runs with the permissions of the department head instead of the creator.
+  runsAsDepartmentHead Boolean @default(false)
+  /// Switched off only because no head can run it yet; the next head to sign in switches it on.
+  waitingForHead Boolean @default(false)
   lastRunAt      DateTime?
   nextRunAt      DateTime?
   createdAt      DateTime  @default(now())

@@ -31,7 +31,7 @@ afterEach(async () => {
 async function render(
   name = "Demo User",
   image?: string,
-  onIntegrations = vi.fn(),
+  onIntegrations: (() => void) | null = vi.fn(),
   onBoard?: () => void,
   logos?: Array<{ name: string; logo?: string }>,
 ) {
@@ -52,7 +52,7 @@ async function render(
           email={email}
           open
           onOpenChange={() => {}}
-          onIntegrations={onIntegrations}
+          onIntegrations={onIntegrations ?? undefined}
           onBoard={onBoard}
           onArtifacts={() => {}}
           onSettings={() => {}}
@@ -231,4 +231,9 @@ it("keeps at most three marks with the same tile and a missing-logo fallback", a
   expect(tiles).toHaveLength(3);
   expect(new Set(tiles.map((tile) => tile.className)).size).toBe(1);
   expect(tiles[1]!.textContent).toBe("N");
+});
+
+it("has no Connect apps pill or menu row when integrations are hidden", async () => {
+  await render("Demo User", undefined, null);
+  expect(host.textContent).not.toContain("Connect apps");
 });

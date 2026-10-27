@@ -19,6 +19,7 @@ import {
   Monitor,
   Settings,
   ShieldCheck,
+  UserPlus,
   Users,
   Volume2,
   XIcon,
@@ -28,9 +29,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApprovalRulesSettings } from "../components/ApprovalRulesSettings";
 import { computersAreUnavailable } from "../components/ComputersUnavailableHint";
 import { DepartmentsSettings } from "../components/DepartmentsSettings";
+import { PeopleSettings } from "../components/PeopleSettings";
 import { hasServerUpdates, useServerUpdateStatus } from "../components/SoftwareUpdateSection";
 import { desktopBridge } from "../lib/desktop";
-import { rpcForSpace } from "../lib/rpc";
+import { rpc, rpcForSpace } from "../lib/rpc";
 import { SpaceRpcProvider } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
 import {
@@ -51,6 +53,7 @@ export type SettingsSection =
   | "voice"
   | "confirmations"
   | "departments"
+  | "people"
   | "usage"
   | "computer"
   | "billing"
@@ -86,6 +89,7 @@ export function SettingsOverlay({
   timezone,
   onTimezoneChange,
   isDeploymentOwner = false,
+  companyReady = false,
   billingEnabled = false,
   sandboxProvider,
   onSandboxProviderChange,
@@ -117,6 +121,8 @@ export function SettingsOverlay({
   timezone: string | null;
   onTimezoneChange: (timezone: string) => Promise<void>;
   isDeploymentOwner?: boolean;
+  /** Company people on a ready company site have no model setup. */
+  companyReady?: boolean;
   billingEnabled?: boolean;
   sandboxProvider?: string | null;
   onSandboxProviderChange?: (sandboxProvider: string) => void;
@@ -133,7 +139,10 @@ export function SettingsOverlay({
   const [nav, setNav] = useState<HTMLElement | null>(null);
   const [navOverflow, setNavOverflow] = useState({ previous: false, next: false });
   const usageRef = useRef<HTMLDivElement>(null);
-  const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [pickedSection, setSection] = useState<SettingsSection>(initialSection);
+  // Company people have no Models panel, however it was asked for.
+  const section =
+    pickedSection === "models" && companyReady && !isDeploymentOwner ? "general" : pickedSection;
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [keepComputerRecovery, setKeepComputerRecovery] = useState(false);
@@ -160,6 +169,20 @@ export function SettingsOverlay({
       cancelled = true;
     };
   }, [space?.id]);
+  // The endpoint refuses everyone but company owners and the superadmin, so success means "show".
+  const [showPeople, setShowPeople] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    rpc.company.signInMode
+      .get()
+      .then((current) => {
+        if (!cancelled) setShowPeople(current.ready);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // The shell only holds the selected space's memory config; another space's loads here.
   const otherSpace = Boolean(spaceId && currentSpaceId && spaceId !== currentSpaceId);
   // Kept with the space it was loaded for, so a switch never shows the previous space's config.
@@ -241,13 +264,16 @@ export function SettingsOverlay({
   );
   const navItems: NavItem[] = [
     { id: "general", label: t`General`, icon: Settings },
-    { id: "models", label: t`Models`, icon: Cpu },
+    ...(companyReady && !isDeploymentOwner
+      ? []
+      : [{ id: "models" as const, label: t`Models`, icon: Cpu }]),
     { id: "memory", label: t`Memory`, icon: Brain },
     { id: "voice", label: t`Voice`, icon: Volume2 },
     { id: "confirmations", label: t`Confirmations`, icon: ShieldCheck },
     ...(showDepartments
       ? [{ id: "departments" as const, label: t`Departments`, icon: Users }]
       : []),
+    ...(showPeople ? [{ id: "people" as const, label: t`People`, icon: UserPlus }] : []),
     { id: "usage", label: t`Usage`, icon: Gauge },
     ...(showComputer ? [{ id: "computer" as const, label: t`Computer`, icon: Monitor }] : []),
     ...(billingEnabled ? [{ id: "billing" as const, label: t`Billing`, icon: CreditCard }] : []),
@@ -283,7 +309,16 @@ export function SettingsOverlay({
       nav.removeEventListener("scroll", measure);
       observer?.disconnect();
     };
-  }, [nav, section, showComputer, showDepartments, billingEnabled, showUpdates, i18n.locale]);
+  }, [
+    nav,
+    section,
+    showComputer,
+    showDepartments,
+    showPeople,
+    billingEnabled,
+    showUpdates,
+    i18n.locale,
+  ]);
 
   function scrollSections(direction: number) {
     if (!nav) return;
@@ -456,6 +491,7 @@ export function SettingsOverlay({
                 ) : null}
                 {section === "confirmations" ? <ApprovalRulesSettings /> : null}
                 {section === "departments" ? <DepartmentsSettings /> : null}
+                {section === "people" && showPeople ? <PeopleSettings /> : null}
                 {section === "usage" ? (
                   <UsageSettingsPanel usage={usage} panelRef={usageRef} />
                 ) : null}

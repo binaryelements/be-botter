@@ -447,6 +447,7 @@ msgid "Add credential"
 msgstr ""
 
 #: src/components/DepartmentsSettings.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Add department"
 msgstr ""
 
@@ -662,6 +663,10 @@ msgstr "उत्तर: {answer}"
 msgid "Any model, with your own key"
 msgstr ""
 
+#: src/components/PeopleSettings.tsx
+msgid "Anyone in our Microsoft organisation"
+msgstr ""
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "API is back, but the update did not finish. Check the host logs."
 msgstr ""
@@ -768,6 +773,10 @@ msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
+msgstr ""
+
+#: src/lib/user-error.ts
+msgid "Ask your administrator for an invitation"
 msgstr ""
 
 #. placeholder {0}: preset.time
@@ -1293,7 +1302,16 @@ msgstr ""
 
 #: src/pages/model-settings/company-model.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Company"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Company model"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Company name"
 msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
@@ -1447,6 +1465,10 @@ msgstr "कनेक्शन परीक्षण विफल रहा।"
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "{0} से कनेक्शन अभी लंबित है। आप इसे बंद करके बाद में जांच सकते हैं।"
 
+#: src/pages/SetupWizard.tsx
+msgid "Connections"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1477,6 +1499,7 @@ msgstr "ईमेल से जारी रखें"
 msgid "Copied"
 msgstr ""
 
+#: src/components/PeopleSettings.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/message-hover-actions.tsx
@@ -1661,7 +1684,9 @@ msgstr "कनेक्टर इंस्टॉल नहीं हो सक�
 
 #: src/components/ErrorBoundary.tsx
 #: src/components/PasskeySettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Could not load"
 msgstr "लोड नहीं हो सका"
 
@@ -1820,8 +1845,10 @@ msgid "Could not run routine"
 msgstr ""
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2167,8 +2194,13 @@ msgstr "अस्वीकार करें"
 msgid "Department bot persona"
 msgstr ""
 
+#: src/pages/SetupWizard.tsx
+msgid "Department name"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
 msgstr ""
@@ -2349,6 +2381,7 @@ msgid "Edit Profile"
 msgstr "प्रोफ़ाइल संपादित करें"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "ईमेल"
@@ -2663,6 +2696,7 @@ msgid "Hang up, then enter the code on screen."
 msgstr ""
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 msgid "Head"
 msgstr ""
 
@@ -2841,6 +2875,14 @@ msgstr "अंतराल इकाई"
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "अमान्य कोड"
+
+#: src/components/PeopleSettings.tsx
+msgid "Invite"
+msgstr ""
+
+#: src/components/PeopleSettings.tsx
+msgid "Invited people only"
+msgstr ""
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3065,6 +3107,10 @@ msgstr "पढ़ा हुआ चिह्नित करें"
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "अपठित चिह्नित करें"
+
+#: src/pages/SetupWizard.tsx
+msgid "Mark ready"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -3722,8 +3768,13 @@ msgstr "अन्य मॉडल…"
 
 #: src/lib/identity-display.ts
 #: src/pages/Board.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Owner"
 msgstr "मालिक"
+
+#: src/pages/SetupWizard.tsx
+msgid "Owner email"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
@@ -3789,6 +3840,14 @@ msgstr "अपनी API कुंजी पेस्ट करें, फिर
 
 #: src/pages/RoutineEditor.tsx
 msgid "Paused"
+msgstr ""
+
+#: src/pages/SettingsOverlay.tsx
+msgid "People"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Persona"
 msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
@@ -3916,6 +3975,14 @@ msgstr "प्रतिक्रियाएँ"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "उत्तर पढ़कर सुनाएं"
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready for {email}"
+msgstr ""
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -4176,12 +4243,17 @@ msgid "Research & writing"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Reset"
 msgstr "रीसेट करें"
 
 #: src/pages/ActivityList.tsx
 msgid "Reset all"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Reset company"
 msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
@@ -4277,6 +4349,11 @@ msgstr "प्रोवाइडर सेटिंग्स की समीक
 msgid "Revoke"
 msgstr ""
 
+#. placeholder {0}: invitation.email
+#: src/components/PeopleSettings.tsx
+msgid "Revoke {0}"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr ""
@@ -4354,6 +4431,7 @@ msgstr ""
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4668,6 +4746,10 @@ msgstr "सब्सक्रिप्शन से साइन इन कर�
 msgid "Sign up"
 msgstr "साइन अप करें"
 
+#: src/components/PeopleSettings.tsx
+msgid "Sign-in link"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr ""
@@ -4882,6 +4964,10 @@ msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Teams not enabled"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Template"
 msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
@@ -5138,6 +5224,10 @@ msgstr "परीक्षण फिर से आज़माएँ।"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
+msgstr ""
+
+#: src/pages/SetupWizard.tsx
+msgid "Type {company} to confirm"
 msgstr ""
 
 #: src/components/teach/TeachRecordingChrome.tsx

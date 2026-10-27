@@ -43,12 +43,13 @@ New modules, owned by the fork:
 | Company space and model connection | `packages/db/src/company-space.ts`, `apps/api/src/company-model.ts` | `pages/model-settings/company-model.tsx` |
 | Company connections | `apps/api/src/connection-admin.ts`, `packages/auth/src/person-token.ts` | `components/ConnectionsAdminOnlySetting.tsx`, `lib/connections-access.ts` |
 | Admin tools on bots | `packages/adapters/src/admin-tools.ts`, `docs/admin-tools.md` | |
+| Company setup, handover and reset | `apps/api/src/company-setup.ts`, `department-routines.ts`, `invitations.ts`, `reset-backup.ts`, `routine-schedule.ts`, `packages/auth/src/company-admission.ts`, `packages/core/src/persona-templates.ts`, `packages/db/src/company-setup.ts` | `pages/SetupWizard.tsx`, `components/PeopleSettings.tsx`, `lib/company-access.ts` |
 | Audit | | `components/AuditLog.tsx` |
 
 Upstream files we changed most, where cherry-picks are most likely to conflict:
-`apps/api/src/router.ts`, `apps/web/src/pages/Shell.tsx`, `packages/adapters/src/executor.ts`,
+`apps/api/src/router.ts`, `apps/web/src/pages/Shell.tsx`, `packages/auth/src/index.ts` (session hook admission calls), `packages/adapters/src/executor.ts`,
 `packages/db/prisma/schema.prisma`, `packages/ui-tokens/src/index.ts` (BE Hub palette),
-`infra/compose/Dockerfile` (server-only image), `.github/workflows/publish-server-image.yml`
+`infra/compose/Dockerfile` (server-only image, PostgreSQL client), `.github/workflows/publish-server-image.yml`
 (publishes from `be-main`), and the brand assets under `apps/web/public`.
 
 ## Keeping the fork cheap to maintain

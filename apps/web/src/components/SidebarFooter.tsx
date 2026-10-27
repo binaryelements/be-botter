@@ -23,7 +23,8 @@ type Props = {
   email?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onIntegrations: () => void;
+  /** Omitted when the person may not connect apps. */
+  onIntegrations?: () => void;
   onBoard?: () => void;
   onArtifacts: () => void;
   onSettings: () => void;
@@ -122,7 +123,7 @@ export function SidebarFooter({
                 <p className="truncate text-xs text-muted-foreground">{email}</p>
               ) : null}
             </div>
-            {mini ? (
+            {mini && onIntegrations ? (
               <Button
                 variant="ghost"
                 className="h-9 w-full justify-start gap-2.5 font-normal"
@@ -185,7 +186,7 @@ export function SidebarFooter({
           </PopoverContent>
         ) : null}
       </Popover>
-      {!mini ? (
+      {!mini && onIntegrations ? (
         <Button
           variant="outline"
           ref={pillRef}
