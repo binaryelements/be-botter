@@ -37,13 +37,18 @@ export async function joinSpace(db: Db, spaceId: string, userId: string): Promis
   });
 }
 
-/** People who sign in through the company's identity provider join the company Space, when one is set. */
-export async function joinCompanySpace(db: Db, userId: string): Promise<void> {
+/**
+ * People who sign in through the company's identity provider join the company Space, when one is
+ * set. Returns whether they joined.
+ */
+export async function joinCompanySpace(db: Db, userId: string): Promise<boolean> {
   const settings = await db.deploymentSettings.findUnique({
     where: { id: "default" },
     select: { companySpaceId: true },
   });
-  if (settings?.companySpaceId) await joinSpace(db, settings.companySpaceId, userId);
+  if (!settings?.companySpaceId) return false;
+  await joinSpace(db, settings.companySpaceId, userId);
+  return true;
 }
 
 export function readConnectionsSwitch(db: Db) {

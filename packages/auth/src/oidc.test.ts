@@ -551,6 +551,16 @@ describe("OIDC callbacks", () => {
     const db = await import("@rakazo/db");
     expect(vi.mocked(db.joinCompanySpace)).toHaveBeenCalledWith(expect.anything(), user.id);
   });
+  it("gives company staff no personal space of their own when a company space exists", async () => {
+    const db = await import("@rakazo/db");
+    vi.mocked(db.joinCompanySpace).mockResolvedValueOnce(true);
+    vi.mocked(db.bootstrapUserSpace).mockClear();
+    setup({ signupAllowlist: "sso@example.test" }, false);
+    expect((await signIn()).headers.get("location")).toBe(`${origin}/app`);
+    const user = rows("user")[0] as { id: string };
+    expect(vi.mocked(db.joinCompanySpace)).toHaveBeenCalledWith(expect.anything(), user.id);
+    expect(vi.mocked(db.bootstrapUserSpace)).not.toHaveBeenCalled();
+  });
   it("redirects an unprovisioned identity when registration closes", async () => {
     setup();
     expect((await signIn()).headers.get("location")).toBe(`${origin}/app`);

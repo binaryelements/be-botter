@@ -736,9 +736,10 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                   message: "Registration is closed",
                 });
               }
-              await bootstrapUserSpace(prisma, user, env);
-              // Staff arriving through the company's identity provider belong to the company.
-              if (oidcSignIn) await joinCompanySpace(prisma, user.id);
+              // Staff arriving through the company's identity provider belong to the company and
+              // work there, where its connections are; only others get a space of their own.
+              const joined = oidcSignIn && (await joinCompanySpace(prisma, user.id));
+              if (!joined) await bootstrapUserSpace(prisma, user, env);
             }
           },
           after: async (session, ctx) => {
