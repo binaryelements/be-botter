@@ -75,8 +75,6 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await expect(aside.getByText("Now", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(activityRow(page, "Chief")).toBeVisible();
   await expect(activityRow(page, "Chief")).toContainText(/keep working|Running|Queued|Starting/i);
-  await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   const filtersButton = aside.getByRole("button", { name: "Filters", exact: true });
   await expect(filtersButton).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByTestId("activity-status-filter")).toBeHidden();

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { darkTokens, lightTokens } from "@rakazo/ui-tokens";
+import { darkTokens } from "@rakazo/ui-tokens";
 import { describe, expect, it } from "vitest";
 
 // index.html sets theme-color before any module loads, so it cannot import the
@@ -15,9 +15,7 @@ describe("index.html theme bootstrap", () => {
     expect(html).toContain(
       `<meta name="theme-color" content="${darkTokens.background.toLowerCase()}" />`,
     );
-    expect(script).toContain(
-      `theme === "light" ? "${lightTokens.background.toLowerCase()}" : "${darkTokens.background.toLowerCase()}"`,
-    );
+    expect(script).toContain('dataset.theme = "dark"');
   });
 
   it("loads the bootstrap as a file so the CSP needs no inline scripts", () => {
