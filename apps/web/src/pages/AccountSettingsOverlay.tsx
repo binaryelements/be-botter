@@ -56,8 +56,6 @@ import {
   getToolActivityPreference,
   setToolActivityPreference,
 } from "../lib/tool-activity-preference";
-import type { AppearancePreference } from "../lib/ui-appearance";
-import { getUiAppearancePreference, setUiAppearance } from "../lib/ui-appearance";
 import type { UiLocale } from "../lib/ui-locale";
 import { UI_LOCALE_LABELS, UI_LOCALES } from "../lib/ui-locale";
 import { authErrorText } from "../lib/user-error";
@@ -91,9 +89,6 @@ export function GeneralSettingsPanels({
   const [accountSecurity, setAccountSecurity] = useState<AccountSecurity | null>(null);
   const [locale, setLocale] = useState<UiLocale>(() => getActiveUiLocale());
   const localeRequestRef = useRef(0);
-  const [appearance, setAppearance] = useState<AppearancePreference>(() =>
-    getUiAppearancePreference(),
-  );
   const sidebarDensity = useSyncExternalStore(
     subscribeBotsSidebarDensity,
     getBotsSidebarDensity,
@@ -194,14 +189,7 @@ export function GeneralSettingsPanels({
         <h3 className="text-[15px] font-medium text-foreground">
           <Trans>Appearance</Trans>
         </h3>
-        <AppearancePicker
-          value={appearance}
-          onChange={(next) => {
-            setAppearance(next);
-            setUiAppearance(next);
-          }}
-        />
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="mt-3 flex items-center justify-between gap-3">
           <span id={sidebarDensityLabelId} className="text-[13px] text-foreground/75">
             <Trans>Sidebar density</Trans>
           </span>
@@ -597,45 +585,6 @@ function SettingsPasswordInput({
         onChange={(event) => onChange(event.target.value)}
       />
     </Field>
-  );
-}
-
-function AppearancePicker({
-  value,
-  onChange,
-}: {
-  value: AppearancePreference;
-  onChange: (next: AppearancePreference) => void;
-}) {
-  const { t } = useLingui();
-  const options: { value: AppearancePreference; label: string }[] = [
-    { value: "system", label: t`System` },
-    { value: "light", label: t`Light` },
-    { value: "dark", label: t`Dark` },
-  ];
-
-  return (
-    <ToggleGroup
-      aria-label={t`Appearance`}
-      data-testid="ui-appearance-select"
-      value={[value]}
-      onValueChange={([next]) => {
-        if (next) onChange(next as AppearancePreference);
-      }}
-      spacing={1}
-      className="mt-3 grid w-full min-w-0 grid-cols-3 rounded-lg bg-muted p-1"
-    >
-      {options.map((option) => (
-        <ToggleGroupItem
-          key={option.value}
-          value={option.value}
-          data-testid={`ui-appearance-${option.value}`}
-          className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
-        >
-          {option.label}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
   );
 }
 

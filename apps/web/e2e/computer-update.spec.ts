@@ -5,7 +5,6 @@ import { activeBotId, captureScreenshot, completeOnboarding, signup } from "./he
 test("computer maintenance shows durable background progress and failure recovery", async ({
   page,
 }, testInfo) => {
-  await page.addInitScript(() => localStorage.setItem("rakazo.uiAppearance", "dark"));
   await signup(page, `computer-update-${Date.now()}@rakazo.test`, "password12", "Computer Update");
   await completeOnboarding(page);
   const botId = activeBotId(page);

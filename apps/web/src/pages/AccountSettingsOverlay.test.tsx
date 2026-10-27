@@ -108,10 +108,6 @@ vi.mock("../lib/i18n", () => ({
   getActiveUiLocale: () => "en",
   setUiLocale: (locale: string) => Promise.resolve(locale),
 }));
-vi.mock("../lib/ui-appearance", () => ({
-  getUiAppearancePreference: () => "system",
-  setUiAppearance: vi.fn(),
-}));
 
 import {
   COMPOSER_ENTER_TO_SEND_STORAGE_KEY,
