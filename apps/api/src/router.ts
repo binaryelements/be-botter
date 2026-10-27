@@ -10,6 +10,7 @@ import type {
   ProductAnalytics,
   SandboxProvider,
   SecretStore,
+  TransactionalEmailProvider,
   UsageOperationKind,
 } from "@rakazo/adapter-kit";
 import {
@@ -186,7 +187,6 @@ import {
   hasMixedOneShotSchedule,
   isOneShotRoutineCrons,
   MODEL_REQUIRED_SEND_ERROR,
-  nextCronDateAcrossStrict,
   QUEUE_HOLDING_RUN_STATUSES,
 } from "@rakazo/core";
 import type {
@@ -246,6 +246,7 @@ import {
   Prisma,
   parseComputerMode,
   pushSessionExpiresAt,
+  readCompanySetup,
   recordSecurityEvent,
   releaseSpaceDeletionClaim,
   renameSpaceForMember,
@@ -289,6 +290,15 @@ import {
   setCompanyModelConnection,
 } from "./company-model.js";
 import {
+  addDepartment,
+  createCompany,
+  getSetup,
+  listTemplates,
+  markReady,
+  reset as resetCompany,
+  updateSetup,
+} from "./company-setup.js";
+import {
   executionBlocksUserTakeover,
   resolveBusyBotName,
   toComputerStatus,
@@ -300,7 +310,19 @@ import {
   mayShareConnections,
   resolveCompanyServer,
 } from "./connection-admin.js";
+import {
+  departmentBotIds,
+  stopHeadRoutines,
+  syncDepartmentRoutines,
+} from "./department-routines.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
+import {
+  createInvitation,
+  getSignInMode,
+  listInvitations,
+  revokeInvitation,
+  setSignInMode,
+} from "./invitations.js";
 import {
   dismissMcpServerApprovals,
   resolveMcpApprovalCards,
@@ -322,6 +344,7 @@ import {
   startOnboarding,
 } from "./onboarding.js";
 import { listRoutineRuns } from "./routine-runs.js";
+import { nextRoutineDate } from "./routine-schedule.js";
 import { listSpaceRuns } from "./runs.js";
 import { addScreenProxyCapability } from "./screen-proxy.js";
 import { querySpaceSearch } from "./search.js";
@@ -683,6 +706,8 @@ function mcpAssignmentDto(row: {
 }
 
 export interface RouterDeps {
+  /** Transactional email for invitations; without it the invite link is shown instead. */
+  email?: TransactionalEmailProvider;
   analytics?: ProductAnalytics;
   cloudAgent?: CloudAgentConnection | null;
   prisma: PrismaClient;
@@ -726,6 +751,8 @@ export interface RouterDeps {
   remoteConnectors?: RemoteConnectorDependencies;
   artifacts: ArtifactStore;
   dataDir: string;
+  /** Backs the database up before a company reset; returns the backup's file name. */
+  takeResetBackup?: () => Promise<string>;
   /** Present when the external messaging surface is enabled. */
   messaging?: { enabled: boolean; providers: string[]; openSignup: boolean };
   /** Present only when the deployment bills; self-hosted installs leave it unset. */
@@ -2399,12 +2426,54 @@ export function createRouter(deps: RouterDeps) {
       ),
       remove: authed.departments.remove.handler(({ context, input }) =>
         departmentCall(async () => {
+          const botIds = await departmentBotIds(deps, input.departmentId);
           await departmentRepos.deleteDepartment(context.actor, input);
+          await stopHeadRoutines(deps, botIds);
           return { ok: true as const };
         }),
       ),
       setUsers: authed.departments.setUsers.handler(({ context, input }) =>
-        departmentCall(() => departmentRepos.setDepartmentUsers(context.actor, input)),
+        departmentCall(async () => {
+          const result = await departmentRepos.setDepartmentUsers(context.actor, input);
+          await syncDepartmentRoutines(deps, input.departmentId);
+          return result;
+        }),
+      ),
+    },
+    setup: {
+      get: authed.setup.get.handler(({ context }) => getSetup(deps, context.actor)),
+      templates: authed.setup.templates.handler(({ context }) => listTemplates(context.actor)),
+      createCompany: authed.setup.createCompany.handler(({ context, input }) =>
+        createCompany(deps, context.actor, input.name),
+      ),
+      addDepartment: authed.setup.addDepartment.handler(({ context, input }) =>
+        addDepartment(deps, context.actor, input),
+      ),
+      update: authed.setup.update.handler(({ context, input }) =>
+        updateSetup(deps, context.actor, input),
+      ),
+      markReady: authed.setup.markReady.handler(({ context }) => markReady(deps, context.actor)),
+      reset: authed.setup.reset.handler(({ context, input }) =>
+        resetCompany(deps, context.actor, input.confirmName),
+      ),
+    },
+    company: {
+      signInMode: {
+        get: authed.company.signInMode.get.handler(({ context }) =>
+          getSignInMode(deps, context.actor),
+        ),
+        set: authed.company.signInMode.set.handler(({ context, input }) =>
+          setSignInMode(deps, context.actor, input.mode),
+        ),
+      },
+    },
+    invitations: {
+      list: authed.invitations.list.handler(({ context }) => listInvitations(deps, context.actor)),
+      create: authed.invitations.create.handler(({ context, input }) =>
+        createInvitation(deps, context.actor, input),
+      ),
+      revoke: authed.invitations.revoke.handler(({ context, input }) =>
+        revokeInvitation(deps, context.actor, input.invitationId),
       ),
     },
     groups: {
@@ -4107,6 +4176,9 @@ export function createRouter(deps: RouterDeps) {
               crons: input.crons,
               timezone: input.timezone,
               active: input.active,
+              // Turning it on or off by hand is an admin choice that a head joining never overrides.
+              ...(input.active !== undefined &&
+                input.active !== existing.active && { waitingForHead: false }),
               notify: input.notify,
               webhookEnabled: input.webhookEnabled,
               githubEnabled: input.githubEnabled,
@@ -7274,11 +7346,12 @@ function hostCredentials(active: boolean, provider: string) {
 }
 
 async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
-  const [user, setup, canManageConnections, canShareConnections] = await Promise.all([
+  const [user, setup, canManageConnections, canShareConnections, company] = await Promise.all([
     deps.prisma.user.findUniqueOrThrow({ where: { id: actor.userId } }),
     modelSetup(deps, actor),
     mayManageConnections(actor, deps),
     mayShareConnections(actor, deps),
+    runAsSystem("read company setup", () => readCompanySetup(deps.prisma)),
   ]);
   return {
     ticketBoardEnabled: deps.env.ticketBoardEnabled === true,
@@ -7292,6 +7365,9 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     isSpaceOwner: isSpaceOwner(actor),
     canManageConnections,
     canShareConnections,
+    companyReady: company.readyAt != null && actor.spaceId === company.companySpaceId,
+    companySetupPending:
+      actor.isDeploymentOwner && company.companySpaceId != null && company.readyAt == null,
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??
@@ -7782,17 +7858,6 @@ async function persistModelCredential(
 
 function throwIfAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw signal.reason ?? new Error("Request cancelled");
-}
-
-function nextRoutineDate(crons: string[], timezone: string): Date {
-  let next: Date | null;
-  try {
-    next = nextCronDateAcrossStrict(crons, new Date(), timezone);
-  } catch {
-    throw new ORPCError("BAD_REQUEST", { message: "Enter a valid cron expression." });
-  }
-  if (!next) throw new ORPCError("BAD_REQUEST", { message: "Enter a valid cron expression." });
-  return next;
 }
 
 /** The actor's active compatible bot, routine and backup pins matching `filter`. */

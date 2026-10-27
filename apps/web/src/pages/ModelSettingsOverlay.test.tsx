@@ -188,6 +188,8 @@ function account(provider: string, modelId: string) {
     phoneCallsEnabled: false,
     canManageConnections: true,
     canShareConnections: false,
+    companyReady: false,
+    companySetupPending: false,
   };
 }
 

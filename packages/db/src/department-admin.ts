@@ -32,11 +32,12 @@ export async function adminActorFor(
   };
 }
 
-/** Create a department with its own bot, whose persona comes from the space's template. */
+/** Create a department with its own bot, whose persona comes from `options.instructions`, else the space's template. */
 export async function createDepartmentWithBot(
   prisma: PrismaClient,
   actor: Actor,
   name: string,
+  options: { instructions?: string } = {},
 ): Promise<DepartmentView & { botName: string }> {
   const departments = createDepartmentRepos(prisma);
   const department = await departments.createDepartment(actor, { name });
@@ -44,7 +45,9 @@ export async function createDepartmentWithBot(
     name: `${department.name} Assistant`,
     title: "",
     description: "",
-    instructions: departmentBotInstructions(await departments.botTemplate(actor), department.name),
+    instructions:
+      options.instructions ??
+      departmentBotInstructions(await departments.botTemplate(actor), department.name),
     notifyOnFinish: true,
   });
   await departments.setBotDepartments(actor, { botId: bot.id, departmentIds: [department.id] });

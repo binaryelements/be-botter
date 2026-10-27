@@ -447,6 +447,7 @@ msgid "Add credential"
 msgstr "Add credential"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Add department"
 msgstr "Add department"
 
@@ -662,6 +663,10 @@ msgstr "Answered: {answer}"
 msgid "Any model, with your own key"
 msgstr "Any model, with your own key"
 
+#: src/components/PeopleSettings.tsx
+msgid "Anyone in our Microsoft organisation"
+msgstr "Anyone in our Microsoft organisation"
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "API is back, but the update did not finish. Check the host logs."
 msgstr "API is back, but the update did not finish. Check the host logs."
@@ -769,6 +774,10 @@ msgstr "Ask before writes"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
 msgstr "Ask the server owner to configure this provider."
+
+#: src/lib/user-error.ts
+msgid "Ask your administrator for an invitation"
+msgstr "Ask your administrator for an invitation"
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -1293,8 +1302,17 @@ msgstr "Compact"
 
 #: src/pages/model-settings/company-model.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Company"
 msgstr "Company"
+
+#: src/pages/SetupWizard.tsx
+msgid "Company model"
+msgstr "Company model"
+
+#: src/pages/SetupWizard.tsx
+msgid "Company name"
+msgstr "Company name"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
@@ -1447,6 +1465,10 @@ msgstr "Connection test failed."
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "Connection to {0} is still pending. You can close this and check again."
 
+#: src/pages/SetupWizard.tsx
+msgid "Connections"
+msgstr "Connections"
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Context limit"
@@ -1477,6 +1499,7 @@ msgstr "Continue with email"
 msgid "Copied"
 msgstr "Copied"
 
+#: src/components/PeopleSettings.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
 #: src/pages/shell/message-hover-actions.tsx
@@ -1661,7 +1684,9 @@ msgstr "Could not install connector"
 
 #: src/components/ErrorBoundary.tsx
 #: src/components/PasskeySettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Could not load"
 msgstr "Could not load"
 
@@ -1820,8 +1845,10 @@ msgid "Could not run routine"
 msgstr "Could not run routine"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/KnowledgeSection.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-departments.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -2167,8 +2194,13 @@ msgstr "Deny"
 msgid "Department bot persona"
 msgstr "Department bot persona"
 
+#: src/pages/SetupWizard.tsx
+msgid "Department name"
+msgstr "Department name"
+
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-departments.tsx
 msgid "Departments"
 msgstr "Departments"
@@ -2349,6 +2381,7 @@ msgid "Edit Profile"
 msgstr "Edit Profile"
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "Email"
@@ -2663,6 +2696,7 @@ msgid "Hang up, then enter the code on screen."
 msgstr "Hang up, then enter the code on screen."
 
 #: src/components/DepartmentsSettings.tsx
+#: src/components/PeopleSettings.tsx
 msgid "Head"
 msgstr "Head"
 
@@ -2841,6 +2875,14 @@ msgstr "Interval unit"
 #: src/lib/user-error.ts
 msgid "Invalid code"
 msgstr "Invalid code"
+
+#: src/components/PeopleSettings.tsx
+msgid "Invite"
+msgstr "Invite"
+
+#: src/components/PeopleSettings.tsx
+msgid "Invited people only"
+msgstr "Invited people only"
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -3065,6 +3107,10 @@ msgstr "Mark as Read"
 #: src/pages/BotContextMenu.tsx
 msgid "Mark as Unread"
 msgstr "Mark as Unread"
+
+#: src/pages/SetupWizard.tsx
+msgid "Mark ready"
+msgstr "Mark ready"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -3722,8 +3768,13 @@ msgstr "Other model…"
 
 #: src/lib/identity-display.ts
 #: src/pages/Board.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Owner"
 msgstr "Owner"
+
+#: src/pages/SetupWizard.tsx
+msgid "Owner email"
+msgstr "Owner email"
 
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
@@ -3790,6 +3841,14 @@ msgstr "Paste your API key, then test again."
 #: src/pages/RoutineEditor.tsx
 msgid "Paused"
 msgstr "Paused"
+
+#: src/pages/SettingsOverlay.tsx
+msgid "People"
+msgstr "People"
+
+#: src/pages/SetupWizard.tsx
+msgid "Persona"
+msgstr "Persona"
 
 #: src/components/call/VoiceChatCard.tsx
 msgid "Phone call"
@@ -3916,6 +3975,14 @@ msgstr "Reactions"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Read replies aloud"
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready"
+msgstr "Ready"
+
+#: src/pages/SetupWizard.tsx
+msgid "Ready for {email}"
+msgstr "Ready for {email}"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -4176,6 +4243,7 @@ msgid "Research & writing"
 msgstr "Research & writing"
 
 #: src/components/ComputerMaintenanceActions.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Reset"
 msgstr "Reset"
@@ -4183,6 +4251,10 @@ msgstr "Reset"
 #: src/pages/ActivityList.tsx
 msgid "Reset all"
 msgstr "Reset all"
+
+#: src/pages/SetupWizard.tsx
+msgid "Reset company"
+msgstr "Reset company"
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Reset computer"
@@ -4277,6 +4349,11 @@ msgstr "Review provider settings and test again."
 msgid "Revoke"
 msgstr "Revoke"
 
+#. placeholder {0}: invitation.email
+#: src/components/PeopleSettings.tsx
+msgid "Revoke {0}"
+msgstr "Revoke {0}"
+
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Robot"
 msgstr "Robot"
@@ -4354,6 +4431,7 @@ msgstr "Runs when this bot receives a verified message from this provider."
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/SetupWizard.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4668,6 +4746,10 @@ msgstr "Sign in with the subscription, or test the API key instead."
 msgid "Sign up"
 msgstr "Sign up"
 
+#: src/components/PeopleSettings.tsx
+msgid "Sign-in link"
+msgstr "Sign-in link"
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Site"
 msgstr "Site"
@@ -4883,6 +4965,10 @@ msgstr "Teams message"
 #: src/pages/RoutineEditor.tsx
 msgid "Teams not enabled"
 msgstr "Teams not enabled"
+
+#: src/pages/SetupWizard.tsx
+msgid "Template"
+msgstr "Template"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Test"
@@ -5139,6 +5225,10 @@ msgstr "Try the test again."
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
 msgstr "Type"
+
+#: src/pages/SetupWizard.tsx
+msgid "Type {company} to confirm"
+msgstr "Type {company} to confirm"
 
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Type without recording"

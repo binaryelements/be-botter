@@ -5510,6 +5510,15 @@ describe("routines.update", () => {
     expect(theirs.update.mock.calls[0]?.[0].data).toMatchObject({ personCreated: false });
   });
 
+  it("stops a head routine waiting once someone turns it on or off by hand", async () => {
+    const toggled = fixture(false, false, { waitingForHead: true });
+    expect((await toggled.call()).response.status).toBe(200);
+    expect(toggled.update.mock.calls[0]?.[0].data).toMatchObject({ waitingForHead: false });
+    const edited = fixture(false, false, { waitingForHead: true, active: true });
+    expect((await edited.call({ prompt: "say more" })).response.status).toBe(200);
+    expect(edited.update.mock.calls[0]?.[0].data).not.toHaveProperty("waitingForHead");
+  });
+
   it("does not re-arm when the bot is archived between the read and the write", async () => {
     const { enqueue, call } = fixture(false, true);
     const { response } = await call();

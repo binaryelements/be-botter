@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "./client.js";
 import { createDb } from "./client.js";
-import { ensureCompanySsoServers, joinCompanySpace } from "./company-space.js";
+import { ensureCompanySsoServers, joinCompanySpace, joinSpace } from "./company-space.js";
 import { asSystem } from "./row-security.js";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -85,6 +85,29 @@ describePostgres("joinCompanySpace (PostgreSQL)", () => {
         select: { organizationId: true, role: true },
       }),
     ).toEqual([{ organizationId, role: "member" }]);
+  });
+
+  it("admits an owner as owner, and upgrades a member to owner", async () => {
+    await joinSpace(system, spaceId, ownerId, "owner");
+    expect(
+      await system.spaceMember.findUniqueOrThrow({
+        where: { spaceId_userId: { spaceId, userId: ownerId } },
+        select: { role: true },
+      }),
+    ).toEqual({ role: "owner" });
+    expect(
+      await system.member.findFirstOrThrow({
+        where: { organizationId, userId: ownerId },
+        select: { role: true },
+      }),
+    ).toEqual({ role: "owner" });
+    await joinSpace(system, spaceId, staffId, "owner");
+    expect(
+      await system.spaceMember.findUniqueOrThrow({
+        where: { spaceId_userId: { spaceId, userId: staffId } },
+        select: { role: true },
+      }),
+    ).toEqual({ role: "owner" });
   });
 
   describe("ensureCompanySsoServers", () => {

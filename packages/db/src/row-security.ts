@@ -111,6 +111,7 @@ export const ROW_SECURITY_MODELS: ReadonlySet<string> = new Set([
   "Department",
   "DepartmentUser",
   "DepartmentBot",
+  "SpaceInvitation",
   "McpServerDepartment",
   "ThreadRead",
   "SpaceModelConnection",

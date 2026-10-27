@@ -2,6 +2,7 @@ import { createHash, createHmac, generateKeyPairSync, sign } from "node:crypto";
 import type * as Db from "@rakazo/db";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { oidcIdentity } from "./company-admission.js";
 import type { Auth, AuthEnv } from "./index.js";
 import { createAuth } from "./index.js";
 import { isCurrentOidcAccount, oidcAccountSubject } from "./oidc.js";
@@ -55,16 +56,27 @@ function jwt(claims: Record<string, unknown>) {
   return `${data}.${sign("RSA-SHA256", Buffer.from(corruptSignature ? `${data}tampered` : data), privateKey).toString("base64url")}`;
 }
 
-function setup(options: Partial<AuthEnv> = {}, hasMembership = true) {
+function setup(
+  options: Partial<AuthEnv> = {},
+  hasMembership = true,
+  settings: Record<string, unknown> | null = null,
+) {
   const prisma: Record<string, unknown> = {
     deploymentSettings: {
-      findUnique: vi.fn(async () => null),
+      findUnique: vi.fn(async () => settings),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     spaceMember: {
       findFirst: vi.fn(async () => (hasMembership ? { id: "existing-space" } : null)),
+      findUnique: vi.fn(async () => ({ id: "company-member" })),
+      upsert: vi.fn(async () => ({})),
     },
-    member: { findMany: vi.fn(async () => []) },
+    member: { findMany: vi.fn(async () => []), upsert: vi.fn(async () => ({})) },
+    space: {
+      findUnique: vi.fn(async () => ({ name: "Company" })),
+      findUniqueOrThrow: vi.fn(async () => ({ organizationId: "company" })),
+    },
+    spaceInvitation: { findUnique: vi.fn(async () => null) },
     messagingIdentity: { deleteMany: vi.fn(async () => ({})) },
     passkey: { deleteMany: vi.fn(async () => ({})) },
     organization: { deleteMany: vi.fn(async () => ({})) },
@@ -99,6 +111,7 @@ function setup(options: Partial<AuthEnv> = {}, hasMembership = true) {
     },
     ...options,
   });
+  return prisma as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 }
 
 /** Signs a stored session token the way the session cookie and `set-auth-token` do. */
@@ -561,6 +574,127 @@ describe("OIDC callbacks", () => {
     expect(vi.mocked(db.joinCompanySpace)).toHaveBeenCalledWith(expect.anything(), user.id);
     expect(vi.mocked(db.bootstrapUserSpace)).not.toHaveBeenCalled();
   });
+  it("turns away an uninvited identity once the company is handed over", async () => {
+    const db = await import("@rakazo/db");
+    vi.mocked(db.joinCompanySpace).mockClear();
+    vi.mocked(db.bootstrapUserSpace).mockClear();
+    setup(
+      {
+        oidc: {
+          issuer,
+          clientId: "test-client",
+          clientSecret: "fake-secret",
+          name: "SSO",
+          scopes: [],
+          allowSignupBypass: true,
+        },
+      },
+      false,
+      {
+        companySpaceId: "company",
+        companyOwnerEmail: "boss@example.test",
+        companyReadyAt: new Date(),
+        signInMode: "invited",
+      },
+    );
+    expect((await signIn()).headers.get("location")).toContain(
+      `${origin}/sign-in?error=NOT_INVITED`,
+    );
+    expect(rows("session")).toHaveLength(0);
+    expect(vi.mocked(db.joinCompanySpace)).not.toHaveBeenCalled();
+    expect(vi.mocked(db.bootstrapUserSpace)).not.toHaveBeenCalled();
+  });
+  const handedOver = (signInMode = "invited") => ({
+    companySpaceId: "company",
+    companyOwnerEmail: "sso@example.test",
+    companyReadyAt: new Date(),
+    companyTenantId: "tenant-a",
+    signInMode,
+  });
+  it.each([false, true])(
+    "on a ready site admits a newcomer by email code only when they are the superadmin (%s)",
+    async (superadmin) => {
+      const settings = {
+        ...handedOver(),
+        get ownerUserId() {
+          return superadmin ? rows("user")[0]?.id : "someone-else";
+        },
+      };
+      setup({}, false, settings);
+      const email = "newcomer@example.test";
+      await request("/email-otp/send-verification-otp", { email, type: "sign-in" });
+      const otp = sentCodes.at(-1)!.match(/\b\d{6}\b/)![0];
+      const response = await request("/sign-in/email-otp", { email, otp });
+      if (superadmin) {
+        expect(response.status).toBe(200);
+        expect(rows("session")).toHaveLength(1);
+      } else {
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({ code: "NOT_INVITED" });
+        expect(rows("session")).toHaveLength(0);
+      }
+    },
+  );
+  it("hands over to the owner whose email Microsoft verifies as domain owner", async () => {
+    setup({}, false, handedOver());
+    const response = await signIn({
+      sub: "subject-1",
+      email: "SSO@example.test",
+      xms_edov: "true",
+    });
+    expect(response.headers.get("location")).toBe(`${origin}/app`);
+  });
+  it("never names the owner from an unverified email, even with the signup bypass", async () => {
+    setup(
+      {
+        oidc: {
+          issuer,
+          clientId: "test-client",
+          clientSecret: "fake-secret",
+          name: "SSO",
+          scopes: [],
+          allowSignupBypass: true,
+        },
+      },
+      false,
+      handedOver(),
+    );
+    const response = await signIn({ sub: "subject-1", email: "sso@example.test", tid: "tenant-a" });
+    expect(response.headers.get("location")).toContain("error=NOT_INVITED");
+    expect(rows("session")).toHaveLength(0);
+  });
+  it("keeps an organisation member admitted despite an unverified email and an allowlist", async () => {
+    setup({ signupAllowlist: "allowed@example.test" }, false, {
+      ...handedOver("organisation"),
+      companyOwnerEmail: "boss@example.test",
+    });
+    const response = await signIn({
+      sub: "subject-1",
+      email: "staff@example.test",
+      tid: "tenant-a",
+    });
+    expect(response.headers.get("location")).toBe(`${origin}/app`);
+    const session = await request("/get-session");
+    expect(((await session.json()) as { user?: { email: string } } | null)?.user?.email).toBe(
+      "staff@example.test",
+    );
+  });
+  it.each(["member", "superadmin"])(
+    "lets an admitted %s sign in again with an unverified email under an allowlist",
+    async (who) => {
+      const settings: Record<string, unknown> = handedOver("organisation");
+      const prisma = setup({ signupAllowlist: "allowed@example.test" }, true, settings);
+      const unverified = { sub: "subject-1", email: "staff@example.test", tid: "tenant-a" };
+      expect((await signIn(unverified)).headers.get("location")).toBe(`${origin}/app`);
+      if (who === "superadmin") {
+        settings.ownerUserId = (rows("user")[0] as { id: string }).id;
+        prisma.spaceMember!.findUnique!.mockResolvedValue(null);
+      }
+      cookies = "";
+      expect((await signIn(unverified)).headers.get("location")).toBe(`${origin}/app`);
+      expect(rows("session")).toHaveLength(2);
+    },
+  );
   it("redirects an unprovisioned identity when registration closes", async () => {
     setup();
     expect((await signIn()).headers.get("location")).toBe(`${origin}/app`);
@@ -1357,4 +1491,32 @@ it("counts only stored OIDC subjects bound to the current issuer", async () => {
   expect(await isCurrentOidcAccount({ ...account, idToken: "malformed" }, issuer, secret)).toBe(
     false,
   );
+});
+
+describe("oidcIdentity", () => {
+  const key = "unused-key" as never;
+  const token = (claims: Record<string, unknown>) =>
+    `h.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.s`;
+  const read = (claims: Record<string, unknown>) =>
+    oidcIdentity(key, [
+      { providerId: "oidc", idToken: token({ tid: "old" }), updatedAt: new Date(0) },
+      { providerId: "oidc", idToken: token(claims), updatedAt: new Date(1) },
+    ]);
+  it.each([true, "true", 1, "1"])("trusts xms_edov=%s", async (value) => {
+    expect(await read({ xms_edov: value, tid: "t" })).toEqual({
+      tenantId: "t",
+      emailVerified: true,
+    });
+  });
+  it.each([
+    [{ email_verified: true }, true],
+    [{ email_verified: "true" }, false],
+    [{ xms_edov: false }, false],
+    [{}, false],
+  ])("reads %o as verified=%s from the newest sign-in", async (claims, verified) => {
+    expect(await read(claims)).toEqual({ tenantId: null, emailVerified: verified });
+  });
+  it("knows nothing without an SSO account", async () => {
+    expect(await oidcIdentity(key, [])).toEqual({ tenantId: null, emailVerified: false });
+  });
 });

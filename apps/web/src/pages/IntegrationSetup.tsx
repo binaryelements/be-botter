@@ -4,6 +4,7 @@ import { NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
+import { hidesSetup } from "../lib/company-access";
 import { rpc } from "../lib/rpc";
 
 export function IntegrationSetupPage() {
@@ -20,9 +21,13 @@ export function IntegrationSetupPage() {
     setReady(false);
     setError(false);
     let cancelled = false;
-    void Promise.all([rpc.bots.list(), serverSetup ? rpc.integrationSetup.get() : null])
-      .then(([rows, setup]) => {
+    void Promise.all([rpc.bots.list(), serverSetup ? rpc.integrationSetup.get() : null, rpc.me()])
+      .then(([rows, setup, me]) => {
         if (cancelled) return;
+        if (hidesSetup(me)) {
+          navigate("/app", { replace: true });
+          return;
+        }
         if (serverSetup && !setup?.canConfigure) {
           navigate("/app", { replace: true });
           return;

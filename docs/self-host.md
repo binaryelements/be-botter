@@ -436,7 +436,54 @@ deployment owner can use a private-network URL (company Space owners can add pub
 see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`).
 
 People who sign in through SSO while a company Space is set join that Space only, with no personal
-Space of their own, so their bots are where the company's connections are.
+Space of their own, so their bots are where the company's connections are. This holds until the
+company is marked ready; after that, sign-in follows [Preparing a company](#preparing-a-company).
+
+### Preparing a company
+
+The deployment owner (the superadmin) prepares a company before anyone else signs in. Open `/setup`
+and go through: company name, company model, departments (started from persona templates),
+connections, the owner's email, then **Mark ready**. Only the superadmin sees the wizard.
+
+**Handover.** Once ready, the named owner becomes owner of the company Space on their first SSO
+sign-in. The superadmin and the company's owners invite everyone else in **Settings > People**
+and use the switch there to choose who may sign in: **Invited people only**, or **Anyone in our Microsoft organisation**. The superadmin is
+always admitted. Before the company is marked ready, sign-in behaves as it did.
+
+**Who is admitted** (`packages/auth/src/company-admission.ts`):
+
+- An email counts only when the ID token proves it with `email_verified` or Microsoft's `xms_edov`
+  claim. `OIDC_ALLOW_SIGNUP_BYPASS` does not make an email trusted.
+- An invitation also matches a person from the company's Microsoft tenant, which is recorded at the
+  owner's first sign-in. The Microsoft personal-account tenant is never recorded or matched.
+- Password and email-code sign-in admit only people who already belong to the company, and the
+  superadmin.
+- Everyone else sees **Ask your administrator for an invitation**.
+
+In Entra, add the optional claim `xms_edov` to the ID token (Token configuration). For a customer
+company, register the app to accept accounts in any organisational directory, and have the
+customer's administrator consent once. Each company's site sets `OIDC_ISSUER` to that customer
+tenant's v2.0 issuer (`https://login.microsoftonline.com/<customer-tenant-id>/v2.0`); the `common`
+and `organizations` issuers will not work because the issuer must match discovery exactly. With
+`OIDC_ALLOW_SIGNUP_BYPASS` on, Entra emails are still not trusted for admission unless the
+`xms_edov` claim is configured.
+
+**Routines.** A department's routines run as its head: the earliest head who has signed in. With no
+head signed in they wait. A routine someone switched off stays off when a head signs in.
+
+**What company people see.** They never see model, connector, plugin or MCP setup. The superadmin
+does.
+
+**Reset.** The superadmin can reset a prepared company by typing its name. It first writes a
+database dump and refuses to continue if that fails (see [Backup](#backup)). It removes the people
+in the company Space, their bots in any Space (deleting a person deletes their whole account),
+conversations, runs, memory, boards, artifacts, invitations, and the files and browser sessions on
+the company's computers. It keeps the departments and their bots, which start again as new bots
+owned by the superadmin, and the company model and connections. The company stays ready for the
+next owner, whose first sign-in records the Microsoft tenant again.
+
+**Rolling out to an existing site.** Content made before the wizard stays in the superadmin's
+personal Space. Running the wizard creates a separate company Space; nothing is moved into it.
 
 ### Mobile push notifications
 
@@ -1101,6 +1148,19 @@ The export is plaintext: store it like the database itself. Files are not includ
 This dumps Postgres (`pg_dump`) and archives `data/` into `backups/<stamp>/`. A missing
 `data/` produces an empty archive; database or archive errors fail the backup. Discard the
 output directory of any failed run.
+
+Resetting a company from the setup wizard first writes a dump of the whole database (`pg_dump`
+custom format: schema, every row of every Space, the migration history and the job queue) to
+`DATA_DIR/backups/reset-<time>.dump`, and refuses to reset if that fails. The API takes it as the
+runtime role with the row-security bypass, so the dump does not include roles or files in
+`DATA_DIR`. These dumps are kept for seven days. To undo a reset, stop the API and worker, then
+restore as the database owner (`DATABASE_MIGRATION_URL`):
+
+```bash
+pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_MIGRATION_URL" reset-<time>.dump
+```
+
+Run `pnpm db:migrate` afterwards so the runtime login and its grants are in place again.
 
 ## Public single-VM deployment
 

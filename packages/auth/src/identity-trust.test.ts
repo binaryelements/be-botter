@@ -16,6 +16,7 @@ vi.mock("better-auth/adapters/prisma", async () => {
 vi.mock("@rakazo/db", () => ({
   bootstrapUserSpace: vi.fn(async () => ({ spaceId: "space-1" })),
   recordSecurityEvent: vi.fn(async () => undefined),
+  readCompanySetup: vi.fn(async () => ({ readyAt: null, companySpaceId: null })),
 }));
 
 function fixture({

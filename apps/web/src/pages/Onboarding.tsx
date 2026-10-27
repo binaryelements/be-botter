@@ -40,6 +40,7 @@ import {
   ModelPreflightFeedback,
   modelPreflightTestingLabel,
 } from "../components/ModelConnectionPreflightNotice";
+import { hidesSetup } from "../lib/company-access";
 import { useCopyText } from "../lib/copy-text";
 import type { ModelCatalogEntry } from "../lib/model-auth";
 import { thinkingLevelLabel } from "../lib/model-catalog";
@@ -200,7 +201,7 @@ export function OnboardingPage() {
     ])
       .then(([me, models, integrations]) => {
         // Onboarding creates a bot, which the admin-only switch refuses for this person.
-        if (!me.canManageConnections) {
+        if (!me.canManageConnections || hidesSetup(me)) {
           navigate("/app", { replace: true });
           return;
         }
