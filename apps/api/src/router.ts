@@ -222,6 +222,7 @@ import {
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
+  departmentBotInstructions,
   ensureBoard,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
@@ -958,6 +959,26 @@ export function createRouter(deps: RouterDeps) {
     phoneCallRingSeconds: deps.env?.phoneCallRingSeconds,
   });
   const departmentRepos = createDepartmentRepos(deps.prisma);
+  /** The roster with what the actor may change on each bot. */
+  const listBotsFor = async (actor: Actor, options?: { archived?: boolean }) => {
+    const bots = await repos.listBots(actor, options);
+    const access = await departmentRepos.botEditAccess(
+      actor,
+      bots.map((bot) => bot.id),
+    );
+    return bots.map((bot) => ({ ...bot, editAccess: access.get(bot.id) ?? "none" }));
+  };
+  /** Refuse unless the actor may make this change: `persona` lets a department head through. */
+  const requireBotEdit = async (actor: Actor, botId: string, need: "all" | "persona") => {
+    const access = (await departmentRepos.botEditAccess(actor, [botId])).get(botId) ?? "none";
+    if (access === "all" || (need === "persona" && access === "persona")) return;
+    throw new ORPCError("FORBIDDEN", {
+      message:
+        access === "persona"
+          ? "A department head can change only the bot's instructions"
+          : "Only an admin or a department head can change this bot",
+    });
+  };
   const onboardingDeps = { prisma: deps.prisma, events: deps.events, connectors: deps.connectors };
   const mcpOAuth = deps.mcpOAuth ?? new McpOAuthBroker(deps.prisma, deps.secrets);
   const mcpAwaitsOAuth = async (server: McpServerRow, actor: Actor, oauth: McpOAuthSummary) => {
@@ -1991,7 +2012,7 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     bots: {
-      list: authed.bots.list.handler(async ({ context }) => repos.listBots(context.actor)),
+      list: authed.bots.list.handler(async ({ context }) => listBotsFor(context.actor)),
       setDepartments: authed.bots.setDepartments.handler(({ context, input }) =>
         departmentCall(async () => ({
           departmentIds: await departmentRepos.setBotDepartments(context.actor, input),
@@ -2001,10 +2022,10 @@ export function createRouter(deps: RouterDeps) {
         listBotThreads(deps.prisma, context.actor, input.botId),
       ),
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
-        repos.listBots(context.actor, { archived: true }),
+        listBotsFor(context.actor, { archived: true }),
       ),
       get: authed.bots.get.handler(async ({ context, input }) => {
-        const found = (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId);
+        const found = (await listBotsFor(context.actor)).find((bot) => bot.id === input.botId);
         if (!found) throw new IsolationError();
         return found;
       }),
@@ -2068,6 +2089,17 @@ export function createRouter(deps: RouterDeps) {
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
         const existing = await repos.getBot(context.actor, input.botId);
+        // Pinning and sidebar sections only arrange the sidebar, so anyone with the bot may.
+        const changed = Object.entries(input)
+          .filter(([key, value]) => value !== undefined && !BOT_ARRANGE_FIELDS.has(key))
+          .map(([key]) => key);
+        if (changed.length) {
+          await requireBotEdit(
+            context.actor,
+            input.botId,
+            changed.every((key) => BOT_PERSONA_FIELDS.has(key)) ? "persona" : "all",
+          );
+        }
         if (input.sectionId) {
           const section = await deps.prisma.botSection.findFirst({
             where: {
@@ -2143,13 +2175,14 @@ export function createRouter(deps: RouterDeps) {
           if (!(error instanceof InstructionConflictError)) throw error;
           throw new ORPCError("CONFLICT", { message: error.message });
         });
-        const bots = await repos.listBots(context.actor);
+        const bots = await listBotsFor(context.actor);
         const bot = bots.find((b) => b.id === input.botId);
         if (!bot) throw new IsolationError();
         return bot;
       }),
       restoreInstructions: authed.bots.restoreInstructions.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        await requireBotEdit(context.actor, bot.id, "persona");
         if (!bot.thread) throw new IsolationError();
         try {
           await commitBotUpdate({
@@ -2167,10 +2200,11 @@ export function createRouter(deps: RouterDeps) {
           if (!(error instanceof InstructionConflictError)) throw error;
           throw new ORPCError("CONFLICT", { message: error.message });
         }
-        return (await repos.listBots(context.actor)).find((bot) => bot.id === input.botId)!;
+        return (await listBotsFor(context.actor)).find((bot) => bot.id === input.botId)!;
       }),
       setComputer: authed.bots.setComputer.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        await requireBotEdit(context.actor, bot.id, "all");
         if (!bot.computer) throw new IsolationError();
         const currentMode = bot.computer.scope === "dedicated" ? "dedicated" : "team";
         if (currentMode === input.mode) {
@@ -2236,6 +2270,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       archive: authed.bots.archive.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId, { includeArchived: true });
+        await requireBotEdit(context.actor, bot.id, "all");
         await archiveBot(
           {
             prisma: deps.prisma,
@@ -2252,6 +2287,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       restore: authed.bots.restore.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId, { includeArchived: true });
+        await requireBotEdit(context.actor, bot.id, "all");
         if (!bot.archivedAt) return { ok: true as const };
         try {
           if (bot.computer) {
@@ -2270,6 +2306,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       remove: authed.bots.remove.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId, { includeArchived: true });
+        await requireBotEdit(context.actor, bot.id, "all");
         await destroyBot(
           {
             prisma: deps.prisma,
@@ -2294,6 +2331,7 @@ export function createRouter(deps: RouterDeps) {
       }),
       rotateWebhookSecret: authed.bots.rotateWebhookSecret.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);
+        await requireBotEdit(context.actor, bot.id, "all");
         const plaintext = randomBytes(32).toString("base64url");
         const stored = await deps.secrets.put(plaintext, {
           operationId: "bots.rotateWebhookSecret",
@@ -2340,7 +2378,37 @@ export function createRouter(deps: RouterDeps) {
         departmentRepos.listDepartments(context.actor),
       ),
       create: authed.departments.create.handler(({ context, input }) =>
-        departmentCall(() => departmentRepos.createDepartment(context.actor, input)),
+        departmentCall(async () => {
+          const department = await departmentRepos.createDepartment(context.actor, input);
+          // Each department starts with one bot, its persona taken from the company template.
+          const bot = await repos
+            .createBot(context.actor, {
+              name: `${department.name} Assistant`,
+              title: "",
+              description: "",
+              instructions: departmentBotInstructions(
+                await departmentRepos.botTemplate(context.actor),
+                department.name,
+              ),
+              notifyOnFinish: true,
+            })
+            .catch((error: unknown) => {
+              throw mapSpaceLifecycleError(error);
+            });
+          await departmentRepos.setBotDepartments(context.actor, {
+            botId: bot.id,
+            departmentIds: [department.id],
+          });
+          return { ...department, botIds: [bot.id] };
+        }),
+      ),
+      template: authed.departments.template.handler(async ({ context }) => ({
+        instructions: await departmentRepos.botTemplate(context.actor),
+      })),
+      setTemplate: authed.departments.setTemplate.handler(({ context, input }) =>
+        departmentCall(async () => ({
+          instructions: await departmentRepos.setBotTemplate(context.actor, input.instructions),
+        })),
       ),
       update: authed.departments.update.handler(({ context, input }) =>
         departmentCall(() => departmentRepos.renameDepartment(context.actor, input)),
@@ -8121,6 +8189,9 @@ async function messagingConnectionDto(
 }
 
 /** Department errors with their own status: the UI shows the message as it is. */
+const BOT_ARRANGE_FIELDS = new Set(["botId", "pinned", "sectionId"]);
+const BOT_PERSONA_FIELDS = new Set(["instructions", "expectedInstructions"]);
+
 async function departmentCall<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();

@@ -423,6 +423,17 @@ describe("BotSettings description saves", () => {
 });
 
 describe("instruction settings refresh", () => {
+  it("shows the persona read-only to someone who may not change it", async () => {
+    await act(async () => {
+      root.render(<InstructionSettings bot={bot()} readOnly />);
+    });
+    expect(descriptionField().readOnly).toBe(true);
+    await setDescription("Staff edit");
+    await act(async () => {
+      descriptionField().dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(rpc.bots.update).not.toHaveBeenCalled();
+  });
   it("refreshes a saved field against its latest baseline before the parent catches up", async () => {
     const initial = bot();
     vi.mocked(rpc.bots.update).mockResolvedValueOnce({ ...initial, instructions: "Saved edit" });

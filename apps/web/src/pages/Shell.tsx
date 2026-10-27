@@ -99,6 +99,7 @@ import { CallCard, CallReturnBar } from "../components/call/CallCard";
 import { IncomingCall } from "../components/call/IncomingCall";
 import { lazyOverlay } from "../components/ErrorBoundary";
 import { IconTooltip } from "../components/IconTooltip";
+import { InstructionSettings } from "../components/InstructionSettings";
 import { PasskeyOffer } from "../components/PasskeyOffer";
 import { SidebarFooter } from "../components/SidebarFooter";
 import type { ActivityListFilters } from "../lib/activity-list-filters";
@@ -3031,6 +3032,8 @@ function SpaceShell() {
 
   const { label: userName, initial: initials } = accountDisplay(session.data?.user ?? {}, t`You`);
 
+  // Department bots stay in the admin's hands: heads and staff can't archive or delete them.
+  const canChangeContextBot = (contextBot?.editAccess ?? "all") === "all";
   const botMenuContent = contextChat ? (
     <BotContextMenu
       bot={contextChat}
@@ -3125,18 +3128,26 @@ function SpaceShell() {
         );
         setBotMenu(null);
       }}
-      onArchive={() => {
-        setBotMenu(null);
-        const request = contextBot
-          ? rpc.bots.archive({ botId: contextBot.id })
-          : rpc.groups.archive({ groupId: contextGroup!.id });
-        void request.then(() => refreshBots(true));
-      }}
-      onDelete={() => {
-        if (contextBot) setDeleteTarget(contextBot);
-        else setDeleteGroupTarget(contextGroup!);
-        setBotMenu(null);
-      }}
+      onArchive={
+        canChangeContextBot
+          ? () => {
+              setBotMenu(null);
+              const request = contextBot
+                ? rpc.bots.archive({ botId: contextBot.id })
+                : rpc.groups.archive({ groupId: contextGroup!.id });
+              void request.then(() => refreshBots(true));
+            }
+          : undefined
+      }
+      onDelete={
+        canChangeContextBot
+          ? () => {
+              if (contextBot) setDeleteTarget(contextBot);
+              else setDeleteGroupTarget(contextGroup!);
+              setBotMenu(null);
+            }
+          : undefined
+      }
     />
   ) : null;
   const shell = (
@@ -3784,7 +3795,15 @@ function SpaceShell() {
                 onCreate={(input) => createBot(input)}
               />
             ) : null}
-            {panel === "settings" && active ? (
+            {panel === "settings" && active && (active.editAccess ?? "all") !== "all" ? (
+              <div data-testid="bot-settings">
+                <InstructionSettings
+                  key={active.id}
+                  bot={active}
+                  readOnly={active.editAccess === "none"}
+                />
+              </div>
+            ) : panel === "settings" && active ? (
               <BotSettings
                 key={active.id}
                 bot={active}

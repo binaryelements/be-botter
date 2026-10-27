@@ -51,8 +51,8 @@ export function BotContextMenu({
   /** Omitted when the person may not add this copy. */
   onDuplicate?: () => void;
   onClear: () => void;
-  onArchive: () => void;
-  onDelete: () => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
 }) {
   const { t } = useLingui();
 
@@ -116,14 +116,18 @@ export function BotContextMenu({
         <Eraser />
         {t`Clear conversation`}
       </ContextMenuItem>
-      <ContextMenuItem onClick={onArchive}>
-        <Archive />
-        {t`Archive`}
-      </ContextMenuItem>
-      <ContextMenuItem variant="destructive" onClick={onDelete}>
-        <Trash2 />
-        {t`Delete`}
-      </ContextMenuItem>
+      {onArchive ? (
+        <ContextMenuItem onClick={onArchive}>
+          <Archive />
+          {t`Archive`}
+        </ContextMenuItem>
+      ) : null}
+      {onDelete ? (
+        <ContextMenuItem variant="destructive" onClick={onDelete}>
+          <Trash2 />
+          {t`Delete`}
+        </ContextMenuItem>
+      ) : null}
     </ContextMenuContent>
   );
 }

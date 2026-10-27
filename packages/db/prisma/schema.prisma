@@ -231,6 +231,8 @@ model Space {
   deletingAt                  DateTime?
   deletionClaimId             String?
   writeApproval               String                       @default("rules")
+  /// Persona each new department's bot starts from; null uses the built-in starter.
+  departmentBotInstructions   String?
   memberships                 SpaceMember[]
   bots                        Bot[]
   botSections                 BotSection[]

@@ -29,6 +29,18 @@ export class UnknownAccountError extends Error {
 
 export type DepartmentRole = "member" | "head";
 
+/** What the actor may change on a bot: everything, only its persona, or nothing. */
+export type BotEditAccess = "all" | "persona" | "none";
+
+/** Starter persona for a department's bot until an owner sets their own. */
+export const DEPARTMENT_BOT_INSTRUCTIONS =
+  "You are the {department} assistant. Help the people in {department} with their questions and day-to-day work. Be concise and accurate. When you are not sure, say so and suggest who in {department} could help.";
+
+/** The persona a new department's bot starts with; `{department}` becomes its name. */
+export function departmentBotInstructions(template: string | null, department: string): string {
+  return (template ?? DEPARTMENT_BOT_INSTRUCTIONS).replaceAll("{department}", department);
+}
+
 export interface DepartmentUserView {
   userId: string;
   email: string;
@@ -294,6 +306,51 @@ export function createDepartmentRepos(prisma: PrismaClient) {
         orderBy: { createdAt: "asc" },
       });
       return links.map((link) => link.departmentId);
+    },
+
+    /** The persona template new department bots start from. */
+    async botTemplate(actor: Actor): Promise<string> {
+      const space = await prisma.space.findUnique({
+        where: { id: actor.spaceId },
+        select: { departmentBotInstructions: true },
+      });
+      return space?.departmentBotInstructions ?? DEPARTMENT_BOT_INSTRUCTIONS;
+    },
+
+    /** Replace the persona template. Space owners only; existing bots keep their persona. */
+    async setBotTemplate(actor: Actor, instructions: string): Promise<string> {
+      requireOwner(actor);
+      await prisma.space.update({
+        where: { id: actor.spaceId },
+        data: { departmentBotInstructions: instructions },
+      });
+      return instructions;
+    },
+
+    /**
+     * What the actor may change on each bot: space owners and a bot's creator everything,
+     * heads of a department that holds it only its persona, everyone else nothing.
+     */
+    async botEditAccess(actor: Actor, botIds: string[]): Promise<Map<string, BotEditAccess>> {
+      if (isSpaceOwner(actor)) return new Map(botIds.map((id) => [id, "all"]));
+      const bots = await prisma.bot.findMany({
+        where: { id: { in: botIds }, spaceId: actor.spaceId },
+        select: {
+          id: true,
+          userId: true,
+          departments: {
+            where: { department: { users: { some: { userId: actor.userId, role: "head" } } } },
+            select: { departmentId: true },
+            take: 1,
+          },
+        },
+      });
+      return new Map(
+        bots.map((bot) => [
+          bot.id,
+          bot.userId === actor.userId ? "all" : bot.departments.length ? "persona" : "none",
+        ]),
+      );
     },
 
     /** Department ids per bot, for bots in the active space. */

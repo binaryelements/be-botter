@@ -7,7 +7,8 @@ import { useId, useState } from "react";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 
-export function InstructionSettings({ bot }: { bot: Bot }) {
+/** `readOnly` shows the persona to people who may use the bot but not change it. */
+export function InstructionSettings({ bot, readOnly = false }: { bot: Bot; readOnly?: boolean }) {
   const id = useId();
   const [previousBot, setPreviousBot] = useState(bot);
   const [current, setCurrent] = useState(bot);
@@ -49,16 +50,17 @@ export function InstructionSettings({ bot }: { bot: Bot }) {
           value={instructions}
           maxLength={BOT_INSTRUCTIONS_MAX_LENGTH}
           disabled={pending}
+          readOnly={readOnly}
           onChange={(event) => setInstructions(event.target.value)}
           onBlur={() => {
-            if (!conflict && instructions !== current.instructions)
+            if (!readOnly && !conflict && instructions !== current.instructions)
               void save(() =>
                 rpc.bots.update({ botId: bot.id, instructions, expectedInstructions: baseline }),
               );
           }}
         />
       </label>
-      {current.instructionHistory?.length ? (
+      {!readOnly && current.instructionHistory?.length ? (
         <Disclosure summary={<Trans>Instruction history</Trans>} summaryClassName="text-sm">
           {current.instructionHistory.map((version) => (
             <div key={version.id} className="mt-2 text-sm">
