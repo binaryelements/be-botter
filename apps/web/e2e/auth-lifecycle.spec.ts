@@ -66,7 +66,9 @@ test("restricted signup waits for mailbox verification", async ({ page }, testIn
   await expect(page.getByRole("heading", { name: "Sign in to BE Botter" })).toBeVisible();
 });
 
-test("signed-out welcome fits a narrow phone and offers sign in", async ({ page }, testInfo) => {
+test("signed-out visitors land on sign in, which fits a narrow phone", async ({
+  page,
+}, testInfo) => {
   await page.route("**/api/auth/get-session**", (route) => route.fulfill({ json: null }));
   await page.route("**/api/auth/capabilities", (route) =>
     route.fulfill({
@@ -75,14 +77,10 @@ test("signed-out welcome fits a narrow phone and offers sign in", async ({ page 
   );
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
-  const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { name: "BE Botter", level: 1 })).toBeVisible();
-  await expect(main.getByRole("button", { name: "Sign up", exact: true })).toBeVisible();
-  await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 320);
-  await captureScreenshot(page, testInfo, "logged-out-welcome-phone");
-  await main.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByRole("heading", { name: "Sign in to BE Botter" })).toBeVisible();
+  await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 320);
+  await captureScreenshot(page, testInfo, "logged-out-sign-in-phone");
 });
 
 test("logout protects bot deep links and sign-in restores the session", async ({
@@ -158,13 +156,9 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
   expect(pageErrors).toEqual([]);
   await page.goto("/");
-  await expect(page.locator('[data-rakazo-surface="welcome"]')).toBeVisible();
-  await expect(page.getByText(/Your team of always-on agents/)).toBeVisible();
-  await page.getByRole("button", { name: /Sign up/ }).click();
-  await expect(page).toHaveURL(/\/sign-up$/);
-  await expect(page.getByRole("heading", { name: "Create your BE Botter account" })).toBeVisible();
-  await page.goto("/");
-  await captureScreenshot(page, testInfo, "37-logged-out-welcome");
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByRole("heading", { name: "Sign in to BE Botter" })).toBeVisible();
+  await captureScreenshot(page, testInfo, "37-logged-out-sign-in");
 
   await page.goto(protectedBotPath);
   await page.waitForURL((url) => url.pathname === "/sign-in");
