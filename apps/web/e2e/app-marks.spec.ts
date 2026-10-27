@@ -6,11 +6,11 @@ import { completeOnboarding, signup } from "./helpers";
 const apps = ["gmail", "notion", "github"];
 test.use({ deviceScaleFactor: 3 });
 
-for (const theme of ["light", "dark"]) {
+// Web is dark only (BE Hub look).
+for (const theme of ["dark"]) {
   test(`connected app marks share a plate and separating ring in ${theme}`, async ({
     page,
   }, testInfo) => {
-    await page.addInitScript((theme) => localStorage.setItem("rakazo.uiAppearance", theme), theme);
     for (const app of apps) {
       await page.route(`https://logos.composio.dev/api/${app}`, (route) =>
         route.fulfill({

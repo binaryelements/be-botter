@@ -2047,10 +2047,6 @@ msgstr "תמיכת לקוחות"
 msgid "Customize bot avatar"
 msgstr "התאמת תמונת הבוט"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Dark"
-msgstr "כהה"
-
 #: src/lib/billing.ts
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
@@ -2908,10 +2904,6 @@ msgstr "מאוחר יותר"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "יציאה"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Light"
-msgstr "בהיר"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -4861,10 +4853,6 @@ msgstr "החלפת בוט"
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Switching…"
 msgstr "מחליף…"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "מערכת"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"

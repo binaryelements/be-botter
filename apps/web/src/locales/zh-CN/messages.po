@@ -2047,10 +2047,6 @@ msgstr "客户支持"
 msgid "Customize bot avatar"
 msgstr "自定义机器人头像"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Dark"
-msgstr "深色"
-
 #: src/lib/billing.ts
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
@@ -2908,10 +2904,6 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "退出"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Light"
-msgstr "浅色"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -4861,10 +4853,6 @@ msgstr ""
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Switching…"
 msgstr "正在切换…"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "系统"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"

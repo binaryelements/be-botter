@@ -2047,10 +2047,6 @@ msgstr ""
 msgid "Customize bot avatar"
 msgstr "Bot avatarını özelleştir"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Dark"
-msgstr "Koyu"
-
 #: src/lib/billing.ts
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
@@ -2908,10 +2904,6 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr ""
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Light"
-msgstr "Açık"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -4861,10 +4853,6 @@ msgstr ""
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Switching…"
 msgstr "Geçiliyor…"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "Sistem"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"

@@ -11,7 +11,7 @@ import { clientUpdates } from "./lib/client-update";
 import { reportCaughtReactError } from "./lib/monitoring";
 import { markAfterPaint, markOnce } from "./lib/performance";
 import { installPreloadRecovery } from "./lib/preload-recovery";
-import { applyUiAppearance, watchSystemAppearance } from "./lib/ui-appearance";
+import { applyUiAppearance } from "./lib/ui-appearance";
 import { resolveUiLocale } from "./lib/ui-locale";
 import "./styles.css";
 
@@ -41,15 +41,9 @@ function ClientUpdateOnNavigate() {
   return null;
 }
 
-function AppearanceSync() {
-  useEffect(() => watchSystemAppearance(), []);
-  return null;
-}
-
 createRoot(document.getElementById("root")!, { onCaughtError: reportCaughtReactError }).render(
   <StrictMode>
     <PerformanceProbe />
-    <AppearanceSync />
     <I18nBootstrap>
       {/* Router state updates must not be transitions: under sustained urgent
           updates (SSE churn while a run streams) a pending navigation is

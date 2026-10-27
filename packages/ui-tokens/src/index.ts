@@ -7,7 +7,8 @@ export type ResolvedAppearance = "light" | "dark";
 export const UI_APPEARANCE_STORAGE_KEY = "rakazo.uiAppearance";
 
 /**
- * Semantic palette shared by web, Electron, and Expo. Names follow the shadcn
+ * Semantic palette shared by web, Electron, and Expo. Dark follows BE Hub and BE Voice
+ * (hub.binaryelements.com): near-black panels, cyan accent. Names follow the shadcn
  * convention so the same slot means the same thing on every surface: a `border`
  * is always a border and never a fill.
  */
@@ -55,7 +56,7 @@ export type ColorTokens = {
   success: string;
   warning: string;
   statusWorking: string;
-  /** Unread dot. The one blue in the inbox, in both themes. */
+  /** Unread dot. BE Hub cyan in dark; blue in light. */
   unread: string;
   overlay: string;
   scrollbar: string;
@@ -63,46 +64,46 @@ export type ColorTokens = {
 };
 
 export const darkTokens = {
-  background: "#141414",
-  dialog: "#1E1E1E",
-  foreground: "#FFFFFF",
-  card: "#202020",
-  cardForeground: "#FFFFFF",
-  popover: "#202020",
-  popoverForeground: "#FFFFFF",
-  glassFill: "#2C2C2E",
-  glassStroke: "#FCFCFC26",
-  primary: "#FFFFFF",
-  primaryForeground: "#000000",
-  secondary: "#7676803D",
-  secondaryForeground: "#FFFFFF",
-  chatUser: "#5C5C5C",
+  background: "#0A0D12",
+  dialog: "#10151C",
+  foreground: "#D7DDE5",
+  card: "#0D1117",
+  cardForeground: "#D7DDE5",
+  popover: "#10151C",
+  popoverForeground: "#D7DDE5",
+  glassFill: "#10151C",
+  glassStroke: "#2A333F",
+  primary: "#5FD3F0",
+  primaryForeground: "#06141A",
+  secondary: "#171D26",
+  secondaryForeground: "#EEF2F6",
+  chatUser: "#10303A",
   chatUserForeground: "#FFFFFF",
-  muted: "#202020",
-  mutedForeground: "#EBEBF599",
-  faintForeground: "#EBEBF573",
-  accent: "#78788052",
-  accentForeground: "#FFFFFF",
-  destructive: "#FF9592",
+  muted: "#10151C",
+  mutedForeground: "#A9B3BF",
+  faintForeground: "#7D8794FF",
+  accent: "#1B222B",
+  accentForeground: "#EEF2F6",
+  destructive: "#FF6B6B",
   destructiveFill: "#E5484D",
   destructiveForeground: "#FFFFFF",
-  border: "#FCFCFC14",
-  input: "#54545899",
-  ring: "#3B82F6",
-  sidebar: "#1E1E1E",
-  sidebarForeground: "#FFFFFF",
-  sidebarBorder: "#FCFCFC14",
-  sidebarAccent: "#2B2B2E",
-  sidebarAccentForeground: "#FFFFFF",
-  link: "#459FFE",
+  border: "#1B222B",
+  input: "#2A333F",
+  ring: "#5FD3F0",
+  sidebar: "#0D1117",
+  sidebarForeground: "#D7DDE5",
+  sidebarBorder: "#1B222B",
+  sidebarAccent: "#0F1D24",
+  sidebarAccentForeground: "#EEF2F6",
+  link: "#8FD0FF",
   faviconPlate: "#FFFFFF",
-  success: "#3FA266",
-  warning: "#DB941E",
-  statusWorking: "#459FFE",
-  unread: "#006CEB",
-  overlay: "rgba(0, 0, 0, 0.28)",
-  scrollbar: "#1E2026",
-  scrollbarHover: "#2E313A",
+  success: "#43D17A",
+  warning: "#F5B942",
+  statusWorking: "#8FD0FF",
+  unread: "#5FD3F0",
+  overlay: "rgba(0, 0, 0, 0.5)",
+  scrollbar: "#1B222B",
+  scrollbarHover: "#2A333F",
 } as const satisfies ColorTokens;
 
 export const lightTokens = {
@@ -151,7 +152,8 @@ export const lightTokens = {
 /** Dark palette. Prefer `tokensForAppearance` when theme-aware. */
 export const tokens = darkTokens;
 
-export const RADIUS = "0.75rem";
+/** BE Hub corners: 6px. */
+export const RADIUS = "0.375rem";
 
 export const fontWeight = { regular: "400", medium: "500", semibold: "600" } as const;
 

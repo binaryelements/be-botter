@@ -45,59 +45,25 @@ async function captureSidebarSearchSelected(
   await captureScreenshot(page, testInfo, name);
 }
 
-test("account settings appearance control switches to light mode", async ({ page }, testInfo) => {
+test("web is dark only in the BE Hub look", async ({ page }, testInfo) => {
+  await page.emulateMedia({ colorScheme: "light" });
   const stamp = Date.now();
   await signup(page, `ui-appearance-${stamp}@rakazo.test`, "password12", "Appearance QA");
   await completeOnboarding(page, testInfo);
+
+  // BE Hub palette and IBM Plex, even when the system prefers light.
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(10, 13, 18)");
+  await expect(page.locator("body")).toHaveCSS("font-family", /IBM Plex Sans/);
+  await captureScreenshot(page, testInfo, "hub-look-shell");
+  await captureSidebarSearchSelected(page, testInfo, "sidebar-search-selected-dark");
 
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
-  await expect(settings.getByRole("heading", { name: "Appearance", exact: true })).toBeVisible();
-
-  const picker = settings.getByTestId("ui-appearance-select");
-  await expect(picker).toBeVisible();
-  await captureScreenshot(page, testInfo, "ui-appearance-control");
-
-  await settings.getByTestId("ui-appearance-dark").click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await captureScreenshot(page, testInfo, "ui-appearance-dark-settings");
-
-  await settings.getByTestId("ui-appearance-light").click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(settings.getByTestId("ui-appearance-light")).toHaveAttribute("aria-pressed", "true");
-  await captureScreenshot(page, testInfo, "ui-appearance-light-settings");
-
-  await settings.getByRole("button", { name: "Close user settings" }).click();
-  await expect(settings).toBeHidden();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await captureScreenshot(page, testInfo, "ui-appearance-light-shell");
-  await captureSidebarSearchSelected(page, testInfo, "sidebar-search-selected-light");
-
-  const composer = page.getByRole("combobox", { name: /^Message/ });
-  await composer.fill("Please review `shared/PROJECT_CHECKPOINT_WRAPUP.md`.");
-  await composer.press("Enter");
-  const assistantReply = page
-    .getByTestId("transcript")
-    .locator("[data-message-id]")
-    .filter({ hasText: "done. i handled:" });
-  const inlinePath = assistantReply
-    .locator("code")
-    .filter({ hasText: "shared/PROJECT_CHECKPOINT_WRAPUP.md" });
-  await expect(inlinePath).toBeVisible({ timeout: 30_000 });
-  await expect(inlinePath).toHaveCSS("color", "rgb(0, 0, 0)");
-  await captureScreenshot(page, testInfo, "inline-code-light");
-
-  await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(settings).toBeVisible();
-  await settings.getByTestId("ui-appearance-dark").click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await settings.getByRole("button", { name: "Close user settings" }).click();
-  await expect(settings).toBeHidden();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await captureSidebarSearchSelected(page, testInfo, "sidebar-search-selected-dark");
+  await expect(settings.getByTestId("ui-appearance-select")).toHaveCount(0);
+  await captureScreenshot(page, testInfo, "hub-look-settings");
 });
 
 test("sidebar footer opens integrations and the account menu", async ({ page }, testInfo) => {
@@ -429,38 +395,33 @@ test("sidebar list fades above the transparent footer and keeps the last row rea
   const list = sidebar.locator(".rk-scroll").first();
   const lastRow = list.getByRole("button", { name: /^Demo chat 19/ }).first();
   await expect(lastRow).toHaveCount(1);
-  for (const theme of ["light", "dark"]) {
-    await page.evaluate((theme) => localStorage.setItem("rakazo.uiAppearance", theme), theme);
-    await page.reload();
-    await expect(lastRow).toHaveCount(1);
-    await expect(footer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await expect(footer).toHaveCSS("background-image", "none");
-    await list.evaluate((el) => (el.scrollTop = (el.scrollHeight - el.clientHeight) / 2));
-    await expect
-      .poll(() =>
-        list.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--scroll-fade-b"))),
-      )
-      .toBeGreaterThan(20);
-    const listBox = await list.boundingBox();
-    const avatarBox = await page.getByTestId("user-menu-trigger").boundingBox();
-    expect(listBox!.y + listBox!.height).toBeLessThan(avatarBox!.y);
-    // Disabling animations fast-forwards the scroll timeline and removes its fade.
-    const screenshotPath = testInfo.outputPath(`sidebar-footer-scrolled-${theme}.png`);
-    await page.screenshot({ path: screenshotPath, animations: "allow" });
-    await testInfo.attach(`sidebar-footer-scrolled-${theme}`, {
-      contentType: "image/png",
-      path: screenshotPath,
-    });
-    await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
-    await expect
-      .poll(() =>
-        list.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--scroll-fade-b"))),
-      )
-      .toBe(0);
-    await lastRow.focus();
-    await expect(lastRow).toBeFocused();
-    await expect(lastRow).toBeInViewport();
-    const rowBox = await lastRow.boundingBox();
-    expect(rowBox!.y + rowBox!.height).toBeLessThan(avatarBox!.y);
-  }
+  await expect(footer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(footer).toHaveCSS("background-image", "none");
+  await list.evaluate((el) => (el.scrollTop = (el.scrollHeight - el.clientHeight) / 2));
+  await expect
+    .poll(() =>
+      list.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--scroll-fade-b"))),
+    )
+    .toBeGreaterThan(20);
+  const listBox = await list.boundingBox();
+  const avatarBox = await page.getByTestId("user-menu-trigger").boundingBox();
+  expect(listBox!.y + listBox!.height).toBeLessThan(avatarBox!.y);
+  // Disabling animations fast-forwards the scroll timeline and removes its fade.
+  const screenshotPath = testInfo.outputPath("sidebar-footer-scrolled.png");
+  await page.screenshot({ path: screenshotPath, animations: "allow" });
+  await testInfo.attach("sidebar-footer-scrolled", {
+    contentType: "image/png",
+    path: screenshotPath,
+  });
+  await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
+  await expect
+    .poll(() =>
+      list.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue("--scroll-fade-b"))),
+    )
+    .toBe(0);
+  await lastRow.focus();
+  await expect(lastRow).toBeFocused();
+  await expect(lastRow).toBeInViewport();
+  const rowBox = await lastRow.boundingBox();
+  expect(rowBox!.y + rowBox!.height).toBeLessThan(avatarBox!.y);
 });

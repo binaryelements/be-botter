@@ -2047,10 +2047,6 @@ msgstr "Atención al cliente"
 msgid "Customize bot avatar"
 msgstr "Personalizar avatar del bot"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Dark"
-msgstr "Oscuro"
-
 #: src/lib/billing.ts
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
@@ -2908,10 +2904,6 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "Salir"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Light"
-msgstr "Claro"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -4861,10 +4853,6 @@ msgstr ""
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Switching…"
 msgstr "Cambiando…"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "Sistema"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"

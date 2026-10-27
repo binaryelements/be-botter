@@ -2047,10 +2047,6 @@ msgstr "Klantenservice"
 msgid "Customize bot avatar"
 msgstr "Botavatar aanpassen"
 
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Dark"
-msgstr "Donker"
-
 #: src/lib/billing.ts
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
@@ -2908,10 +2904,6 @@ msgstr "Later"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "Verlaten"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "Light"
-msgstr "Licht"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -4861,10 +4853,6 @@ msgstr "Van bot wisselen"
 #: src/pages/model-settings/connection-controls.tsx
 msgid "Switching…"
 msgstr "Bezig met wisselen…"
-
-#: src/pages/AccountSettingsOverlay.tsx
-msgid "System"
-msgstr "Systeem"
 
 #: src/pages/shell/computer-overlay.tsx
 msgid "Take control"
