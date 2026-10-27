@@ -62,8 +62,8 @@ const staff: BotThread = {
   unread: false,
 };
 
-function Harness({ botId }: { botId: string }) {
-  const { threads, thread, scope, choose } = useBotThreads(botId);
+function Harness({ botId, channel }: { botId: string; channel?: string }) {
+  const { threads, thread, scope, choose } = useBotThreads(botId, channel);
   return (
     <>
       <ThreadSwitch threads={threads} value={thread?.threadId} onChange={choose} />
@@ -128,6 +128,18 @@ it("targets a supervised person's thread by userId and remembers the choice per 
   rpc.bots.threads.mockResolvedValue([own, it_, staff]);
   await act(async () => root.render(<Harness botId="bot-1" />));
   expect(target()).toEqual({ botId: "bot-1", userId: "user-staff" });
+});
+
+it("targets a sidebar channel link before the bot's threads have loaded", async () => {
+  let resolve: (list: BotThread[]) => void = () => undefined;
+  rpc.bots.threads.mockReturnValue(new Promise<BotThread[]>((done) => (resolve = done)));
+  await act(async () => root.render(<Harness botId="bot-1" channel="dept-it" />));
+  // A message sent now must reach the channel the link opened, not the private thread.
+  expect(target()).toEqual({ botId: "bot-1", departmentId: "dept-it" });
+
+  await act(async () => resolve([own, it_]));
+  expect(target()).toEqual({ botId: "bot-1", departmentId: "dept-it" });
+  expect(container.querySelector('[data-testid="thread-channel"]')?.textContent).toBe("IT");
 });
 
 const channel = "dept-it";

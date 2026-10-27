@@ -44,18 +44,23 @@ export function useBotThreads(
   // The remembered choice stands until the fresh list arrives, so a bot switch does not
   // subscribe to the private thread first and the channel a moment later.
   const remembered = botId ? chosen[botId] : undefined;
+  const linked = channel ? threads.find((entry) => entry.departmentId === channel) : undefined;
   const thread = threads.length
-    ? (threads.find((entry) => entry.threadId === remembered?.threadId) ?? threads[0])
+    ? (threads.find((entry) => entry.threadId === remembered?.threadId) ?? linked ?? threads[0])
     : remembered;
   const own = threads.length ? thread === threads[0] : thread?.kind === "private" && !thread.name;
+  // A channel link targets its channel from the first render: a message typed before the
+  // thread list arrives must not land in the private thread.
   const scope: ThreadScope =
-    !thread || own
-      ? {}
-      : thread.departmentId
-        ? { departmentId: thread.departmentId }
-        : thread.userId
-          ? { userId: thread.userId }
-          : {};
+    !threads.length && channel
+      ? { departmentId: channel }
+      : !thread || own
+        ? {}
+        : thread.departmentId
+          ? { departmentId: thread.departmentId }
+          : thread.userId
+            ? { userId: thread.userId }
+            : {};
   return {
     threads,
     thread,
