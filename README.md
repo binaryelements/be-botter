@@ -271,6 +271,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development workflow and test m
 
 ## Documentation
 
+- [BE Botter fork: what we take from upstream](./docs/be-fork.md)
 - [Self-hosting](./docs/self-host.md)
 - [Self-host secrets](./docs/self-host-secrets.md)
 - [Computer runtime and isolation](./docs/computer-runtime.md)
