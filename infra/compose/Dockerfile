@@ -30,7 +30,13 @@ COPY --chmod=755 packages/ui-tokens/package.json packages/ui-tokens/
 COPY --chmod=755 packages/ui-web/package.json packages/ui-web/
 COPY --chmod=755 infra/sandboxes/supervisor/package.json infra/sandboxes/supervisor/
 COPY --chmod=755 infra/updater/package.json infra/updater/
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --store-dir=/pnpm/store
+# The image runs only the server side: the API, worker, web and supervisor, plus the root
+# build tools. Mobile, desktop, the marketing site and the test kit are left out, and only
+# this machine's platform binaries are fetched (the repo installs x64 and arm64 for dev).
+RUN node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json"));p.pnpm.supportedArchitectures={os:["current"],cpu:["current"],libc:["current"]};fs.writeFileSync("package.json",JSON.stringify(p,null,2))'
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --store-dir=/pnpm/store \
+  --filter=. --filter="@rakazo/api..." --filter="@rakazo/worker..." --filter="@rakazo/web..." \
+  --filter="@rakazo/sandbox-supervisor..."
 # Normalize modes: a restrictive host umask (e.g. 077 on hardened hosts) would otherwise
 # leave the copied tree unreadable to USER node at runtime.
 COPY --chmod=755 . .
