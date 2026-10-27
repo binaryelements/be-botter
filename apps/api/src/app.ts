@@ -95,6 +95,7 @@ import {
   createSecurityEventPruner,
   createThreadEvents,
   describeRowSecurity,
+  ensureCompanySsoServers,
   IsolationError,
   installSecurityEventStore,
   parsePositiveInteger,
@@ -463,6 +464,9 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       jobs,
       accessToken: env.expoAccessToken,
     });
+  await ensureCompanySsoServers(prisma, env.companySsoMcpServers).catch((error) =>
+    getLogger().error("company sso connections setup failed", error),
+  );
   const auth = createAuth(prisma, {
     analytics,
     passwordAuth: env.passwordAuth,
@@ -485,7 +489,13 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
     onEmailError: (error) => getLogger().error("transactional email delivery failed", error),
     extraOrigins: MOBILE_AUTH_ORIGINS,
     androidAppCertFingerprints: env.passkeyAndroidCertFingerprints,
-    onSsoToken: (userId, token) => saveSsoToken({ prisma, secrets }, userId, token),
+    onSsoToken: async (userId, token) => {
+      await saveSsoToken({ prisma, secrets }, userId, token);
+      // The first sign-in creates the company space, so its connections are set up here too.
+      await runAsSystem("company sso connections", () =>
+        ensureCompanySsoServers(prisma, env.companySsoMcpServers),
+      ).catch((error) => getLogger().error("company sso connections setup failed", error));
+    },
     beforeDeleteUser: async (userId) => {
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);

@@ -399,7 +399,7 @@ services:
       - "3000"
       - --org-mode
       - --allowed-scopes
-      - "User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send"
+      - "User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send Chat.ReadWrite User.Read.All Presence.Read Presence.Read.All Mail.Read.Shared Mail.ReadWrite.Shared Mail.Send.Shared Calendars.Read.Shared OnlineMeetings.Read OnlineMeetings.ReadWrite OnlineMeetingTranscript.Read.All Place.Read.All Notes.Read Notes.Create Notes.ReadWrite Group.Read.All GroupMember.Read.All Sites.ReadWrite.All"
     restart: unless-stopped
     networks:
       - app
@@ -409,20 +409,34 @@ Then, on the API, ask for the same Graph scopes at sign-in (`openid email profil
 added; `offline_access` lets the API renew tokens):
 
 ```env
-OIDC_SCOPES="offline_access User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send"
+OIDC_SCOPES="offline_access User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send Chat.ReadWrite User.Read.All Presence.Read Presence.Read.All Mail.Read.Shared Mail.ReadWrite.Shared Mail.Send.Shared Calendars.Read.Shared OnlineMeetings.Read OnlineMeetings.ReadWrite OnlineMeetingTranscript.Read.All Place.Read.All Notes.Read Notes.Create Notes.ReadWrite Group.Read.All GroupMember.Read.All Sites.ReadWrite.All"
 ```
 
 In Entra, add the same scopes (without `offline_access`) as Microsoft Graph delegated permissions
 on the sign-in app registration, and grant admin consent once. Passing them as `--allowed-scopes`
 keeps the tool list in line with what the token can do. The Teams scopes let bots list chats, teams and
 channels, read their messages and send or reply; every Teams tool needs `--org-mode`. Channel
-management, team membership and tabs are left out of this list on purpose.
+management, team membership and tabs are left out of this list on purpose. The rest of the list
+adds the company directory and presence, shared mailboxes the person can already open, meeting
+links, shared calendars, rooms and transcripts, OneNote, Microsoft 365 groups and SharePoint lists;
+several of these need admin consent.
 
-Redeploy, sign in again, then, as the deployment owner, add an MCP server with URL
+To have the server set up for everyone, name it on the API:
+
+```env
+OIDC_MCP_SERVERS="Microsoft 365=http://ms365:3000/mcp"
+```
+
+At start-up and on each SSO sign-in the API adds every listed server that is missing from the
+company Space, owned by the deployment owner, shared with the whole company and signed in as each
+person. A server already at that URL, however it was named or edited, is left alone, and nothing is
+ever removed. Without the variable, the deployment owner adds it by hand: an MCP server with URL
 `http://ms365:3000/mcp`, **Share with the company** on, **Sign in as** **Each person**. Only the
 deployment owner can use a private-network URL (company Space owners can add public HTTPS servers;
-see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`). Teams and shared
-mailboxes are not covered by these scopes.
+see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`).
+
+People who sign in through SSO while a company Space is set join that Space only, with no personal
+Space of their own, so their bots are where the company's connections are.
 
 ### Mobile push notifications
 

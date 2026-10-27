@@ -30,6 +30,8 @@ export interface AppEnv {
   /** Opt-in Have I Been Pwned check for new passwords. Default off: it calls an outside service. */
   breachedPasswordCheck?: boolean;
   oidc?: OidcConfig;
+  /** Company connections each person signs into with their own SSO token, set up automatically. */
+  companySsoMcpServers: { name: string; endpoint: string }[];
   nodeEnv: string;
   desktopStackToken?: string;
   databaseUrl: string;
@@ -146,6 +148,26 @@ export interface AppEnv {
   imageTag: string | undefined;
 }
 
+/** `OIDC_MCP_SERVERS`: comma-separated `Name=http(s) URL` pairs. */
+function parseSsoMcpServers(value: string | undefined, sso: boolean) {
+  if (!value) return [];
+  if (!sso) throw new Error("OIDC_MCP_SERVERS needs OIDC sign-in configured");
+  return value.split(",").map((entry) => {
+    const at = entry.indexOf("=");
+    const name = entry.slice(0, at).trim();
+    const endpoint = entry.slice(at + 1).trim();
+    let valid = at > 0 && name.length > 0;
+    try {
+      valid &&= ["http:", "https:"].includes(new URL(endpoint).protocol);
+    } catch {
+      valid = false;
+    }
+    if (!valid)
+      throw new Error(`OIDC_MCP_SERVERS entries must be Name=http(s) URL: ${entry.trim()}`);
+    return { name, endpoint };
+  });
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   secretStoreOptionsFromEnv(source);
   const issuer = optional(source.OIDC_ISSUER);
@@ -191,6 +213,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
           allowSignupBypass: source.OIDC_ALLOW_SIGNUP_BYPASS === "true",
         }
       : undefined;
+  const companySsoMcpServers = parseSsoMcpServers(optional(source.OIDC_MCP_SERVERS), Boolean(oidc));
   const authSecret = resolveAuthSecret(source);
   const sandboxProvider = resolveSandboxProvider(source);
   const cloudAgentProvider = resolveCloudAgentProvider(source);
@@ -201,6 +224,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     passwordAuth,
     breachedPasswordCheck: source.AUTH_BREACHED_PASSWORD_CHECK_ENABLED === "true",
     oidc,
+    companySsoMcpServers,
     nodeEnv: source.NODE_ENV ?? "",
     databaseUrl: required(source, "DATABASE_URL"),
     realtimeDatabaseUrl: source.REALTIME_DATABASE_URL ?? required(source, "DATABASE_URL"),
