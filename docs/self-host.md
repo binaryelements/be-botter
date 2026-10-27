@@ -399,7 +399,7 @@ services:
       - "3000"
       - --org-mode
       - --allowed-scopes
-      - "User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All"
+      - "User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send"
     restart: unless-stopped
     networks:
       - app
@@ -409,12 +409,14 @@ Then, on the API, ask for the same Graph scopes at sign-in (`openid email profil
 added; `offline_access` lets the API renew tokens):
 
 ```env
-OIDC_SCOPES="offline_access User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All"
+OIDC_SCOPES="offline_access User.Read People.Read MailboxSettings.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite Contacts.ReadWrite Tasks.ReadWrite Files.ReadWrite Sites.Read.All Chat.ReadBasic ChatMessage.Read ChatMessage.Send Chat.Create Team.ReadBasic.All Channel.ReadBasic.All ChannelMessage.Read.All ChannelMessage.Send"
 ```
 
 In Entra, add the same scopes (without `offline_access`) as Microsoft Graph delegated permissions
 on the sign-in app registration, and grant admin consent once. Passing them as `--allowed-scopes`
-keeps the tool list in line with what the token can do.
+keeps the tool list in line with what the token can do. The Teams scopes let bots list chats, teams and
+channels, read their messages and send or reply; every Teams tool needs `--org-mode`. Channel
+management, team membership and tabs are left out of this list on purpose.
 
 Redeploy, sign in again, then, as the deployment owner, add an MCP server with URL
 `http://ms365:3000/mcp`, **Share with the company** on, **Sign in as** **Each person**. Only the
