@@ -199,3 +199,49 @@ it("counts unread bots and groups from the sidebar across spaces", () => {
   expect(countUnreadChats(sidebarGroupsForSpaces(input, ""))).toBe(3);
   expect(countUnreadChats([])).toBe(0);
 });
+
+describe("department sections", () => {
+  const input = space("space-1", "Company", {
+    bots: [chat("chief", "Chief"), chat("fin", "Finance Assistant"), chat("both", "Shared Bot")],
+  });
+  const departments = {
+    "space-1": [
+      { id: "d-fin", name: "Finance", botIds: ["fin", "both"] },
+      { id: "d-it", name: "IT Support", botIds: ["both"] },
+      { id: "d-empty", name: "Legal", botIds: [] },
+    ],
+  };
+
+  it("lists each department's bots under its own heading and keeps the rest above", () => {
+    const groups = sidebarGroupsForSpaces([input], "", undefined, departments);
+    expect(groups.map((group) => [group.title, group.bots.map((item) => item.chat.id)])).toEqual([
+      ["Company", ["chief"]],
+      ["Finance", ["fin", "both"]],
+      ["IT Support", ["both"]],
+    ]);
+    expect(groups[1]).toMatchObject({ key: "department:d-fin", departmentId: "d-fin" });
+    expect(groups[0]!.departmentId).toBeUndefined();
+  });
+
+  it("filters department bots with the search box", () => {
+    const groups = sidebarGroupsForSpaces([input], "shared", undefined, departments);
+    expect(groups.map((group) => group.title)).toEqual(["Finance", "IT Support"]);
+  });
+
+  it("shows a company space's departments beside the person's own space", () => {
+    const own = space("own", "Mine");
+    const groups = sidebarGroupsForSpaces([own, input], "", undefined, departments);
+    expect(groups.map((group) => group.title)).toEqual([
+      "Mine",
+      "Company",
+      "Company · Finance",
+      "Company · IT Support",
+    ]);
+    expect(groups[2]).toMatchObject({ spaceId: "space-1", departmentId: "d-fin" });
+  });
+
+  it("counts a bot listed under two departments once", () => {
+    const unread = { ...input, bots: input.bots.map((bot) => ({ ...bot, unread: true })) };
+    expect(countUnreadChats(sidebarGroupsForSpaces([unread], "", undefined, departments))).toBe(3);
+  });
+});

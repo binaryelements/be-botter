@@ -97,23 +97,32 @@ test("an owner shares a bot with a department and its member can reach it", asyn
   await expect(itSwitch).toBeChecked();
   await captureScreenshot(page, testInfo, "bot-departments");
 
-  // The staff member sees the company's bot beside their own and can open its chat.
+  // The staff member finds the department in the sidebar, under its own heading, and its
+  // bot opens straight into the department's channel.
   await staffPage.goto("/app");
-  const sharedBot = staffPage.getByRole("button", { name: botName }).first();
+  // The company space is not the staff member's own, so its name prefixes the heading.
+  const itSection = staffPage.locator('[data-sidebar-group*="department:"]');
+  await expect(itSection).toHaveCount(1);
+  await expect(itSection.getByText(/· IT$/)).toBeVisible();
+  const sharedBot = itSection.getByRole("button", { name: botName }).first();
   await expect(sharedBot).toBeVisible();
+  await captureScreenshot(staffPage, testInfo, "departments-sidebar");
   await sharedBot.click();
   await expect(staffPage.getByPlaceholder(`Message ${botName}`)).toBeVisible();
+  const staffThreads = staffPage.getByTestId("thread-channel");
+  await expect(staffThreads).toHaveText("IT");
+  await expect(sharedBot).toHaveAttribute("aria-current", "page");
   await captureScreenshot(staffPage, testInfo, "departments-member-chat");
 
   // Staff write to the bot privately, then to the whole department in its channel.
   const staffComposer = staffPage.getByRole("combobox", { name: `Message ${botName}` });
+  await chooseOption(staffThreads, "Private");
+  await expect(staffThreads).toHaveText("Private");
   await staffComposer.fill("Private note");
   await staffPage.keyboard.press("Enter");
   await expect(
     staffPage.getByTestId("message-user-bubble").getByText("Private note"),
   ).toBeVisible();
-  const staffThreads = staffPage.getByTestId("thread-channel");
-  await expect(staffThreads).toHaveText("Private");
   await chooseOption(staffThreads, "IT");
   await expect(staffThreads).toHaveText("IT");
   await expect(staffPage.getByTestId("message-user-bubble")).toHaveCount(0);

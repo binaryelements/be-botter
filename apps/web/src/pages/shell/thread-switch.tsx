@@ -7,7 +7,11 @@ import { rpc } from "../../lib/rpc";
 /** Which of a bot's threads is open; empty for the caller's own. Spread into every `threads.*` input. */
 export type ThreadScope = { departmentId?: string; userId?: string };
 
-export function useBotThreads(botId: string | undefined): {
+/** `channel` opens that department's channel when the bot's threads arrive (a sidebar link). */
+export function useBotThreads(
+  botId: string | undefined,
+  channel?: string,
+): {
   threads: BotThread[];
   thread: BotThread | undefined;
   scope: ThreadScope;
@@ -30,6 +34,12 @@ export function useBotThreads(botId: string | undefined): {
     };
   }, [botId]);
   const threads = loaded && loaded.botId === botId ? loaded.list : [];
+
+  useEffect(() => {
+    if (!botId || !channel || loaded?.botId !== botId) return;
+    const entry = loaded.list.find((candidate) => candidate.departmentId === channel);
+    if (entry) setChosen((current) => ({ ...current, [botId]: entry }));
+  }, [botId, channel, loaded]);
 
   // The remembered choice stands until the fresh list arrives, so a bot switch does not
   // subscribe to the private thread first and the channel a moment later.

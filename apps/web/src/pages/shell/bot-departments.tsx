@@ -10,11 +10,14 @@ export function BotDepartmentsSection({
   botId,
   settingsOpen = false,
   onOpenDepartments,
+  onChanged,
 }: {
   botId: string;
   /** While the settings overlay is open the list may change; it reloads when it closes. */
   settingsOpen?: boolean;
   onOpenDepartments: () => void;
+  /** After a save, so the sidebar's department headings follow. */
+  onChanged?: () => void;
 }) {
   const { t } = useLingui();
   const ids = useId();
@@ -60,6 +63,7 @@ export function BotDepartmentsSection({
     try {
       const saved = await rpc.bots.setDepartments({ botId, departmentIds: next });
       setMemberIds(saved.departmentIds);
+      onChanged?.();
     } catch (err) {
       setMemberIds(previous);
       setError(errorText(err, t`Could not save`));

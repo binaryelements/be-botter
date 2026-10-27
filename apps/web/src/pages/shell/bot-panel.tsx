@@ -212,6 +212,7 @@ export function BotSettings({
   memoryProviderConfigured,
   settingsOpen,
   onOpenDepartments,
+  onDepartmentsChanged,
   onSkillsChange,
   onSave,
   onExport,
@@ -222,6 +223,7 @@ export function BotSettings({
   memoryProviderConfigured: boolean;
   settingsOpen: boolean;
   onOpenDepartments: () => void;
+  onDepartmentsChanged?: () => void;
   onSave: (patch: {
     name?: string;
     title?: string;
@@ -759,6 +761,7 @@ export function BotSettings({
             botId={bot.id}
             settingsOpen={settingsOpen}
             onOpenDepartments={onOpenDepartments}
+            onChanged={onDepartmentsChanged}
           />
         ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
