@@ -15,6 +15,9 @@ export const FLEET_WRITE_TOOL_NAMES = FLEET_TOOL_NAMES.filter(
   (name): name is Exclude<(typeof FLEET_TOOL_NAMES)[number], "list_fleet"> => name !== "list_fleet",
 );
 
+/** Offered only while an admin of the bot's space is the one talking to it. */
+export const ADMIN_TOOL_NAMES = ["admin_info", "admin_change"] as const;
+
 /** Built-in tool names a bot may disable. Kept aligned with the adapter tool list. */
 export const BUILTIN_TOOL_NAMES = [
   "computer_observe",
@@ -80,6 +83,7 @@ export const BUILTIN_TOOL_NAMES = [
   "spawn_bot",
   "update_bot",
   ...FLEET_TOOL_NAMES,
+  ...ADMIN_TOOL_NAMES,
   "archive_bot",
   "message_bot",
   "handoff_to_bot",

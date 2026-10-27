@@ -142,7 +142,14 @@ export function createSecurityEventPruner(
 
 export async function listSecurityEvents(
   db: SecurityEventDb,
-  input: { type?: SecurityEventType; ip?: string; userId?: string; cursor?: string; limit: number },
+  input: {
+    type?: SecurityEventType;
+    ip?: string;
+    userId?: string;
+    spaceId?: string;
+    cursor?: string;
+    limit: number;
+  },
 ): Promise<SecurityEvent[]> {
   const after = input.cursor
     ? await db.securityEvent.findUnique({
@@ -158,6 +165,7 @@ export async function listSecurityEvents(
       type: input.type ?? { in: [...SECURITY_EVENT_TYPES] },
       ...(input.ip ? { ip: input.ip } : {}),
       ...(input.userId ? { userId: input.userId } : {}),
+      ...(input.spaceId ? { spaceId: input.spaceId } : {}),
       // Same order as the sort, so events sharing a timestamp are neither skipped nor repeated.
       ...(after
         ? {

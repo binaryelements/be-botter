@@ -72,6 +72,24 @@ describe("procedureSecurityEvent", () => {
     ).toMatchObject({ type: "approval.decided", metadata: { decision: "deny", kind: "mcp" } });
   });
 
+  it("records a bot persona change without the persona, and ignores a pin", () => {
+    expect(
+      procedureSecurityEvent(
+        ["bots", "update"],
+        { botId: "bot-1", instructions: "Be terse.", expectedInstructions: "Old" },
+        actor,
+      ),
+    ).toEqual({
+      type: "configuration.changed",
+      userId: "user-1",
+      spaceId: "space-1",
+      metadata: { procedure: "bots.update", kind: "bot_persona", botId: "bot-1" },
+    });
+    expect(
+      procedureSecurityEvent(["bots", "update"], { botId: "bot-1", pinned: true }, actor),
+    ).toBeUndefined();
+  });
+
   it("ignores procedures that change nothing security-relevant", () => {
     expect(procedureSecurityEvent(["threads", "send"], { text: "hello" }, actor)).toBeUndefined();
   });

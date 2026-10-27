@@ -75,6 +75,16 @@ export const AUDITED_PROCEDURES: Record<string, AuditedProcedure> = {
   },
   "departments.remove": { type: "access.changed", kind: "department", fields: ["departmentId"] },
   "bots.setDepartments": { type: "access.changed", kind: "bot_departments", fields: ["botId"] },
+  "departments.create": { type: "access.changed", kind: "department" },
+  "departments.update": { type: "access.changed", kind: "department", fields: ["departmentId"] },
+  "departments.setTemplate": { type: "configuration.changed", kind: "department_persona" },
+  // Only persona changes; pins, sections and other settings are not audited.
+  "bots.update": { type: "configuration.changed", kind: "bot_persona", fields: ["botId"] },
+  "bots.restoreInstructions": {
+    type: "configuration.changed",
+    kind: "bot_persona",
+    fields: ["botId"],
+  },
 };
 
 /**
@@ -104,6 +114,7 @@ export function procedureSecurityEvent(
   const audited = AUDITED_PROCEDURES[procedure];
   if (!audited) return undefined;
   const fields = isRecord(input) ? input : {};
+  if (procedure === "bots.update" && fields.instructions === undefined) return undefined;
   const metadata: NonNullable<SecurityEventInput["metadata"]> = { procedure };
   if (audited.kind) metadata.kind = audited.kind;
   for (const field of audited.fields ?? []) {

@@ -40,7 +40,7 @@ import {
   SandboxRateLimitError,
   TransientModelError,
 } from "@rakazo/adapter-kit";
-import type { ComputerCommand, MessageBlock, RunStatus } from "@rakazo/contracts";
+import type { Actor, ComputerCommand, MessageBlock, RunStatus } from "@rakazo/contracts";
 import {
   ATTACHMENT_MAX_BYTES,
   BotSecretName,
@@ -116,6 +116,7 @@ import {
 } from "@rakazo/core/node/approval-effect-key";
 import type { McpServer, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
+  adminActorFor,
   appendEventInTransaction,
   createSpaceForMember,
   createThreadMessageInTransaction,
@@ -143,6 +144,7 @@ import {
 import { enrichLogContext, getLogger } from "@rakazo/logging";
 import { sanitizedError } from "@rakazo/logging/monitoring";
 import { parse as parseShellCommand } from "shell-quote";
+import { adminChange, adminInfo, isAdminTool } from "./admin-tools.js";
 import {
   connectAgent,
   messageConnectedAgent,
@@ -4228,6 +4230,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             voiceCall,
             disabledBuiltinTools: bot.disabledBuiltinTools,
             fleetManagement: bot.fleetManagement,
+            // Only decides whether the tools are offered; each call checks again.
+            admin: Boolean(
+              await adminActorFor(deps.prisma, { spaceId: run.spaceId, userId: run.userId }).catch(
+                () => null,
+              ),
+            ),
             followUpFromUser: sourceMessage?.role === "user",
           }),
           // Cross-owner agent connections only exist for chat-linked bots.
@@ -4851,6 +4859,23 @@ export function createRunExecutor(deps: ExecutorDeps) {
               return {
                 error:
                   "Changes to the bots you manage are blocked for the rest of this run because it received a channel or webhook message.",
+              };
+          }
+          let adminActor: Actor | null = null;
+          if (isAdminTool(name)) {
+            if (isSubagentToolExecution(executionId))
+              return { error: "Helpers cannot use admin tools." };
+            if (!ownerStartedRun) return { error: "Admin tools need a run you started." };
+            // Checked on every call: the person may have lost the role since the run began.
+            adminActor = await adminActorFor(deps.prisma, {
+              spaceId: run.spaceId,
+              userId: run.userId,
+            });
+            if (!adminActor) return { error: "Only an admin of this space can use this tool." };
+            if (name === "admin_change" && (await receivedOutsideMessage()))
+              return {
+                error:
+                  "Admin changes are blocked for the rest of this run because it received a channel or webhook message.",
               };
           }
           if (name === "propose_instructions_update") {
@@ -7078,6 +7103,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
             return spawned;
           }
+          if (name === "admin_info" && adminActor)
+            return finish(await adminInfo(deps.prisma, adminActor, args));
+          if (name === "admin_change" && adminActor) {
+            return finish(
+              await adminChange(deps.prisma, adminActor, args, {
+                botId: bot.id,
+                runId,
+                notify: (threadId, seq) => deps.events.notify(threadId, seq),
+              }),
+            );
+          }
           if (name === "list_fleet") return finish(await listFleet(deps, fleetRun, args));
           if (name === "organize_bot")
             return finish(await organizeBot({ ...deps, runSecrets }, fleetRun, args));
@@ -8772,6 +8808,8 @@ export function selectBuiltinToolsForRun(options: {
   disabledBuiltinTools?: readonly string[];
   /** The bot's fleet management switch. */
   fleetManagement?: boolean;
+  /** The person running it administers the space. */
+  admin?: boolean;
   /** A follow-up run whose source message the user wrote. */
   followUpFromUser?: boolean;
 }) {
@@ -8798,6 +8836,7 @@ export function selectBuiltinToolsForRun(options: {
       !disabled.has(tool.name) &&
       (!FLEET_TOOL_NAMES_SET.has(tool.name) ||
         (Boolean(options.fleetManagement) && fleetToolsAllowed)) &&
+      (!isAdminTool(tool.name) || (Boolean(options.admin) && fleetToolsAllowed)) &&
       (options.mediaImagesEnabled || tool.name !== "generate_image") &&
       (options.mediaVideoEnabled || tool.name !== "generate_video") &&
       (options.ticketBoardEnabled ||

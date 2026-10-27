@@ -352,6 +352,24 @@ describe("run tool selection", () => {
     expect(names).not.toContain("computer_act");
   });
 
+  it.each([
+    [true, "user", true],
+    [false, "user", false],
+    [true, "routine", false],
+    [true, "webhook", false],
+  ])("offers admin tools to an admin (%s) on a %s run: %s", (admin, trigger, offered) => {
+    const names = selectBuiltinToolsForRun({
+      graphicalToolsAllowed: false,
+      groupId: null,
+      trigger,
+      semanticMemoryEnabled: false,
+      messagingChannelRun: false,
+      admin,
+    }).map((tool) => tool.name);
+    expect(names.includes("admin_info")).toBe(offered);
+    expect(names.includes("admin_change")).toBe(offered);
+  });
+
   const toolNames = (
     trigger: string,
     groupId: string | null = null,

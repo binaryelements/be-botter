@@ -1171,6 +1171,58 @@ export const builtinAgentTools: ConnectorTool[] = [
     },
   },
   {
+    name: "admin_info",
+    description:
+      "Read the company's setup for an admin: view overview (departments with their people and bots, bots, company connections, the department bot persona template, and the admin-only switch), usage (runs, model calls, tokens and cost per person and per bot over the last days, default 30), or audit (recent changes and security events, newest first; pass nextBefore as before for older ones).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        view: { type: "string", enum: ["overview", "usage", "audit"] },
+        days: { type: "integer", minimum: 1, maximum: 365 },
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+        before: { type: "string" },
+      },
+      required: ["view"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "admin_change",
+    description:
+      'Change the company\'s setup for an admin; every change shows the admin an approval card first. Name departments, bots and connections by name. Actions: create_department {name} (also creates its "<name> Assistant" bot from the persona template), rename_department {department, name}, remove_department {department}, set_person {department, email, role: member|head|none} (none removes them), set_department_bot {department, bot, included}, set_persona_template {instructions} ({department} stands for the department name; applies to bots created afterwards), set_bot_persona {bot, instructions}, set_connection_departments {connection, departments} (empty list shares it with everyone), set_admin_only {enabled} (deployment owner only). New connections and their credentials are added in Settings, never here.',
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "create_department",
+            "rename_department",
+            "remove_department",
+            "set_person",
+            "set_department_bot",
+            "set_persona_template",
+            "set_bot_persona",
+            "set_connection_departments",
+            "set_admin_only",
+          ],
+        },
+        name: { type: "string", description: "Department name to create or rename to." },
+        department: { type: "string", description: "Name or id." },
+        bot: { type: "string", description: "Name or id." },
+        connection: { type: "string", description: "Name or id." },
+        email: { type: "string" },
+        role: { type: "string", enum: ["member", "head", "none"] },
+        included: { type: "boolean" },
+        instructions: { type: "string", maxLength: BOT_INSTRUCTIONS_MAX_LENGTH },
+        departments: { type: "array", items: { type: "string" } },
+        enabled: { type: "boolean" },
+      },
+      required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "spawn_bot",
     description:
       "Create a full, regular bot — the same kind the user creates from the + button. It gets its own thread, computer, and memory, and appears as a peer in the bot list. Do not also call run_subagent. Creating the bot is the whole action. Only set prompt if the user asked that new bot to start work immediately.",
