@@ -4634,7 +4634,6 @@ msgstr ""
 #: src/pages/Auth.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
-#: src/pages/Welcome.tsx
 msgid "Sign in"
 msgstr "로그인"
 
@@ -4666,7 +4665,6 @@ msgid "Sign in with the subscription, or test the API key instead."
 msgstr "구독으로 로그인하거나 대신 API 키를 테스트하세요."
 
 #: src/pages/Auth.tsx
-#: src/pages/Welcome.tsx
 msgid "Sign up"
 msgstr "가입하기"
 
@@ -5521,10 +5519,6 @@ msgstr "사용 중인 OpenAI"
 #: src/lib/run-error.ts
 msgid "Your OpenRouter"
 msgstr "사용 중인 OpenRouter"
-
-#: src/pages/Welcome.tsx
-msgid "Your team of always-on agents<0/>that you can give real work to."
-msgstr "언제든 실제 작업을 맡길 수 있는<0/>나만의 Agent 팀"
 
 #: src/lib/user-error.ts
 msgid "Your voice provider is out of credit."

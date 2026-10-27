@@ -4634,7 +4634,6 @@ msgstr "Dichtheid van de zijbalk"
 #: src/pages/Auth.tsx
 #: src/pages/model-settings/connection-controls.tsx
 #: src/pages/Onboarding.tsx
-#: src/pages/Welcome.tsx
 msgid "Sign in"
 msgstr "Aanmelden"
 
@@ -4666,7 +4665,6 @@ msgid "Sign in with the subscription, or test the API key instead."
 msgstr "Meld je aan met het abonnement of test in plaats daarvan de API-sleutel."
 
 #: src/pages/Auth.tsx
-#: src/pages/Welcome.tsx
 msgid "Sign up"
 msgstr "Registreren"
 
@@ -5521,10 +5519,6 @@ msgstr "Jouw OpenAI"
 #: src/lib/run-error.ts
 msgid "Your OpenRouter"
 msgstr "Jouw OpenRouter"
-
-#: src/pages/Welcome.tsx
-msgid "Your team of always-on agents<0/>that you can give real work to."
-msgstr "Je team van altijd actieve agents<0/>dat je echt werk kunt geven."
 
 #: src/lib/user-error.ts
 msgid "Your voice provider is out of credit."
