@@ -19,29 +19,33 @@ type ModelCredentialScope = { userId: string; spaceId: string };
 
 /** Where a credential's key row lives: the member's own secret, or the company's shared one. */
 export function modelSecretWhere(
-  credential: { secretId: string; scope?: "user" | "space" },
+  credential: { secretId: string; scope?: "user" | "space"; spaceId?: string },
   owner: ModelCredentialScope,
 ): Prisma.SecretWhereInput {
   return credential.scope === "space"
-    ? { id: credential.secretId, spaceId: owner.spaceId }
+    ? { id: credential.secretId, spaceId: credential.spaceId ?? owner.spaceId }
     : { id: credential.secretId, userId: owner.userId, spaceId: null };
 }
 
 /**
  * The company's model connection shaped as a credential, for members with none of their own.
- * Older unit fakes have no such table; they get null.
+ * A Space without a connection, such as a member's own, inherits the company Space's when the
+ * person belongs to that Space. Older unit fakes have no such table; they get null.
  */
 export async function findSpaceModelConnectionCredential(
   prisma: PrismaClient,
-  spaceId: string,
+  scope: ModelCredentialScope,
   provider?: string,
 ) {
   if (typeof prisma.spaceModelConnection?.findUnique !== "function") return null;
-  const row = await prisma.spaceModelConnection.findUnique({ where: { spaceId } });
+  const row =
+    (await prisma.spaceModelConnection.findUnique({ where: { spaceId: scope.spaceId } })) ??
+    (await findCompanyModelConnection(prisma, scope));
   if (!row) return null;
   if (provider && !storedPiProviderIds(provider).includes(row.provider)) return null;
   return {
     id: row.id,
+    spaceId: row.spaceId,
     userId: row.createdByUserId,
     provider: row.provider,
     label: row.label,
@@ -53,6 +57,22 @@ export async function findSpaceModelConnectionCredential(
     thinkingLevel: row.thinkingLevel,
     scope: "space" as const,
   };
+}
+
+async function findCompanyModelConnection(prisma: PrismaClient, scope: ModelCredentialScope) {
+  if (typeof prisma.deploymentSettings?.findUnique !== "function") return null;
+  const settings = await prisma.deploymentSettings.findUnique({
+    where: { id: "default" },
+    select: { companySpaceId: true },
+  });
+  const companySpaceId = settings?.companySpaceId;
+  if (!companySpaceId || companySpaceId === scope.spaceId) return null;
+  const member = await prisma.spaceMember.findFirst({
+    where: { spaceId: companySpaceId, userId: scope.userId },
+    select: { id: true },
+  });
+  if (!member) return null;
+  return prisma.spaceModelConnection.findUnique({ where: { spaceId: companySpaceId } });
 }
 
 export async function selectSpaceModelPreference(
@@ -134,7 +154,7 @@ export async function findDefaultModelCredential(
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
   });
   if (preference) return withModelPreference(preference);
-  return findSpaceModelConnectionCredential(prisma, scope.spaceId);
+  return findSpaceModelConnectionCredential(prisma, scope);
 }
 
 export function findNewestUserModelCredential(
@@ -321,7 +341,7 @@ export async function findModelCredential(
   modelId?: string | null,
 ) {
   const own = await findOwnModelCredential(prisma, scope, provider, modelId);
-  return own ?? findSpaceModelConnectionCredential(prisma, scope.spaceId, provider);
+  return own ?? findSpaceModelConnectionCredential(prisma, scope, provider);
 }
 
 async function findOwnModelCredential(

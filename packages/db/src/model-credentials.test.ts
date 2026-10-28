@@ -123,6 +123,44 @@ describe("the company's model connection", () => {
     await expect(findModelCredential(prisma, scope, "anthropic")).resolves.toBeNull();
   });
 
+  it("reaches a member's own Space from the company Space", async () => {
+    const findUnique = vi.fn(async ({ where }: { where: { spaceId: string } }) =>
+      where.spaceId === "ws-1" ? companyRow : null,
+    );
+    const findFirst = vi.fn().mockResolvedValue({ id: "membership-1" });
+    const prisma = {
+      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+      spaceModelConnection: { findUnique },
+      deploymentSettings: { findUnique: vi.fn().mockResolvedValue({ companySpaceId: "ws-1" }) },
+      spaceMember: { findFirst },
+    } as unknown as PrismaClient;
+    const scope = { userId: "member-1", spaceId: "ws-personal" };
+    await expect(findDefaultModelCredential(prisma, scope)).resolves.toMatchObject({
+      id: "company-1",
+      spaceId: "ws-1",
+      scope: "space",
+    });
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { spaceId: "ws-1", userId: "member-1" } }),
+    );
+    // The key stays in the company Space.
+    expect(
+      modelSecretWhere({ secretId: "secret-company", scope: "space", spaceId: "ws-1" }, scope),
+    ).toEqual({ id: "secret-company", spaceId: "ws-1" });
+  });
+
+  it("stays out of reach of someone outside the company", async () => {
+    const prisma = {
+      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+      spaceModelConnection: { findUnique: vi.fn().mockResolvedValue(null) },
+      deploymentSettings: { findUnique: vi.fn().mockResolvedValue({ companySpaceId: "ws-1" }) },
+      spaceMember: { findFirst: vi.fn().mockResolvedValue(null) },
+    } as unknown as PrismaClient;
+    await expect(
+      findDefaultModelCredential(prisma, { userId: "outsider", spaceId: "ws-personal" }),
+    ).resolves.toBeNull();
+  });
+
   it("is absent when the client has no such table (older fakes)", async () => {
     const prisma = {
       spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
