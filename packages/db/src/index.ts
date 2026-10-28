@@ -36,6 +36,7 @@ export * from "./scope.js";
 export * from "./security-events.js";
 export * from "./sessions.js";
 export * from "./spaces.js";
+export * from "./superadmin.js";
 export * from "./transaction-retry.js";
 export * from "./usage.js";
 export * from "./voice-credentials.js";

@@ -96,8 +96,10 @@ import {
   createThreadEvents,
   describeRowSecurity,
   ensureCompanySsoServers,
+  ensureSuperadmin,
   IsolationError,
   installSecurityEventStore,
+  isSuperadminEmail,
   parsePositiveInteger,
   provisionMessagingIdentity,
   pushSessionExpiresAt,
@@ -471,6 +473,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   await ensureCompanySsoServers(prisma, env.companySsoMcpServers).catch((error) =>
     getLogger().error("company sso connections setup failed", error),
   );
+  if (env.superadminKey) await ensureSuperadmin(prisma, env);
   const auth = createAuth(prisma, {
     analytics,
     passwordAuth: env.passwordAuth,
@@ -511,6 +514,9 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
         ).catch((error) => getLogger().error("department routine sync failed", error));
     },
     beforeDeleteUser: async (userId) => {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      if (user && isSuperadminEmail(user.email))
+        throw new Error("The superadmin account cannot be deleted");
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);
       const bots = await prisma.bot.findMany({
