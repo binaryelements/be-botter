@@ -1,5 +1,6 @@
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "./client.js";
+import { isSuperadminEmail } from "./superadmin.js";
 
 export class IsolationError extends Error {
   constructor(message = "Resource not found") {
@@ -21,26 +22,37 @@ export async function requireMembership(
   userId: string,
   requestedSpaceId?: string | null,
 ): Promise<Actor> {
-  const membership = await prisma.spaceMember.findFirst({
-    where: {
-      userId,
-      ...(requestedSpaceId ? { spaceId: requestedSpaceId } : {}),
-    },
-    orderBy: [{ space: { isDefault: "desc" } }, { createdAt: "asc" }, { id: "asc" }],
-    include: { member: { include: { user: true } } },
-  });
+  const include = { member: { include: { user: true } }, space: { select: { isDefault: true } } };
+  const [membership, settings] = await Promise.all([
+    prisma.spaceMember.findFirst({
+      where: {
+        userId,
+        ...(requestedSpaceId ? { spaceId: requestedSpaceId } : {}),
+      },
+      orderBy: [{ space: { isDefault: "desc" } }, { createdAt: "asc" }, { id: "asc" }],
+      include,
+    }),
+    prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
+  ]);
   if (!membership) {
     throw new IsolationError("No personal space");
   }
-  const settings = await prisma.deploymentSettings.findUnique({
-    where: { id: "default" },
-  });
+  // The superadmin works in the company Space; its own Space is only where its account lives.
+  const company = settings?.companySpaceId;
+  const inCompany =
+    company &&
+    company !== membership.spaceId &&
+    membership.space?.isDefault &&
+    isSuperadminEmail(membership.member.user.email)
+      ? await prisma.spaceMember.findFirst({ where: { userId, spaceId: company }, include })
+      : null;
+  const active = inCompany ?? membership;
   return {
     userId: membership.userId,
-    spaceId: membership.spaceId,
+    spaceId: active.spaceId,
     email: membership.member.user.email,
     isDeploymentOwner: settings?.ownerUserId === membership.userId,
-    spaceRole: membership.role,
+    spaceRole: active.role,
   };
 }
 

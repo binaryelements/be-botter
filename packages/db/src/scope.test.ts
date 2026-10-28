@@ -44,6 +44,34 @@ describe("requireMembership", () => {
     ).rejects.toBeInstanceOf(IsolationError);
   });
 
+  it("puts the superadmin in the company Space instead of its own", async () => {
+    const own = {
+      userId: "sa",
+      spaceId: "space-own",
+      role: "owner",
+      space: { isDefault: true },
+      member: { user: { email: "superadmin@botter.invalid" } },
+    };
+    const prisma = {
+      spaceMember: {
+        findFirst: vi.fn(async ({ where }: { where: { spaceId?: string } }) =>
+          where.spaceId === "space-company" ? { ...own, spaceId: "space-company" } : own,
+        ),
+      },
+      deploymentSettings: {
+        findUnique: vi.fn(async () => ({ ownerUserId: "sa", companySpaceId: "space-company" })),
+      },
+    } as unknown as PrismaClient;
+    await expect(requireMembership(prisma, "sa")).resolves.toMatchObject({
+      spaceId: "space-company",
+      isDeploymentOwner: true,
+    });
+    // Asking for its own Space lands in the company Space as well.
+    await expect(requireMembership(prisma, "sa", "space-own")).resolves.toMatchObject({
+      spaceId: "space-company",
+    });
+  });
+
   it("selects the explicit default Space before older non-default memberships", async () => {
     const prisma = prismaForMembership(true);
 

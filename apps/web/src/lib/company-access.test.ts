@@ -1,5 +1,11 @@
 import { expect, it } from "vitest";
-import { emptySpaceRoute, firstRunRoute, hidesSetup, rootRoute } from "./company-access";
+import {
+  emptySpaceRoute,
+  firstRunRoute,
+  hidesSetup,
+  rootRoute,
+  visibleSpaces,
+} from "./company-access";
 
 const me = {
   canManageConnections: true,
@@ -46,4 +52,13 @@ it("opens an empty Space in the app for the superadmin and in onboarding for a f
     emptySpaceRoute({ ...me, isDeploymentOwner: true, superadmin: true, siteReady: true }),
   ).toBe("/app");
   expect(emptySpaceRoute(me)).toBe("/onboarding");
+});
+
+it("hides the superadmin's own Space and nobody else's", () => {
+  const spaces = [
+    { id: "own", isDefault: true },
+    { id: "company", isDefault: false },
+  ];
+  expect(visibleSpaces({ superadmin: true }, spaces)).toEqual([spaces[1]]);
+  expect(visibleSpaces(me, spaces)).toEqual(spaces);
 });

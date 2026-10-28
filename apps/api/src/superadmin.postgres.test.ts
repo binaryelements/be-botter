@@ -174,6 +174,28 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
     expect(await db.account.count({ where: { userId: user.id } })).toBe(0);
   });
 
+  it("works in the company Space and creates no bots or Spaces of its own", async () => {
+    const r = await signInWith(handles.app, KEY);
+    const cookie = r.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    const rpc = async (procedure: string, input: unknown) => {
+      const response = await handles.app.request(`/rpc/${procedure}`, {
+        method: "POST",
+        headers: { ...json, cookie },
+        body: JSON.stringify({ json: input }),
+      });
+      return { status: response.status, json: ((await response.json()) as { json: unknown }).json };
+    };
+    const company = await rpc("setup/createCompany", { name: `Keyed Co ${Date.now()}` });
+    expect(company.status).toBe(200);
+    const companySpaceId = (company.json as { companySpaceId: string }).companySpaceId;
+    expect((await rpc("me", {})).json).toMatchObject({ spaceId: companySpaceId });
+    expect((await rpc("bots/create", { name: "My PA" })).status).toBe(403);
+    expect((await rpc("spaces/create", { name: "Mine" })).status).toBe(403);
+  });
+
   it("refuses to delete the superadmin account", async () => {
     const user = await db.user.findUniqueOrThrow({
       where: { email: "superadmin@botter.invalid" },

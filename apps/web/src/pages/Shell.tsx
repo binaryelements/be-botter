@@ -133,7 +133,7 @@ import {
   useCallSession,
 } from "../lib/call-session";
 import { newClientId } from "../lib/client-id";
-import { emptySpaceRoute, firstRunRoute, hidesSetup } from "../lib/company-access";
+import { emptySpaceRoute, firstRunRoute, hidesSetup, visibleSpaces } from "../lib/company-access";
 import { setComposerUnsavedWork } from "../lib/composer-draft";
 import {
   getComposerEnterToSend,
@@ -609,6 +609,7 @@ function SpaceShell() {
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
   const canAddBots = bootstrapMe?.canManageConnections !== false;
+  const canCreateBots = canAddBots && bootstrapMe?.superadmin !== true;
   const canAddBotsRef = useRef(canAddBots);
   canAddBotsRef.current = canAddBots;
   const firstRunRouteRef = useRef(firstRunRoute(bootstrapMe));
@@ -1626,7 +1627,7 @@ function SpaceShell() {
   const sidebarSpaces = useMemo(
     () =>
       spaces.length > 0
-        ? spaces.map((space) =>
+        ? visibleSpaces(bootstrapMe, spaces).map((space) =>
             space.id === bootstrapMe?.spaceId ? { ...space, bots, groups, botSections } : space,
           )
         : bootstrapMe
@@ -3158,7 +3159,7 @@ function SpaceShell() {
         setBotMenu(null);
       }}
       onDuplicate={
-        contextBot && !canAddBots
+        contextBot && !canCreateBots
           ? undefined
           : () => {
               setBotMenu(null);
@@ -3287,6 +3288,7 @@ function SpaceShell() {
       >
         <SidebarHeader
           mini={miniSidebar}
+          canCreateBots={canCreateBots}
           activityMode={activityMode}
           toggleActivityMode={() => {
             if (miniSidebar) setBotsSidebarCollapsedPref(false);
@@ -3596,7 +3598,7 @@ function SpaceShell() {
         <CallReturnBar />
         {!active && !activeGroup && initialBotsLoaded ? (
           <div className="grid flex-1 place-items-center">
-            {canAddBots ? (
+            {canCreateBots ? (
               <Button onClick={() => setPanel("create")}>
                 <Plus size={16} aria-hidden="true" />
                 <Trans>Create new Bot</Trans>

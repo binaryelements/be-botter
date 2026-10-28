@@ -27,6 +27,12 @@ export function firstRunRoute(me: Access | null | undefined): "/onboarding" | "/
 /** Where opening a Space with nothing in it goes. */
 export const emptySpaceRoute = (me: Access | null | undefined) => firstRunRoute(me) ?? "/app";
 
+/** The superadmin's own Space is not shown; it works in the company's. */
+export const visibleSpaces = <S extends { isDefault: boolean }>(
+  me: Access | null | undefined,
+  spaces: S[],
+): S[] => (me?.superadmin ? spaces.filter((space) => !space.isDefault) : spaces);
+
 /** The superadmin lands in the wizard until the company is ready. */
 export const rootRoute = (me: Pick<Me, "superadmin" | "siteReady">): "/setup" | "/app" =>
   me.superadmin && !me.siteReady ? "/setup" : "/app";

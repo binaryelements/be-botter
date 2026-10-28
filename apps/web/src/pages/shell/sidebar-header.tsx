@@ -15,6 +15,7 @@ export function SidebarHeader({
   toggleActivityMode,
   setBotsSidebarCollapsedPref,
   bots,
+  canCreateBots,
   setMobileSidebarOpen,
   setPanel,
   navigate,
@@ -26,6 +27,7 @@ export function SidebarHeader({
   toggleActivityMode: () => void;
   setBotsSidebarCollapsedPref: (collapsed: boolean) => void;
   bots: Bot[];
+  canCreateBots: boolean;
   setMobileSidebarOpen: (open: boolean) => void;
   setPanel: (panel: Panel) => void;
   navigate: (path: string) => void;
@@ -98,6 +100,7 @@ export function SidebarHeader({
             >
               <BotCreatePicker
                 bots={bots}
+                canCreate={canCreateBots}
                 onCreateBot={() => {
                   setCreateMenuOpen(false);
                   setMobileSidebarOpen(false);

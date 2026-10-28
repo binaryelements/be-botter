@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import type { Actor } from "@rakazo/contracts";
 import {
   isSpaceOwner,
+  isSuperadminEmail,
   mayManageConnections as mayManageConnectionsIn,
   readConnectionsSwitch,
 } from "@rakazo/db";
@@ -17,6 +18,11 @@ export function mayManageConnections(actor: Actor, deps: Deps): Promise<boolean>
 
 export async function assertMayManageConnections(actor: Actor, deps: Deps): Promise<void> {
   if (!(await mayManageConnections(actor, deps))) throw new ORPCError("FORBIDDEN");
+}
+
+/** The superadmin prepares the company; bots and Spaces are made by the people who sign in. */
+export function assertNotSuperadmin(actor: Actor): void {
+  if (isSuperadminEmail(actor.email)) throw new ORPCError("FORBIDDEN");
 }
 
 /** While the switch is on, only the deployment owner creates spaces. */

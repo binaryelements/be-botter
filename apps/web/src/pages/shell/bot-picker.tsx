@@ -22,9 +22,12 @@ export function BotCreatePicker({
   onCreateSpace,
   onShowGroupInfo,
   onShowSpaceInfo,
+  canCreate = true,
 }: {
   bots: Bot[];
   onCreateBot: () => void;
+  /** False for the superadmin, who prepares the company but makes no bots or Spaces of its own. */
+  canCreate?: boolean;
   onOpenBot: (botId: string) => void;
   onCreateGroup: () => void;
   onCreateSpace: () => void;
@@ -33,7 +36,7 @@ export function BotCreatePicker({
 }) {
   const { t } = useLingui();
   // shortcut: Create new Space hides for staff only; a company owner still sees it and gets refused while the switch is on.
-  const canManageConnections = useCanManageConnections();
+  const canManageConnections = useCanManageConnections() && canCreate;
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
   const matched = useMemo(() => {
