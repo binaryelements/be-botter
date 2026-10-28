@@ -425,6 +425,8 @@ To have the server set up for everyone, name it on the API:
 
 ```env
 OIDC_MCP_SERVERS="Microsoft 365=http://ms365:3000/mcp"
+# 64 hex characters (openssl rand -hex 32); creates the superadmin account, signed in at /setup
+SUPERADMIN_KEY=<64-hex-characters>
 ```
 
 At start-up and on each SSO sign-in the API adds every listed server that is missing from the
@@ -441,16 +443,28 @@ company is marked ready; after that, sign-in follows [Preparing a company](#prep
 
 ### Preparing a company
 
-The deployment owner (the superadmin) prepares a company before anyone else signs in. Open `/setup`
-and go through: company name, company model, departments (started from persona templates),
-connections, the owner's email, then **Mark ready**. Only the superadmin sees the wizard.
+The deployment owner (the superadmin) prepares a company before anyone else signs in. Set
+`SUPERADMIN_KEY` on the API, open `/setup`, enter the key, and go through: company name, company
+model, departments (started from persona templates), connections, the owner's email, then
+**Mark ready**. Only the superadmin sees the wizard.
+
+**Admin key.** The API creates one fixed account at start-up (named Binary Elements, with no
+password or sign-in provider) and makes it the deployment owner. It is the only superadmin, and the
+"first account to sign in becomes the owner" rule never fires on such a site. Opening `/setup`
+while signed out shows one **Admin key** field; the right key signs the browser in as that account,
+a wrong one says **Wrong admin key**. No other sign-in method reaches the account. Attempts are
+timing-safe, rate limited like password sign-in, and each is recorded as a sign-in security event.
+Until the superadmin presses **Mark ready**, anyone else who signs in is refused with **Ask your
+administrator for an invitation**; existing members keep working. The superadmin lands on `/setup`
+from the site root until the company is ready and on `/app` after; the wizard has an **Open the
+app** link.
 
 **Handover.** Once ready, the named owner becomes owner of the company Space on their first SSO
 sign-in. The superadmin and the company's owners invite everyone else in **Settings > People**
 and use the switch there to choose who may sign in: **Invited people only**, or **Anyone in our Microsoft organisation**. The superadmin is
-always admitted. Before the company is marked ready, sign-in behaves as it did.
+always admitted.
 
-**Who is admitted** (`packages/auth/src/company-admission.ts`):
+**Who is admitted** (`packages/auth/src/company-admission.ts`), once the company is ready:
 
 - An email counts only when the ID token proves it with `email_verified` or Microsoft's `xms_edov`
   claim. `OIDC_ALLOW_SIGNUP_BYPASS` does not make an email trusted.
@@ -468,6 +482,11 @@ and `organizations` issuers will not work because the issuer must match discover
 `OIDC_ALLOW_SIGNUP_BYPASS` on, Entra emails are still not trusted for admission unless the
 `xms_edov` claim is configured.
 
+**Tools.** Each department has a **Tools** list: Web, Computer and browser, Files, Media, Memory
+and notes, Work items, Delegation and Calls. All are on except Calls. A group's switch sets the
+whole group, and the choices are saved as the department bot's disabled tools. You can change them
+for existing departments too.
+
 **Routines.** A department's routines run as its head: the earliest head who has signed in. With no
 head signed in they wait. A routine someone switched off stays off when a head signs in.
 
@@ -478,12 +497,9 @@ does.
 database dump and refuses to continue if that fails (see [Backup](#backup)). It removes the people
 in the company Space, their bots in any Space (deleting a person deletes their whole account),
 conversations, runs, memory, boards, artifacts, invitations, and the files and browser sessions on
-the company's computers. It keeps the departments and their bots, which start again as new bots
-owned by the superadmin, and the company model and connections. The company stays ready for the
-next owner, whose first sign-in records the Microsoft tenant again.
-
-**Rolling out to an existing site.** Content made before the wizard stays in the superadmin's
-personal Space. Running the wizard creates a separate company Space; nothing is moved into it.
+the company's computers. It keeps the departments and their bots (with their tool choices), which
+start again as new bots owned by the superadmin, and the company model and connections. The company
+stays ready for the next owner, whose first sign-in records the Microsoft tenant again.
 
 ### Mobile push notifications
 

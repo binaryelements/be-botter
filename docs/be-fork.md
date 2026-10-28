@@ -44,6 +44,7 @@ New modules, owned by the fork:
 | Company connections | `apps/api/src/connection-admin.ts`, `packages/auth/src/person-token.ts` | `components/ConnectionsAdminOnlySetting.tsx`, `lib/connections-access.ts` |
 | Admin tools on bots | `packages/adapters/src/admin-tools.ts`, `docs/admin-tools.md` | |
 | Company setup, handover and reset | `apps/api/src/company-setup.ts`, `department-routines.ts`, `invitations.ts`, `reset-backup.ts`, `routine-schedule.ts`, `packages/auth/src/company-admission.ts`, `packages/core/src/persona-templates.ts`, `packages/db/src/company-setup.ts` | `pages/SetupWizard.tsx`, `components/PeopleSettings.tsx`, `lib/company-access.ts` |
+| Admin-key superadmin and department tools | `packages/auth/src/admin-key.ts`, `packages/db/src/superadmin.ts`, `packages/core/src/tool-groups.ts` | `pages/AdminKey.tsx` |
 | Audit | | `components/AuditLog.tsx` |
 
 Upstream files we changed most, where cherry-picks are most likely to conflict:
