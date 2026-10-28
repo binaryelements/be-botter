@@ -476,6 +476,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
   if (env.superadminKey) await ensureSuperadmin(prisma, env);
   const auth = createAuth(prisma, {
     analytics,
+    superadminKey: env.superadminKey,
     passwordAuth: env.passwordAuth,
     breachedPasswordCheck: env.breachedPasswordCheck,
     oidc: env.oidc,

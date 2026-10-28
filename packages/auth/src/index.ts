@@ -22,6 +22,7 @@ import {
   joinCompanySpace,
   readCompanySetup,
   recordSecurityEvent,
+  SUPERADMIN_EMAIL,
 } from "@rakazo/db";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { betterAuth } from "better-auth";
@@ -40,6 +41,7 @@ import {
   sessionForAuthHook,
   signedBearer,
 } from "./account-security.js";
+import { adminKeySignIn } from "./admin-key.js";
 import { breachedPasswordCheck } from "./breached-password.js";
 import {
   admitCompanyPerson,
@@ -65,6 +67,8 @@ export {
 } from "./person-token.js";
 
 export interface AuthEnv {
+  /** Enables `POST /sign-in/admin-key` for the fixed superadmin account. */
+  superadminKey?: string;
   analytics?: ProductAnalytics;
   passwordAuth?: boolean;
   /** Opt-in: rejects new passwords found in Have I Been Pwned. Calls an outside service. */
@@ -323,6 +327,7 @@ export function authRateLimitOptions(nodeEnv = process.env.NODE_ENV) {
     customRules: {
       ...Object.fromEntries(CREDENTIAL_PATHS.map((path) => [path, rule])),
       "/request-account-deletion": { window: 600, max: 3 },
+      "/sign-in/admin-key": rule,
       "/passkey/verify-authentication": rule,
       "/passkey/verify-registration": rule,
       // Sign-in pages request a challenge on load for passkey autofill.
@@ -486,6 +491,9 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       signedBearer,
       expo(),
       accountSecurity(env.email, env.oidc?.name, env.oidc?.issuer, env.passwordAuth !== false),
+      ...(env.superadminKey
+        ? [adminKeySignIn({ key: env.superadminKey, superadminEmail: SUPERADMIN_EMAIL })]
+        : []),
       ...(discovery ? [discovery.plugin] : []),
       ...(emailCodeSignIn
         ? [
