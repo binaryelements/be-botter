@@ -13,6 +13,7 @@ import type { Actor, CompanySetup } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, PERSONA_TEMPLATES, renderPersona } from "@rakazo/core";
 import {
   CompanySetupError,
+  ComputerLimitError,
   cancelRunsInTransaction,
   createCompanySpace,
   createDepartmentWithBot,
@@ -155,6 +156,9 @@ export async function addDepartment(
     } catch (error) {
       if (error instanceof DepartmentNameConflictError) {
         throw new ORPCError("CONFLICT", { message: error.message });
+      }
+      if (error instanceof ComputerLimitError) {
+        throw new ORPCError("BAD_REQUEST", { message: error.message });
       }
       throw error;
     }

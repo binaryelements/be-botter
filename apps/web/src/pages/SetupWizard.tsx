@@ -151,7 +151,11 @@ export function SetupWizardPage() {
   return (
     <main className="h-dvh overflow-y-auto">
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-        {error ? <ErrorAlert message={error} /> : null}
+        {error ? (
+          <div className="sticky top-0 z-10 bg-background py-2">
+            <ErrorAlert message={error} />
+          </div>
+        ) : null}
 
         <Step title={<Trans>Company</Trans>}>
           <Input
