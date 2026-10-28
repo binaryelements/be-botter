@@ -408,6 +408,7 @@ export const appContract = {
             name: z.string(),
             botId: Id.nullable(),
             botName: z.string().nullable(),
+            disabledTools: z.array(z.string()),
           }),
         ),
       }),
@@ -422,9 +423,13 @@ export const appContract = {
           name: DepartmentName,
           instructions: z.string().trim().min(1).max(20000),
           templateId: z.string().optional(),
+          disabledTools: z.array(z.string().max(64)).max(200).optional(),
         }),
       )
       .output(z.object({ departmentId: Id, botId: Id })),
+    setDepartmentTools: oc
+      .input(z.object({ departmentId: Id, disabledTools: z.array(z.string().max(64)).max(200) }))
+      .output(z.object({ disabledTools: z.array(z.string()) })),
     update: oc
       .input(
         z.object({

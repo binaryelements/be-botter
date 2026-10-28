@@ -57,6 +57,7 @@ const PROCEDURES: [string, unknown][] = [
   ["setup/templates", {}],
   ["setup/createCompany", { name: "Nope" }],
   ["setup/addDepartment", { name: "Nope", instructions: "x" }],
+  ["setup/setDepartmentTools", { departmentId: "x", disabledTools: [] }],
   ["setup/update", { signInMode: "invited" }],
   ["setup/markReady", {}],
   ["setup/reset", { confirmName: "Nope" }],
@@ -222,7 +223,13 @@ describePostgres("setup over the API (PostgreSQL)", () => {
     }
     const setup = await raw(app, superadmin.cookie, "setup/get");
     expect(setup.json.departments).toEqual([
-      { id: added.json.departmentId, name: "Accounts", botId: bot.id, botName: bot.name },
+      {
+        id: added.json.departmentId,
+        name: "Accounts",
+        botId: bot.id,
+        botName: bot.name,
+        disabledTools: [],
+      },
     ]);
     const unknown = await raw(app, superadmin.cookie, "setup/addDepartment", {
       name: "Ghost",
@@ -230,6 +237,38 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       templateId: "nope",
     });
     expect(unknown.status).toBe(400);
+  });
+
+  it("stores the department's tool choices and lets the superadmin change them", async () => {
+    const added = await raw(app, superadmin.cookie, "setup/addDepartment", {
+      name: "Sales",
+      instructions: "x",
+      disabledTools: ["call_user", "end_call"],
+    });
+    expect(added.status).toBe(200);
+    const bot = await db.bot.findUniqueOrThrow({ where: { id: added.json.botId } });
+    expect(bot.disabledBuiltinTools).toEqual(["call_user", "end_call"]);
+    const setup = await raw(app, superadmin.cookie, "setup/get");
+    expect(
+      setup.json.departments.find((d: { name: string }) => d.name === "Sales").disabledTools,
+    ).toEqual(["call_user", "end_call"]);
+    const changed = await raw(app, superadmin.cookie, "setup/setDepartmentTools", {
+      departmentId: added.json.departmentId,
+      disabledTools: ["web_search", "web_fetch"],
+    });
+    expect(changed.status).toBe(200);
+    expect(changed.json).toEqual({ disabledTools: ["web_search", "web_fetch"] });
+    expect(
+      (await db.bot.findUniqueOrThrow({ where: { id: added.json.botId } })).disabledBuiltinTools,
+    ).toEqual(["web_search", "web_fetch"]);
+    expect(
+      (
+        await raw(app, superadmin.cookie, "setup/setDepartmentTools", {
+          departmentId: "missing",
+          disabledTools: [],
+        })
+      ).status,
+    ).toBe(404);
   });
 
   it("marks the company ready", async () => {
@@ -465,10 +504,18 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       expect(await db.message.count({ where: { threadId: threads[0]!.id } })).toBe(0);
       expect(await db.memoryDocument.count({ where: { botId: bot.id } })).toBe(0);
       expect(await db.artifact.count({ where: { spaceId: trial.spaceId } })).toBe(0);
-      expect(await db.department.count({ where: { spaceId: trial.spaceId } })).toBe(1);
+      expect(await db.department.count({ where: { spaceId: trial.spaceId } })).toBe(2);
       const routines = await db.routine.findMany({ where: { botId: bot.id } });
       expect(routines).toHaveLength(2);
       for (const routine of routines) expect(routine.active).toBe(false);
+      // The Sales bot keeps its tool choices.
+      expect(
+        (
+          await db.bot.findFirstOrThrow({
+            where: { spaceId: trial.spaceId, name: "Sales Assistant" },
+          })
+        ).disabledBuiltinTools,
+      ).toEqual(["web_search", "web_fetch"]);
 
       expect(await db.spaceInvitation.count({ where: { spaceId: trial.spaceId } })).toBe(0);
       const event = await db.securityEvent.findFirst({
@@ -505,6 +552,7 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       expect(counts).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
       expect(await db.browserProfile.findMany({ where })).toMatchObject([
         { botId: bot.id, userId: superadmin.userId },
+        { userId: superadmin.userId },
       ]);
       // Its computer, which the superadmin owns, is destroyed and replaced by a fresh one.
       expect(trial.departmentComputerId).toEqual(expect.any(String));

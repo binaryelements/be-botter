@@ -296,6 +296,7 @@ import {
   listTemplates,
   markReady,
   reset as resetCompany,
+  setDepartmentTools,
   updateSetup,
 } from "./company-setup.js";
 import {
@@ -2448,6 +2449,9 @@ export function createRouter(deps: RouterDeps) {
       ),
       addDepartment: authed.setup.addDepartment.handler(({ context, input }) =>
         addDepartment(deps, context.actor, input),
+      ),
+      setDepartmentTools: authed.setup.setDepartmentTools.handler(({ context, input }) =>
+        setDepartmentTools(deps, context.actor, input),
       ),
       update: authed.setup.update.handler(({ context, input }) =>
         updateSetup(deps, context.actor, input),
