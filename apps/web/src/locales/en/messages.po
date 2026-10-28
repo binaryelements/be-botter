@@ -984,6 +984,10 @@ msgstr "Calling you…"
 msgid "Calling…"
 msgstr "Calling…"
 
+#: src/pages/SetupWizard.tsx
+msgid "Calls"
+msgstr "Calls"
+
 #: src/App.tsx
 msgid "Can't reach the server."
 msgstr "Can't reach the server."
@@ -1323,6 +1327,10 @@ msgstr "Complete"
 #: src/pages/shell/message-view.tsx
 msgid "Computer"
 msgstr "Computer"
+
+#: src/pages/SetupWizard.tsx
+msgid "Computer and browser"
+msgstr "Computer and browser"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/computer-view.tsx
@@ -2116,6 +2124,10 @@ msgstr "Default ({0})"
 msgid "Default scope"
 msgstr "Default scope"
 
+#: src/pages/SetupWizard.tsx
+msgid "Delegation"
+msgstr "Delegation"
+
 #: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/BotContextMenu.tsx
@@ -2560,6 +2572,10 @@ msgstr "Fields to compare, e.g. id, modifiedTime (optional)"
 #: src/pages/McpServersOverlay.tsx
 msgid "File"
 msgstr "File"
+
+#: src/pages/SetupWizard.tsx
+msgid "Files"
+msgstr "Files"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders on the computer"
@@ -3146,6 +3162,10 @@ msgstr "MCP endpoint"
 msgid "MCP servers"
 msgstr "MCP servers"
 
+#: src/pages/SetupWizard.tsx
+msgid "Media"
+msgstr "Media"
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Medium"
@@ -3171,6 +3191,10 @@ msgstr "Members ({0})"
 #: src/pages/SettingsOverlay.tsx
 msgid "Memory"
 msgstr "Memory"
+
+#: src/pages/SetupWizard.tsx
+msgid "Memory and notes"
+msgstr "Memory and notes"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Memory scope"
@@ -5178,6 +5202,7 @@ msgid "Tool sources"
 msgstr "Tool sources"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Tools"
 msgstr "Tools"
 
@@ -5469,6 +5494,10 @@ msgstr "Waiting in line…"
 msgid "Waiting…"
 msgstr "Waiting…"
 
+#: src/pages/SetupWizard.tsx
+msgid "Web"
+msgstr "Web"
+
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"
 msgstr "Web, desktop and mobile apps"
@@ -5541,6 +5570,10 @@ msgstr "Where should bots run?"
 #: src/lib/ticket-status.ts
 msgid "Won't do"
 msgstr "Won't do"
+
+#: src/pages/SetupWizard.tsx
+msgid "Work items"
+msgstr "Work items"
 
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

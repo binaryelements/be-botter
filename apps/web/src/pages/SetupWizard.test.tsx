@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
     templates: vi.fn(),
     createCompany: vi.fn(),
     addDepartment: vi.fn(),
+    setDepartmentTools: vi.fn(),
     update: vi.fn(),
     markReady: vi.fn(),
     reset: vi.fn(),
@@ -133,6 +134,7 @@ it("walks the steps from company to ready", async () => {
     name: "Accounts",
     instructions: "You help Accounts.",
     templateId: "accounts",
+    disabledTools: ["call_user", "end_call"],
   });
   expect(container.textContent).toContain("Accounts assistant");
 
@@ -193,4 +195,47 @@ it("resets only once the company name is typed exactly", async () => {
   expect(api.setup.get).toHaveBeenCalledTimes(2);
   expect(container.textContent).toContain("Mark ready");
   expect(confirm.value).toBe("");
+});
+
+const toggle = (container: HTMLElement, label: string, last = false) => {
+  const matches = [...container.querySelectorAll<HTMLElement>('[role="switch"]')].filter(
+    (el) => el.getAttribute("aria-label") === label,
+  );
+  return last ? matches.at(-1) : matches[0];
+};
+
+it("turns a group off before adding, and changes an existing department's tools", async () => {
+  api.setup.get.mockResolvedValue(company);
+  const container = await render();
+  expect(toggle(container, "Calls")?.getAttribute("aria-checked")).toBe("false");
+  expect(toggle(container, "Web")?.getAttribute("aria-checked")).toBe("true");
+  await click(toggle(container, "Web"));
+  api.setup.addDepartment.mockResolvedValue({ departmentId: "d1", botId: "b1" });
+  api.setup.get.mockResolvedValue({
+    ...company,
+    departments: [
+      {
+        id: "d1",
+        name: "Accounts",
+        botId: "b1",
+        botName: "Accounts assistant",
+        disabledTools: ["call_user", "end_call"],
+      },
+    ],
+  });
+  await click(button(container, "Add department"));
+  expect(api.setup.addDepartment).toHaveBeenCalledWith(
+    expect.objectContaining({
+      disabledTools: ["call_user", "end_call", "web_fetch", "web_search"],
+    }),
+  );
+
+  expect(toggle(container, "Calls", true)?.getAttribute("aria-checked")).toBe("false");
+  expect(toggle(container, "Web", true)?.getAttribute("aria-checked")).toBe("true");
+  api.setup.setDepartmentTools.mockResolvedValue({ disabledTools: [] });
+  await click(toggle(container, "Calls", true));
+  expect(api.setup.setDepartmentTools).toHaveBeenCalledWith({
+    departmentId: "d1",
+    disabledTools: [],
+  });
 });

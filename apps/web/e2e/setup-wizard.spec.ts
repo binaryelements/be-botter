@@ -17,7 +17,13 @@ test("the superadmin sets up a company with a department and marks it ready", as
     readyAt: null as string | null,
     signInMode: "invited",
     tenantId: null,
-    departments: [] as { id: string; name: string; botId: string; botName: string }[],
+    departments: [] as {
+      id: string;
+      name: string;
+      botId: string;
+      botName: string;
+      disabledTools: string[];
+    }[],
   };
   const template = {
     id: "accounts",
@@ -27,6 +33,7 @@ test("the superadmin sets up a company with a department and marks it ready", as
     routines: [],
   };
   let refuseNextDepartment = false;
+  const setDepartmentToolsCalls: string[][] = [];
   await page.route("**/rpc/setup/*", async (route) => {
     const procedure = new URL(route.request().url()).pathname.split("/").pop();
     const input = (route.request().postDataJSON() as { json?: Record<string, string> } | null)
@@ -54,7 +61,17 @@ test("the superadmin sets up a company with a department and marks it ready", as
         name: input?.name ?? "",
         botId: "b1",
         botName: "Accounts assistant",
+        disabledTools: ["call_user", "end_call"],
       });
+    } else if (procedure === "setDepartmentTools") {
+      const disabledTools = (input?.disabledTools ?? []) as unknown as string[];
+      setDepartmentToolsCalls.push(disabledTools);
+      setup.departments[0].disabledTools = disabledTools;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ json: { disabledTools } }),
+      });
+      return;
     } else if (procedure === "update") {
       setup.ownerEmail = input?.ownerEmail ?? null;
     } else if (procedure === "markReady") {
@@ -95,6 +112,13 @@ test("the superadmin sets up a company with a department and marks it ready", as
   await page.getByRole("button", { name: "Add department", exact: true }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "Accounts" })).toBeVisible();
   await captureScreenshot(page, testInfo, "setup-wizard-departments");
+
+  const calls = page.getByRole("switch", { name: "Calls" }).last();
+  await expect(calls).not.toBeChecked();
+  await calls.click();
+  await expect(calls).toBeChecked();
+  expect(setDepartmentToolsCalls).toEqual([[]]);
+  await captureScreenshot(page, testInfo, "setup-wizard-tools");
 
   await page.getByLabel("Owner email").fill("owner@example.test");
   await page.getByRole("button", { name: "Save", exact: true }).last().click();
