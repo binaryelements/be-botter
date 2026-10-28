@@ -24,6 +24,9 @@ export function firstRunRoute(me: Access | null | undefined): "/onboarding" | "/
   return me?.companySetupPending ? "/setup" : "/onboarding";
 }
 
+/** Where opening a Space with nothing in it goes. */
+export const emptySpaceRoute = (me: Access | null | undefined) => firstRunRoute(me) ?? "/app";
+
 /** The superadmin lands in the wizard until the company is ready. */
 export const rootRoute = (me: Pick<Me, "superadmin" | "siteReady">): "/setup" | "/app" =>
   me.superadmin && !me.siteReady ? "/setup" : "/app";

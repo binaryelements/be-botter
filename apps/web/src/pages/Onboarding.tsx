@@ -201,7 +201,7 @@ export function OnboardingPage() {
     ])
       .then(([me, models, integrations]) => {
         // Onboarding creates a bot, which the admin-only switch refuses for this person.
-        if (!me.canManageConnections || hidesSetup(me)) {
+        if (me.superadmin || !me.canManageConnections || hidesSetup(me)) {
           navigate("/app", { replace: true });
           return;
         }
