@@ -66,6 +66,19 @@ export async function admitCompanyPerson(
   return "denied";
 }
 
+/** On a site with an admin key, nobody but the deployment owner gets in until the company is ready. */
+export async function refusesNewcomerBeforeReady(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<boolean> {
+  if ((await readCompanySetup(prisma)).readyAt) return false;
+  const settings = await prisma.deploymentSettings.findUnique({
+    where: { id: "default" },
+    select: { ownerUserId: true },
+  });
+  return settings?.ownerUserId !== userId;
+}
+
 /** On a handed-over site only SSO admits newcomers; the superadmin may still use any sign-in. */
 export async function refusesNewcomerWithoutSso(
   prisma: PrismaClient,

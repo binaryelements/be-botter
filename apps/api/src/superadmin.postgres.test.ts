@@ -121,4 +121,21 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
       expect(((await r.json()) as { code?: string }).code, route).toBe("NOT_INVITED");
     }
   });
+
+  it("turns a password newcomer away before handover but keeps the superadmin signed in", async () => {
+    await db.deploymentSettings.update({
+      where: { id: "default" },
+      data: { companyReadyAt: null },
+    });
+    const email = `new-${Date.now()}@rakazo.test`;
+    const r = await handles.app.request("/api/auth/sign-up/email", {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ email, password: "password12", name: "New" }),
+    });
+    expect(r.status).toBe(403);
+    expect(((await r.json()) as { code?: string }).code).toBe("NOT_INVITED");
+    await db.user.deleteMany({ where: { email } });
+    expect((await signInWith(handles.app, KEY)).status).toBe(200);
+  });
 });

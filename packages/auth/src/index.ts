@@ -48,6 +48,7 @@ import {
   admitCompanyPerson,
   isAdmittedCompanyPerson,
   oidcIdentity,
+  refusesNewcomerBeforeReady,
   refusesNewcomerWithoutSso,
 } from "./company-admission.js";
 import type { OidcConfig } from "./oidc.js";
@@ -739,6 +740,15 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
               });
             }
             const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
+            if (
+              env.superadminKey &&
+              !membership &&
+              (await refusesNewcomerBeforeReady(prisma, user.id))
+            )
+              throw new APIError("FORBIDDEN", {
+                code: "NOT_INVITED",
+                message: "Ask your administrator for an invitation",
+              });
             if (oidcSignIn && ctx && !membership) {
               // A handed-over company's sign-in switch is authoritative over the signup policy.
               const settings = await prisma.deploymentSettings.findUnique({
