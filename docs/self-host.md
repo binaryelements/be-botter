@@ -437,16 +437,19 @@ ever removed. Without the variable, the deployment owner adds it by hand: an MCP
 deployment owner can use a private-network URL (company Space owners can add public HTTPS servers;
 see [Self-hosted memory](#self-hosted-memory) for `MCP_ALLOW_PRIVATE_ENDPOINT`).
 
-People who sign in through SSO while a company Space is set join that Space only, with no personal
-Space of their own, so their bots are where the company's connections are. This holds until the
-company is marked ready; after that, sign-in follows [Preparing a company](#preparing-a-company).
+On a site without an admin key, people who sign in through SSO while a company Space is set join
+that Space only, with no personal Space of their own, so their bots are where the company's
+connections are. This holds until the company is marked ready; after that, sign-in follows
+[Preparing a company](#preparing-a-company).
 
 ### Preparing a company
 
 The deployment owner (the superadmin) prepares a company before anyone else signs in. Set
 `SUPERADMIN_KEY` on the API, open `/setup`, enter the key, and go through: company name, company
 model, departments (started from persona templates), connections, the owner's email, then
-**Mark ready**. Only the superadmin sees the wizard.
+**Mark ready**. Only the superadmin sees the wizard; anyone else who opens `/setup` gets the key
+field. Without `SUPERADMIN_KEY`, the first account to sign in is the deployment owner as before and
+the wizard is theirs.
 
 **Admin key.** The API creates one fixed account at start-up (named Binary Elements, with no
 password or sign-in provider) and makes it the deployment owner. It is the only superadmin, and the
@@ -454,10 +457,17 @@ password or sign-in provider) and makes it the deployment owner. It is the only 
 while signed out shows one **Admin key** field; the right key signs the browser in as that account,
 a wrong one says **Wrong admin key**. No other sign-in method reaches the account. Attempts are
 timing-safe, rate limited like password sign-in, and each is recorded as a sign-in security event.
+The API keeps no copy of the key, so each start ends the account's sessions and the superadmin
+enters the key again: changing the key signs the superadmin out everywhere. Removing the key leaves
+the fixed account as deployment owner with no way to sign in until a key is set again.
 Until the superadmin presses **Mark ready**, anyone else who signs in is refused with **Ask your
 administrator for an invitation**; existing members keep working. The superadmin lands on `/setup`
 from the site root until the company is ready and on `/app` after; the wizard has an **Open the
 app** link.
+
+**Existing sites.** On the first start with the key, the fixed account takes the deployment-owner
+role and joins the company Space as an owner; the previous owner becomes an ordinary person. Sites
+that were test sites are cleared and set up through the wizard.
 
 **Handover.** Once ready, the named owner becomes owner of the company Space on their first SSO
 sign-in. The superadmin and the company's owners invite everyone else in **Settings > People**
