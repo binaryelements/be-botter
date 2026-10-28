@@ -13,7 +13,7 @@ import {
 } from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { rpc } from "../lib/rpc";
 import { SpaceRpcProvider, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
@@ -198,6 +198,9 @@ export function SetupWizardPage() {
   return (
     <main className="h-dvh overflow-y-auto">
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+        <Link to="/app" className="text-[13px] text-muted-foreground hover:text-foreground">
+          <Trans>Open the app</Trans>
+        </Link>
         {error ? (
           <div className="sticky top-0 z-10 bg-background py-2">
             <ErrorAlert message={error} />

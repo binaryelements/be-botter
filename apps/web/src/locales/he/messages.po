@@ -518,6 +518,10 @@ msgstr "נוסף"
 msgid "Adding…"
 msgstr "מוסיף…"
 
+#: src/pages/AdminKey.tsx
+msgid "Admin key"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/model-settings/catalog-model-fields.tsx
@@ -1483,6 +1487,7 @@ msgid "Context limit"
 msgstr "מגבלת הקשר"
 
 #: src/components/integrations/IntegrationSetup.tsx
+#: src/pages/AdminKey.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 msgid "Continue"
@@ -3730,6 +3735,10 @@ msgstr "פתיחה בחלון מלא"
 msgid "Open navigation"
 msgstr "פתיחת הניווט"
 
+#: src/pages/SetupWizard.tsx
+msgid "Open the app"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
 msgstr "עבודה פתוחה"
@@ -5582,6 +5591,10 @@ msgstr "עובד…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/AdminKey.tsx
+msgid "Wrong admin key"
 msgstr ""
 
 #: src/lib/billing.ts

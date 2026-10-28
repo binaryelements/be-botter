@@ -13,3 +13,7 @@ export function firstRunRoute(me: Access | null | undefined): "/onboarding" | "/
   if (me?.canManageConnections === false || hidesSetup(me)) return null;
   return me?.companySetupPending ? "/setup" : "/onboarding";
 }
+
+/** The superadmin lands in the wizard until the company is ready. */
+export const rootRoute = (me: Pick<Me, "isDeploymentOwner" | "companyReady">): "/setup" | "/app" =>
+  me.isDeploymentOwner && !me.companyReady ? "/setup" : "/app";

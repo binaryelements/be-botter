@@ -518,6 +518,10 @@ msgstr "Added"
 msgid "Adding…"
 msgstr "Adding…"
 
+#: src/pages/AdminKey.tsx
+msgid "Admin key"
+msgstr "Admin key"
+
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/model-settings/catalog-model-fields.tsx
@@ -1483,6 +1487,7 @@ msgid "Context limit"
 msgstr "Context limit"
 
 #: src/components/integrations/IntegrationSetup.tsx
+#: src/pages/AdminKey.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 msgid "Continue"
@@ -3730,6 +3735,10 @@ msgstr "Open in full window"
 msgid "Open navigation"
 msgstr "Open navigation"
 
+#: src/pages/SetupWizard.tsx
+msgid "Open the app"
+msgstr "Open the app"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
 msgstr "Open work"
@@ -5583,6 +5592,10 @@ msgstr "Working…"
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
 msgstr "Workspace"
+
+#: src/pages/AdminKey.tsx
+msgid "Wrong admin key"
+msgstr "Wrong admin key"
 
 #: src/lib/billing.ts
 msgid "year"
