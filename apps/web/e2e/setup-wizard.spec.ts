@@ -26,6 +26,7 @@ test("the superadmin sets up a company with a department and marks it ready", as
     instructions: "You help the Accounts team.",
     routines: [],
   };
+  let refuseNextDepartment = false;
   await page.route("**/rpc/setup/*", async (route) => {
     const procedure = new URL(route.request().url()).pathname.split("/").pop();
     const input = (route.request().postDataJSON() as { json?: Record<string, string> } | null)
@@ -33,6 +34,20 @@ test("the superadmin sets up a company with a department and marks it ready", as
     if (procedure === "createCompany") {
       setup.companySpaceId = spaceId;
       setup.companyName = input?.name ?? null;
+    } else if (procedure === "addDepartment" && refuseNextDepartment) {
+      refuseNextDepartment = false;
+      await route.fulfill({
+        status: 400,
+        json: {
+          json: {
+            defined: false,
+            code: "BAD_REQUEST",
+            status: 400,
+            message: "User computer limit (1) reached",
+          },
+        },
+      });
+      return;
     } else if (procedure === "addDepartment") {
       setup.departments.push({
         id: "d1",
@@ -71,6 +86,12 @@ test("the superadmin sets up a company with a department and marks it ready", as
   await page.getByLabel("Company name").fill("Example Company");
   await page.getByRole("button", { name: "Save", exact: true }).first().click();
   await page.getByLabel("Template").selectOption({ label: "Accounts" });
+  // A refusal stays in view however far down the page the click happened.
+  refuseNextDepartment = true;
+  await page.getByRole("button", { name: "Add department", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("User computer limit (1) reached");
+  await expect(page.getByRole("alert")).toBeInViewport();
+  await captureScreenshot(page, testInfo, "setup-wizard-refused");
   await page.getByRole("button", { name: "Add department", exact: true }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "Accounts" })).toBeVisible();
   await captureScreenshot(page, testInfo, "setup-wizard-departments");

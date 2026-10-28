@@ -41,15 +41,22 @@ export async function createDepartmentWithBot(
 ): Promise<DepartmentView & { botName: string }> {
   const departments = createDepartmentRepos(prisma);
   const department = await departments.createDepartment(actor, { name });
-  const bot = await createRepos(prisma).createBot(actor, {
-    name: `${department.name} Assistant`,
-    title: "",
-    description: "",
-    instructions:
-      options.instructions ??
-      departmentBotInstructions(await departments.botTemplate(actor), department.name),
-    notifyOnFinish: true,
-  });
+  let bot: Awaited<ReturnType<ReturnType<typeof createRepos>["createBot"]>>;
+  try {
+    bot = await createRepos(prisma).createBot(actor, {
+      name: `${department.name} Assistant`,
+      title: "",
+      description: "",
+      instructions:
+        options.instructions ??
+        departmentBotInstructions(await departments.botTemplate(actor), department.name),
+      notifyOnFinish: true,
+    });
+  } catch (error) {
+    // A department without its bot would block a retry under the same name.
+    await departments.deleteDepartment(actor, { departmentId: department.id }).catch(() => {});
+    throw error;
+  }
   await departments.setBotDepartments(actor, { botId: bot.id, departmentIds: [department.id] });
   return { ...department, botIds: [bot.id], botName: bot.name };
 }

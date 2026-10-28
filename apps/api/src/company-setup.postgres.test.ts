@@ -170,6 +170,27 @@ describePostgres("setup over the API (PostgreSQL)", () => {
     });
   });
 
+  it("refuses a department over the computer cap and leaves nothing behind", async () => {
+    // The superadmin's own bot holds the only computer slot.
+    expect((await raw(app, superadmin.cookie, "bots/create", { name: "Own bot" })).status).toBe(
+      200,
+    );
+    process.env.SANDBOX_MAX_COMPUTERS_PER_USER = "1";
+    try {
+      const added = await raw(app, superadmin.cookie, "setup/addDepartment", {
+        name: "Accounts",
+        instructions: "x",
+      });
+      expect(added.status).toBe(400);
+      expect(added.message).toBe("User computer limit (1) reached");
+    } finally {
+      delete process.env.SANDBOX_MAX_COMPUTERS_PER_USER;
+    }
+    const space = await db.space.findFirstOrThrow({ where: { name: company } });
+    expect(await db.department.count({ where: { spaceId: space.id } })).toBe(0);
+    expect((await raw(app, superadmin.cookie, "setup/get")).json.departments).toEqual([]);
+  });
+
   it("adds a department from the accounts template with rendered persona and head routines", async () => {
     const templates = await raw(app, superadmin.cookie, "setup/templates");
     const accounts = (
