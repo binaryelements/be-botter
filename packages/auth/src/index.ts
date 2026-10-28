@@ -19,6 +19,7 @@ import {
 import type { PrismaClient, SecurityEventType } from "@rakazo/db";
 import {
   bootstrapUserSpace,
+  isSuperadminEmail,
   joinCompanySpace,
   readCompanySetup,
   recordSecurityEvent,
@@ -560,6 +561,18 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           if (typeof value === "string" && isMessagingEmail(value)) {
             throw new APIError("BAD_REQUEST", { message: "Email is not available" });
           }
+        }
+        // The superadmin signs in with the admin key only.
+        if (
+          env.superadminKey &&
+          [...CREDENTIAL_PATHS, "/forget-password"].includes(ctx.path) &&
+          typeof ctx.body?.email === "string" &&
+          isSuperadminEmail(ctx.body.email)
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "NOT_INVITED",
+            message: "Ask your administrator for an invitation",
+          });
         }
         if (
           env.passwordAuth === false &&

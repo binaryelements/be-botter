@@ -4,6 +4,8 @@ import { APIError, createAuthEndpoint } from "better-auth/api";
 import { setSessionCookie } from "better-auth/cookies";
 
 function sameKey(supplied: string, expected: string) {
+  // Compare lengths first so an oversized key is never copied.
+  if (supplied.length !== expected.length) return false;
   const a = Buffer.from(supplied);
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);

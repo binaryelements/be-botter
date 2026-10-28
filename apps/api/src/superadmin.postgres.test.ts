@@ -45,21 +45,20 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
 
   beforeAll(async () => {
     const { createApp } = await import("./app.js");
-    const probe = await createApp(options(dirs[1]));
-    saved = await asSystem(probe.prisma).deploymentSettings.findUnique({
-      where: { id: "default" },
-    });
-    await probe.stop();
-    handles = await createApp({ ...options(dirs[0]), superadminKey: KEY });
     keyless = await createApp(options(dirs[1]));
-    db = asSystem(handles.prisma);
-  });
+    db = asSystem(keyless.prisma);
+    // Read before the keyed app's start-up makes the superadmin the deployment owner.
+    saved = await db.deploymentSettings.findUnique({ where: { id: "default" } });
+    handles = await createApp({ ...options(dirs[0]), superadminKey: KEY });
+  }, 180_000);
 
   afterAll(async () => {
     // Start-up made the superadmin the deployment owner; put the previous owner back.
     if (saved) {
       const { id: _id, ...rest } = saved as { id: string };
       await db.deploymentSettings.update({ where: { id: "default" }, data: rest as never });
+    } else {
+      await db.deploymentSettings.deleteMany({ where: { id: "default" } });
     }
     await handles?.stop();
     await keyless?.stop();
@@ -67,14 +66,20 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
   });
 
   it("refuses a wrong, empty or padded key with 403 and records the failure", async () => {
+    const failures = () =>
+      db.securityEvent.count({
+        where: {
+          type: "auth.sign_in.failed",
+          metadata: { path: ["path"], equals: "/sign-in/admin-key" },
+        },
+      });
+    const before = await failures();
     for (const key of ["", ` ${KEY}`, `${KEY.slice(1)}0`]) {
       const r = await signInWith(handles.app, key);
       expect(r.status, key).toBe(403);
       expect(((await r.json()) as { code?: string }).code).toBe("WRONG_ADMIN_KEY");
     }
-    expect(
-      await db.securityEvent.count({ where: { type: "auth.sign_in.failed" } }),
-    ).toBeGreaterThanOrEqual(3);
+    expect((await failures()) - before).toBe(3);
   });
 
   it("signs the superadmin in with the right key", async () => {
@@ -99,16 +104,21 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
     expect((await signInWith(keyless.app, KEY)).status).toBe(404);
   });
 
-  it("cannot sign the superadmin in by password", async () => {
-    const r = await handles.app.request("/api/auth/sign-up/email", {
-      method: "POST",
-      headers: json,
-      body: JSON.stringify({
-        email: "superadmin@botter.invalid",
-        password: "password12",
-        name: "x",
-      }),
-    });
-    expect(r.status).toBeGreaterThanOrEqual(400);
+  it("refuses every other sign-in method for the superadmin", async () => {
+    // The email-code routes are not registered here (no email provider); the same guard covers them.
+    const email = "SuperAdmin@botter.invalid";
+    for (const [route, body] of [
+      ["sign-in/email", { email, password: "password12" }],
+      ["sign-up/email", { email, password: "password12", name: "x" }],
+      ["request-password-reset", { email }],
+    ] as const) {
+      const r = await handles.app.request(`/api/auth/${route}`, {
+        method: "POST",
+        headers: json,
+        body: JSON.stringify(body),
+      });
+      expect(r.status, route).toBe(403);
+      expect(((await r.json()) as { code?: string }).code, route).toBe("NOT_INVITED");
+    }
   });
 });
