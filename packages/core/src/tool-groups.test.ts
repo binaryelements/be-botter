@@ -20,8 +20,10 @@ describe("tool groups", () => {
     expect(TOOL_GROUPS.filter((g) => !g.defaultOn).map((g) => g.id)).toEqual(["calls"]);
   });
 
-  it("reports a group off only when all its tools are off", () => {
-    expect(groupsOffFor(["web_search"])).toEqual([]);
+  it("reports a group off when any of its tools is off", () => {
+    expect(groupsOffFor(["web_search"])).toEqual(["web"]);
+    expect(groupsOffFor(["shell", "admin_info"])).toEqual(["computer"]);
+    expect(groupsOffFor([])).toEqual([]);
     expect(groupsOffFor(["web_search", "web_fetch", "call_user", "end_call"])).toEqual([
       "web",
       "calls",

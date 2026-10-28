@@ -257,10 +257,10 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       disabledTools: ["web_search", "web_fetch"],
     });
     expect(changed.status).toBe(200);
-    expect(changed.json).toEqual({ disabledTools: ["web_search", "web_fetch"] });
+    expect(changed.json).toEqual({ disabledTools: ["web_fetch", "web_search"] });
     expect(
       (await db.bot.findUniqueOrThrow({ where: { id: added.json.botId } })).disabledBuiltinTools,
-    ).toEqual(["web_search", "web_fetch"]);
+    ).toEqual(["web_fetch", "web_search"]);
     expect(
       (
         await raw(app, superadmin.cookie, "setup/setDepartmentTools", {
@@ -269,6 +269,30 @@ describePostgres("setup over the API (PostgreSQL)", () => {
         })
       ).status,
     ).toBe(404);
+  });
+
+  it("keeps tool choices made outside the wizard's groups when switching groups", async () => {
+    const sales = (await raw(app, superadmin.cookie, "setup/get")).json.departments.find(
+      (d: { name: string }) => d.name === "Sales",
+    );
+    await db.bot.update({
+      where: { id: sales.botId },
+      data: { disabledBuiltinTools: ["admin_change", "web_search"] },
+    });
+    const changed = await raw(app, superadmin.cookie, "setup/setDepartmentTools", {
+      departmentId: sales.id,
+      disabledTools: ["call_user", "end_call"],
+    });
+    expect(changed.status).toBe(200);
+    expect(changed.json).toEqual({ disabledTools: ["admin_change", "call_user", "end_call"] });
+    expect(
+      (await db.bot.findUniqueOrThrow({ where: { id: sales.botId } })).disabledBuiltinTools,
+    ).toEqual(["admin_change", "call_user", "end_call"]);
+    // The reset test below expects the choice the previous test left.
+    await db.bot.update({
+      where: { id: sales.botId },
+      data: { disabledBuiltinTools: ["web_fetch", "web_search"] },
+    });
   });
 
   it("marks the company ready", async () => {
@@ -515,7 +539,7 @@ describePostgres("setup over the API (PostgreSQL)", () => {
             where: { spaceId: trial.spaceId, name: "Sales Assistant" },
           })
         ).disabledBuiltinTools,
-      ).toEqual(["web_search", "web_fetch"]);
+      ).toEqual(["web_fetch", "web_search"]);
 
       expect(await db.spaceInvitation.count({ where: { spaceId: trial.spaceId } })).toBe(0);
       const event = await db.securityEvent.findFirst({

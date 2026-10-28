@@ -10,7 +10,7 @@ import {
   toComputerRef,
 } from "@rakazo/adapters";
 import type { Actor, CompanySetup } from "@rakazo/contracts";
-import { ACTIVE_RUN_STATUSES, PERSONA_TEMPLATES, renderPersona } from "@rakazo/core";
+import { ACTIVE_RUN_STATUSES, PERSONA_TEMPLATES, renderPersona, TOOL_GROUPS } from "@rakazo/core";
 import {
   CompanySetupError,
   ComputerLimitError,
@@ -96,6 +96,7 @@ export async function getSetup(deps: Deps, actor: Actor) {
         id: true,
         name: true,
         bots: {
+          orderBy: { createdAt: "asc" },
           select: { bot: { select: { id: true, name: true, disabledBuiltinTools: true } } },
         },
       },
@@ -196,26 +197,39 @@ export async function addDepartment(
   return result;
 }
 
+const GROUP_TOOLS = new Set(TOOL_GROUPS.flatMap((group) => group.tools));
+
 export async function setDepartmentTools(
   deps: Deps,
   actor: Actor,
   input: { departmentId: string; disabledTools: string[] },
 ) {
   requireSuperadmin(actor);
-  await inCompany(deps, actor, async (scoped) => {
+  const disabledTools = await inCompany(deps, actor, async (scoped) => {
     const department = await deps.prisma.department.findFirst({
       where: { id: input.departmentId, spaceId: scoped.spaceId },
-      select: { bots: { orderBy: { createdAt: "asc" }, take: 1, select: { botId: true } } },
+      select: {
+        bots: {
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: { bot: { select: { id: true, disabledBuiltinTools: true } } },
+        },
+      },
     });
-    const botId = department?.bots[0]?.botId;
-    if (!botId) throw new ORPCError("NOT_FOUND", { message: "Department not found." });
-    await deps.prisma.bot.update({
-      where: { id: botId },
-      data: { disabledBuiltinTools: input.disabledTools },
-    });
+    const bot = department?.bots[0]?.bot;
+    if (!bot) throw new ORPCError("NOT_FOUND", { message: "Department not found." });
+    // The wizard switches only its groups; choices made on the bot's own page stay.
+    const next = [
+      ...new Set([
+        ...bot.disabledBuiltinTools.filter((tool) => !GROUP_TOOLS.has(tool)),
+        ...input.disabledTools.filter((tool) => GROUP_TOOLS.has(tool)),
+      ]),
+    ].sort();
+    await deps.prisma.bot.update({ where: { id: bot.id }, data: { disabledBuiltinTools: next } });
+    return next;
   });
   await audit(actor, "setDepartmentTools", { departmentId: input.departmentId });
-  return { disabledTools: input.disabledTools };
+  return { disabledTools };
 }
 
 export async function updateSetup(

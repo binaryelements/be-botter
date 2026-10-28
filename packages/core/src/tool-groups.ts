@@ -133,5 +133,5 @@ export function disabledToolsFor(offGroups: readonly ToolGroupId[]): string[] {
 
 export function groupsOffFor(disabledTools: readonly string[]): ToolGroupId[] {
   const disabled = new Set(disabledTools);
-  return TOOL_GROUPS.filter((g) => g.tools.every((t) => disabled.has(t))).map((g) => g.id);
+  return TOOL_GROUPS.filter((g) => g.tools.some((t) => disabled.has(t))).map((g) => g.id);
 }
