@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   mcp: { servers: { list: vi.fn() } },
 }));
 vi.mock("../lib/rpc", () => ({ rpc: api, rpcForSpace: () => api }));
+vi.mock("../lib/auth", () => ({ authClient: { $fetch: vi.fn() } }));
 vi.mock("./model-settings/use-model-settings", () => ({ useModelSettings: () => ({}) }));
 vi.mock("./model-settings/company-model", () => ({
   CompanyModel: () => <div data-testid="company-model" />,
@@ -102,10 +103,19 @@ beforeEach(() => {
   ]);
 });
 
-it("sends anyone but the superadmin back to the app", async () => {
-  api.me.mockResolvedValue({ isDeploymentOwner: false });
+it("asks anyone but the superadmin for the admin key", async () => {
+  api.me.mockResolvedValue({ isDeploymentOwner: false, superadmin: false });
   const container = await render();
-  expect(container.textContent).toBe("app");
+  expect(container.querySelector('[aria-label="Admin key"]')).not.toBeNull();
+  expect(api.setup.get).not.toHaveBeenCalled();
+});
+
+it("opens the wizard for the superadmin", async () => {
+  api.me.mockResolvedValue({ isDeploymentOwner: false, superadmin: true });
+  api.setup.get.mockResolvedValue(company);
+  const container = await render();
+  expect(container.querySelector('[aria-label="Admin key"]')).toBeNull();
+  expect(api.setup.get).toHaveBeenCalled();
 });
 
 it("walks the steps from company to ready", async () => {
@@ -238,4 +248,22 @@ it("turns a group off before adding, and changes an existing department's tools"
     departmentId: "d1",
     disabledTools: [],
   });
+});
+
+it("shows a group off when any of its tools is off", async () => {
+  api.setup.get.mockResolvedValue({
+    ...company,
+    departments: [
+      {
+        id: "d1",
+        name: "Accounts",
+        botId: "b1",
+        botName: "Accounts assistant",
+        disabledTools: ["web_fetch"],
+      },
+    ],
+  });
+  const container = await render();
+  expect(toggle(container, "Web", true)?.getAttribute("aria-checked")).toBe("false");
+  expect(toggle(container, "Calls", true)?.getAttribute("aria-checked")).toBe("true");
 });

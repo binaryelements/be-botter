@@ -13,10 +13,11 @@ import {
 } from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { rpc } from "../lib/rpc";
 import { SpaceRpcProvider, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
+import { AdminKeyPage } from "./AdminKey";
 import { CompanyModel } from "./model-settings/company-model";
 import { useModelSettings } from "./model-settings/use-model-settings";
 
@@ -147,8 +148,10 @@ export function SetupWizardPage() {
       .me()
       .then(async (me) => {
         if (cancelled) return;
-        setAllowed(me.isDeploymentOwner === true);
-        if (me.isDeploymentOwner !== true) return;
+        // A keyless site's deployment owner keeps the wizard; on a keyed site that is the superadmin.
+        const allowed = me.superadmin === true || me.isDeploymentOwner === true;
+        setAllowed(allowed);
+        if (!allowed) return;
         const [current, list] = await Promise.all([rpc.setup.get(), rpc.setup.templates()]);
         if (cancelled) return;
         setSetup(current);
@@ -182,7 +185,7 @@ export function SetupWizardPage() {
     setSetup((current) => ({ departments: [], ...current, ...next }));
   const refresh = async () => setSetup(await rpc.setup.get());
 
-  if (allowed === false) return <Navigate to="/app" replace />;
+  if (allowed === false) return <AdminKeyPage />;
   if (!setup) {
     return error ? (
       <main className="mx-auto max-w-2xl px-4 py-8">

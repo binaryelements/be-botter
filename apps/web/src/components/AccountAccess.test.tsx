@@ -85,6 +85,12 @@ it("uses the shared desktop flow for linking", async () => {
     }),
   );
 });
+it("offers the superadmin no SSO link", async () => {
+  await act(async () => root.render(<AccountAccess superadmin />));
+  const labels = Array.from(host.querySelectorAll("button")).map((b) => b.textContent);
+  expect(labels).toContain("Delete account");
+  expect(labels).not.toContain("Link SSO");
+});
 it("uses the shared desktop flow for account-bound deletion reauthentication", async () => {
   await render();
   await click("Delete account");

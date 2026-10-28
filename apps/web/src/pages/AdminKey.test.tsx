@@ -61,3 +61,12 @@ it("submits the key and shows the refusal", async () => {
   );
   expect(container.querySelector('[role="alert"]')?.textContent).toBe("Wrong admin key");
 });
+
+it("shows an error and frees the button when the request throws", async () => {
+  auth.$fetch.mockRejectedValue(new TypeError("Failed to fetch"));
+  const container = await render();
+  await submit(container, "f".repeat(64));
+  expect(container.querySelector('[role="alert"]')?.textContent).not.toBe("");
+  expect(container.querySelector('[role="alert"]')?.textContent).not.toBe("Wrong admin key");
+  expect(container.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(false);
+});

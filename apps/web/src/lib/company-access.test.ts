@@ -29,8 +29,14 @@ it("respects the admin-only connections switch", () => {
   expect(firstRunRoute({ ...me, canManageConnections: false })).toBeNull();
 });
 
-it("sends the superadmin to the wizard until the company is ready", () => {
-  expect(rootRoute({ isDeploymentOwner: true, companyReady: false })).toBe("/setup");
-  expect(rootRoute({ isDeploymentOwner: true, companyReady: true })).toBe("/app");
-  expect(rootRoute({ isDeploymentOwner: false, companyReady: false })).toBe("/app");
+it("sends the superadmin to the wizard until the site is ready, whatever the Space", () => {
+  expect(rootRoute({ superadmin: true, siteReady: false })).toBe("/setup");
+  expect(rootRoute({ superadmin: true, siteReady: true })).toBe("/app");
+  expect(rootRoute({ superadmin: false, siteReady: false })).toBe("/app");
+});
+
+it("never sends the superadmin to onboarding", () => {
+  const superadmin = { ...me, isDeploymentOwner: true, superadmin: true };
+  expect(firstRunRoute({ ...superadmin, siteReady: false })).toBe("/setup");
+  expect(firstRunRoute({ ...superadmin, siteReady: true })).toBeNull();
 });

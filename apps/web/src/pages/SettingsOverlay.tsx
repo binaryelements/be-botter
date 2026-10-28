@@ -89,6 +89,7 @@ export function SettingsOverlay({
   timezone,
   onTimezoneChange,
   isDeploymentOwner = false,
+  superadmin = false,
   companyReady = false,
   billingEnabled = false,
   sandboxProvider,
@@ -121,6 +122,7 @@ export function SettingsOverlay({
   timezone: string | null;
   onTimezoneChange: (timezone: string) => Promise<void>;
   isDeploymentOwner?: boolean;
+  superadmin?: boolean;
   /** Company people on a ready company site have no model setup. */
   companyReady?: boolean;
   billingEnabled?: boolean;
@@ -487,6 +489,7 @@ export function SettingsOverlay({
                       onOpenMessaging ? () => leaveSettings(onOpenMessaging) : undefined
                     }
                     isDeploymentOwner={isDeploymentOwner}
+                    superadmin={superadmin}
                   />
                 ) : null}
                 {section === "confirmations" ? <ApprovalRulesSettings /> : null}

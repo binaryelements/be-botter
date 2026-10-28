@@ -2,27 +2,32 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, Input } from "@rakazo/ui-web";
 import { useState } from "react";
 import { authClient } from "../lib/auth";
+import { errorText } from "../lib/user-error";
 
 export function AdminKeyPage() {
   const { t } = useLingui();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
-  const [refused, setRefused] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     setBusy(true);
-    setRefused(false);
-    const { error } = await authClient.$fetch("/sign-in/admin-key", {
-      method: "POST",
-      body: { key },
-    });
-    if (error) {
-      setRefused(true);
-      setBusy(false);
-      return;
+    setError(null);
+    try {
+      const { error } = await authClient.$fetch("/sign-in/admin-key", {
+        method: "POST",
+        body: { key },
+      });
+      if (!error) {
+        // A full load so the session store picks up the new cookie; stays busy meanwhile.
+        window.location.assign("/setup");
+        return;
+      }
+      setError(t`Wrong admin key`);
+    } catch (err) {
+      setError(errorText(err));
     }
-    // A full load so the session store picks up the new cookie.
-    window.location.assign("/setup");
+    setBusy(false);
   }
 
   return (
@@ -41,9 +46,9 @@ export function AdminKeyPage() {
           value={key}
           onChange={(event) => setKey(event.target.value)}
         />
-        {refused ? (
+        {error ? (
           <p role="alert" className="text-[13px] text-destructive">
-            <Trans>Wrong admin key</Trans>
+            {error}
           </p>
         ) : null}
         <Button type="submit" disabled={!key || busy}>

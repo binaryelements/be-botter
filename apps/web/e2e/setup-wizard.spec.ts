@@ -61,7 +61,7 @@ test("the superadmin sets up a company with a department and marks it ready", as
         name: input?.name ?? "",
         botId: "b1",
         botName: "Accounts assistant",
-        disabledTools: ["call_user", "end_call"],
+        disabledTools: ["call_user", "end_call", "web_fetch"],
       });
     } else if (procedure === "setDepartmentTools") {
       const disabledTools = (input?.disabledTools ?? []) as unknown as string[];
@@ -80,18 +80,19 @@ test("the superadmin sets up a company with a department and marks it ready", as
     const json = procedure === "templates" ? [template] : setup;
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ json }) });
   });
+  const superadminMe = { isDeploymentOwner: true, superadmin: true, siteReady: false };
   await page.route("**/rpc/bootstrap", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as {
       json?: { me?: Record<string, unknown> };
     };
-    if (body.json?.me) body.json.me.isDeploymentOwner = true;
+    if (body.json?.me) Object.assign(body.json.me, superadminMe);
     await route.fulfill({ response, json: body });
   });
   await page.route("**/rpc/me", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as { json?: Record<string, unknown> };
-    if (body.json) body.json.isDeploymentOwner = true;
+    if (body.json) Object.assign(body.json, superadminMe);
     await route.fulfill({ response, json: body });
   });
   await signup(page, `setup-wizard-${Date.now()}@rakazo.test`, "password12", "Setup Owner");
@@ -113,11 +114,13 @@ test("the superadmin sets up a company with a department and marks it ready", as
   await expect(page.getByRole("listitem").filter({ hasText: "Accounts" })).toBeVisible();
   await captureScreenshot(page, testInfo, "setup-wizard-departments");
 
+  // One tool off on the bot's own page is enough to show its group off.
+  await expect(page.getByRole("switch", { name: "Web" }).last()).not.toBeChecked();
   const calls = page.getByRole("switch", { name: "Calls" }).last();
   await expect(calls).not.toBeChecked();
   await calls.click();
   await expect(calls).toBeChecked();
-  expect(setDepartmentToolsCalls).toEqual([[]]);
+  expect(setDepartmentToolsCalls).toEqual([["web_fetch", "web_search"]]);
   await captureScreenshot(page, testInfo, "setup-wizard-tools");
 
   await page.getByLabel("Owner email").fill("owner@example.test");

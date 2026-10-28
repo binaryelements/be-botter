@@ -93,6 +93,7 @@ vi.mock("../components/AccountAccess", () => ({
 }));
 
 vi.mock("../components/ApprovalRulesSettings", () => ({ ApprovalRulesSettings: () => null }));
+vi.mock("../components/PasskeySettings", () => ({ PasskeySettings: () => <p>passkeys</p> }));
 vi.mock("../components/AuditLog", () => ({ AuditLog: () => null }));
 vi.mock("../components/ConnectionsAdminOnlySetting", () => ({
   ConnectionsAdminOnlySetting: () => null,
@@ -224,6 +225,28 @@ it.each([undefined, true, false])("respects the password-change policy (%s)", as
   } finally {
     await act(async () => root.unmount());
     accountPolicy.passwordChangeEnabled = undefined;
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([false, true])("shows passkeys only to people (superadmin %s)", async (superadmin) => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <GeneralSettingsPanels
+          name="Test"
+          avatarStyle="robot"
+          onAvatarStyleChange={async () => undefined}
+          superadmin={superadmin}
+        />,
+      ),
+    );
+    expect(container.textContent?.includes("passkeys")).toBe(!superadmin);
+  } finally {
+    await act(async () => root.unmount());
     vi.unstubAllGlobals();
   }
 });

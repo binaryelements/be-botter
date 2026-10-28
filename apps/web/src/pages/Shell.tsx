@@ -4188,6 +4188,7 @@ function SpaceShell() {
             initialSection={settingsSection}
             avatarStyle={bootstrapMe?.avatarStyle ?? "organic"}
             isDeploymentOwner={bootstrapMe?.isDeploymentOwner === true}
+            superadmin={bootstrapMe?.superadmin === true}
             companyReady={bootstrapMe?.companyReady === true}
             billingEnabled={bootstrapMe?.billingEnabled === true}
             sandboxProvider={bootstrapMe?.sandboxProvider}
