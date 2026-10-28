@@ -425,8 +425,8 @@ To have the server set up for everyone, name it on the API:
 
 ```env
 OIDC_MCP_SERVERS="Microsoft 365=http://ms365:3000/mcp"
-# 64 hex characters (openssl rand -hex 32); creates the superadmin account, signed in at /setup
-SUPERADMIN_KEY=<64-hex-characters>
+# at least 12 characters (openssl rand -hex 32); creates the superadmin account, signed in at /setup
+SUPERADMIN_KEY=<admin-key>
 ```
 
 At start-up and on each SSO sign-in the API adds every listed server that is missing from the

@@ -171,8 +171,8 @@ function parseSsoMcpServers(value: string | undefined, sso: boolean) {
 }
 
 export function parseSuperadminKey(value: string | undefined): string | undefined {
-  if (value !== undefined && !/^[a-f0-9]{64}$/.test(value))
-    throw new Error("SUPERADMIN_KEY must be 64 hex characters (openssl rand -hex 32)");
+  if (value !== undefined && value.length < 12)
+    throw new Error("SUPERADMIN_KEY must be at least 12 characters (openssl rand -hex 32)");
   return value;
 }
 
