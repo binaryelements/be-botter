@@ -18,7 +18,8 @@ export function CompanyModel({
 >) {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
-  const [provider, setProvider] = useState("");
+  // BE sites run the company on OpenRouter; any other key-only provider stays one pick away.
+  const [provider, setProvider] = useState("openrouter");
   const [modelId, setModelId] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [pending, setPending] = useState(false);

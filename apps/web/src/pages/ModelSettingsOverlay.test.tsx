@@ -861,6 +861,31 @@ it("lets an owner connect a model for the company and remove it again", async ()
   }
 });
 
+it("starts the company model on OpenRouter", async () => {
+  vi.mocked(rpc.me).mockResolvedValue({
+    ...account("deepseek", "deepseek-chat"),
+    isSpaceOwner: true,
+  });
+  models.list.mockResolvedValue([
+    { ...deepseekEntry, provider: "openai", providerName: "OpenAI", id: "gpt-4" },
+    { ...deepseekEntry, provider: "openrouter", providerName: "OpenRouter", id: "openrouter/auto" },
+  ]);
+
+  const view = await renderSettings();
+  try {
+    await act(async () => {
+      companyBlock(view.container)
+        ?.querySelector<HTMLButtonElement>('[data-testid="company-model-connect"]')
+        ?.click();
+    });
+    const provider = view.container.querySelector("#company-model-provider");
+    if (!(provider instanceof HTMLSelectElement)) throw new Error("Missing provider field");
+    expect(provider.value).toBe("openrouter");
+  } finally {
+    await view.unmount();
+  }
+});
+
 it("shows a member the company as the active model source without the owner block", async () => {
   models.companyConnection.mockResolvedValue({ ...companyDeepseek, canManage: false });
 
