@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@rakazo/db";
-import { asSystem, createDb } from "@rakazo/db";
+import { asSystem, createDb, updateCompanySetup } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { admitCompanyPerson } from "./company-admission.js";
+import { admitCompanyPerson, refusesNewcomerBeforeReady } from "./company-admission.js";
 
 const databaseUrl = process.env.DATABASE_URL;
 const CONSUMER_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad";
@@ -193,5 +193,19 @@ describePostgres("admitCompanyPerson (PostgreSQL)", () => {
       }),
     ).toBe("denied");
     expect(await roleIn(id("stranger"))).toBeNull();
+  });
+
+  it("refuses newcomers before the site is ready, except the deployment owner", async () => {
+    const previousOwner = saved?.ownerUserId ?? null;
+    try {
+      await settings({ ownerUserId: id("super") });
+      await updateCompanySetup(system, { readyAt: null });
+      expect(await refusesNewcomerBeforeReady(system, id("stranger"))).toBe(true);
+      expect(await refusesNewcomerBeforeReady(system, id("super"))).toBe(false);
+      await updateCompanySetup(system, { readyAt: new Date() });
+      expect(await refusesNewcomerBeforeReady(system, id("stranger"))).toBe(false);
+    } finally {
+      await settings({ ownerUserId: previousOwner });
+    }
   });
 });

@@ -190,6 +190,8 @@ function account(provider: string, modelId: string) {
     canShareConnections: false,
     companyReady: false,
     companySetupPending: false,
+    superadmin: false,
+    siteReady: false,
   };
 }
 

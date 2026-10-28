@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { firstRunRoute, hidesSetup } from "./company-access";
+import { firstRunRoute, hidesSetup, rootRoute } from "./company-access";
 
 const me = {
   canManageConnections: true,
@@ -27,4 +27,16 @@ it("still shows the superadmin everything and sends them to setup while pending"
 
 it("respects the admin-only connections switch", () => {
   expect(firstRunRoute({ ...me, canManageConnections: false })).toBeNull();
+});
+
+it("sends the superadmin to the wizard until the site is ready, whatever the Space", () => {
+  expect(rootRoute({ superadmin: true, siteReady: false })).toBe("/setup");
+  expect(rootRoute({ superadmin: true, siteReady: true })).toBe("/app");
+  expect(rootRoute({ superadmin: false, siteReady: false })).toBe("/app");
+});
+
+it("never sends the superadmin to onboarding", () => {
+  const superadmin = { ...me, isDeploymentOwner: true, superadmin: true };
+  expect(firstRunRoute({ ...superadmin, siteReady: false })).toBe("/setup");
+  expect(firstRunRoute({ ...superadmin, siteReady: true })).toBeNull();
 });

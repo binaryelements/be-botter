@@ -518,6 +518,10 @@ msgstr ""
 msgid "Adding…"
 msgstr "Adicionando"
 
+#: src/pages/AdminKey.tsx
+msgid "Admin key"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/model-settings/catalog-model-fields.tsx
@@ -984,6 +988,10 @@ msgstr ""
 msgid "Calling…"
 msgstr ""
 
+#: src/pages/SetupWizard.tsx
+msgid "Calls"
+msgstr ""
+
 #: src/App.tsx
 msgid "Can't reach the server."
 msgstr "Não é possível acessar o servidor."
@@ -1324,6 +1332,10 @@ msgstr "Concluir"
 msgid "Computer"
 msgstr "Computador"
 
+#: src/pages/SetupWizard.tsx
+msgid "Computer and browser"
+msgstr ""
+
 #: src/pages/Shell.tsx
 #: src/pages/shell/computer-view.tsx
 msgid "Computer failed to boot"
@@ -1475,6 +1487,7 @@ msgid "Context limit"
 msgstr "Limite de contexto"
 
 #: src/components/integrations/IntegrationSetup.tsx
+#: src/pages/AdminKey.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 msgid "Continue"
@@ -2116,6 +2129,10 @@ msgstr ""
 msgid "Default scope"
 msgstr "Escopo padrão"
 
+#: src/pages/SetupWizard.tsx
+msgid "Delegation"
+msgstr ""
+
 #: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/BotContextMenu.tsx
@@ -2560,6 +2577,10 @@ msgstr "Campos para comparar, por exemplo id, modifiedTime (opcional)"
 #: src/pages/McpServersOverlay.tsx
 msgid "File"
 msgstr "Arquivo"
+
+#: src/pages/SetupWizard.tsx
+msgid "Files"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders on the computer"
@@ -3146,6 +3167,10 @@ msgstr ""
 msgid "MCP servers"
 msgstr "Servidores MCP"
 
+#: src/pages/SetupWizard.tsx
+msgid "Media"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Medium"
@@ -3171,6 +3196,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Memory"
 msgstr "Memória"
+
+#: src/pages/SetupWizard.tsx
+msgid "Memory and notes"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Memory scope"
@@ -3705,6 +3734,10 @@ msgstr "Abrir em janela cheia"
 #: src/pages/Shell.tsx
 msgid "Open navigation"
 msgstr "Abrir a navegação"
+
+#: src/pages/SetupWizard.tsx
+msgid "Open the app"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
@@ -5178,6 +5211,7 @@ msgid "Tool sources"
 msgstr "Fontes de ferramentas"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Tools"
 msgstr ""
 
@@ -5469,6 +5503,10 @@ msgstr "Aguardando na fila…"
 msgid "Waiting…"
 msgstr "Aguardando…"
 
+#: src/pages/SetupWizard.tsx
+msgid "Web"
+msgstr ""
+
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"
 msgstr ""
@@ -5542,6 +5580,10 @@ msgstr "Onde os bots devem ser executados?"
 msgid "Won't do"
 msgstr ""
 
+#: src/pages/SetupWizard.tsx
+msgid "Work items"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -5549,6 +5591,10 @@ msgstr "Trabalhando…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/AdminKey.tsx
+msgid "Wrong admin key"
 msgstr ""
 
 #: src/lib/billing.ts

@@ -234,6 +234,7 @@ import {
   InvalidSpaceNameError,
   IsolationError,
   isSpaceOwner,
+  isSuperadminEmail,
   issueMessagingLinkCode,
   listBoards,
   listSecurityEvents,
@@ -296,6 +297,7 @@ import {
   listTemplates,
   markReady,
   reset as resetCompany,
+  setDepartmentTools,
   updateSetup,
 } from "./company-setup.js";
 import {
@@ -758,6 +760,8 @@ export interface RouterDeps {
   /** Present only when the deployment bills; self-hosted installs leave it unset. */
   billing?: BillingService;
   env: {
+    /** Set on sites with an admin key; only its presence is read here. */
+    superadminKey?: string;
     ticketBoardEnabled?: boolean;
     phoneCallsEnabled?: boolean;
     phoneCallRingSeconds?: number;
@@ -2448,6 +2452,9 @@ export function createRouter(deps: RouterDeps) {
       ),
       addDepartment: authed.setup.addDepartment.handler(({ context, input }) =>
         addDepartment(deps, context.actor, input),
+      ),
+      setDepartmentTools: authed.setup.setDepartmentTools.handler(({ context, input }) =>
+        setDepartmentTools(deps, context.actor, input),
       ),
       update: authed.setup.update.handler(({ context, input }) =>
         updateSetup(deps, context.actor, input),
@@ -7368,6 +7375,8 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     companyReady: company.readyAt != null && actor.spaceId === company.companySpaceId,
     companySetupPending:
       actor.isDeploymentOwner && company.companySpaceId != null && company.readyAt == null,
+    superadmin: Boolean(deps.env.superadminKey) && isSuperadminEmail(user.email),
+    siteReady: company.readyAt != null,
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??

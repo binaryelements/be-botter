@@ -9,8 +9,10 @@ import { authErrorText } from "../lib/user-error";
 
 export function AccountAccess({
   onSecurity,
+  superadmin = false,
 }: {
   onSecurity?: (security: AccountSecurity) => void;
+  superadmin?: boolean;
 }) {
   const { t } = useLingui();
   const [security, setSecurity] = useState<AccountSecurity | null>(null);
@@ -53,7 +55,7 @@ export function AccountAccess({
   }
   return (
     <div className="space-y-3">
-      {security?.sso && !security.ssoLinked ? (
+      {security?.sso && !security.ssoLinked && !superadmin ? (
         <Button
           variant="outline"
           disabled={pending}

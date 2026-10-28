@@ -37,7 +37,7 @@ export async function createDepartmentWithBot(
   prisma: PrismaClient,
   actor: Actor,
   name: string,
-  options: { instructions?: string } = {},
+  options: { instructions?: string; disabledBuiltinTools?: string[] } = {},
 ): Promise<DepartmentView & { botName: string }> {
   const departments = createDepartmentRepos(prisma);
   const department = await departments.createDepartment(actor, { name });
@@ -51,6 +51,9 @@ export async function createDepartmentWithBot(
         options.instructions ??
         departmentBotInstructions(await departments.botTemplate(actor), department.name),
       notifyOnFinish: true,
+      ...(options.disabledBuiltinTools
+        ? { disabledBuiltinTools: options.disabledBuiltinTools }
+        : {}),
     });
   } catch (error) {
     // A department without its bot would block a retry under the same name.

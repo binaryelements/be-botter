@@ -1,19 +1,23 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CompanySetup, McpServer, PersonaTemplate } from "@rakazo/contracts";
+import type { ToolGroupId } from "@rakazo/core";
+import { DEFAULT_OFF_GROUPS, disabledToolsFor, groupsOffFor, TOOL_GROUPS } from "@rakazo/core";
 import {
   Button,
   Disclosure,
   Input,
   NativeSelect,
   NativeSelectOption,
+  Switch,
   Textarea,
 } from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { rpc } from "../lib/rpc";
 import { SpaceRpcProvider, useSpaceRpc } from "../lib/space-rpc";
 import { errorText } from "../lib/user-error";
+import { AdminKeyPage } from "./AdminKey";
 import { CompanyModel } from "./model-settings/company-model";
 import { useModelSettings } from "./model-settings/use-model-settings";
 
@@ -51,6 +55,48 @@ function CompanyModelStep() {
   return <CompanyModel {...model} />;
 }
 
+function ToolSwitches({
+  off,
+  onChange,
+  disabled = false,
+}: {
+  off: readonly ToolGroupId[];
+  onChange: (off: ToolGroupId[]) => void;
+  disabled?: boolean;
+}) {
+  const { t } = useLingui();
+  const names: Record<ToolGroupId, string> = {
+    web: t`Web`,
+    computer: t`Computer and browser`,
+    files: t`Files`,
+    media: t`Media`,
+    memory: t`Memory and notes`,
+    work: t`Work items`,
+    delegation: t`Delegation`,
+    calls: t`Calls`,
+  };
+  return (
+    <div className="w-full space-y-1">
+      <h3 className="text-[13px] text-muted-foreground">
+        <Trans>Tools</Trans>
+      </h3>
+      {TOOL_GROUPS.map((group) => (
+        <div key={group.id} className="flex items-center justify-between gap-3 text-[14px]">
+          <span aria-hidden>{names[group.id]}</span>
+          <Switch
+            aria-label={names[group.id]}
+            disabled={disabled}
+            checked={!off.includes(group.id)}
+            onCheckedChange={(on) =>
+              onChange(on ? off.filter((id) => id !== group.id) : [...off, group.id])
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ConnectionsList() {
   const spaceRpc = useSpaceRpc();
   const { t } = useLingui();
@@ -85,6 +131,7 @@ export function SetupWizardPage() {
   const [templateId, setTemplateId] = useState("");
   const [departmentName, setDepartmentName] = useState("");
   const [persona, setPersona] = useState("");
+  const [offGroups, setOffGroups] = useState<ToolGroupId[]>([...DEFAULT_OFF_GROUPS]);
   const [ownerEmail, setOwnerEmail] = useState("");
   const [confirmName, setConfirmName] = useState("");
 
@@ -92,6 +139,7 @@ export function SetupWizardPage() {
     setTemplateId(template?.id ?? "");
     setDepartmentName(template?.department ?? "");
     setPersona(template?.instructions ?? "");
+    setOffGroups([...DEFAULT_OFF_GROUPS]);
   }
 
   useEffect(() => {
@@ -100,8 +148,10 @@ export function SetupWizardPage() {
       .me()
       .then(async (me) => {
         if (cancelled) return;
-        setAllowed(me.isDeploymentOwner === true);
-        if (me.isDeploymentOwner !== true) return;
+        // A keyless site's deployment owner keeps the wizard; on a keyed site that is the superadmin.
+        const allowed = me.superadmin === true || me.isDeploymentOwner === true;
+        setAllowed(allowed);
+        if (!allowed) return;
         const [current, list] = await Promise.all([rpc.setup.get(), rpc.setup.templates()]);
         if (cancelled) return;
         setSetup(current);
@@ -135,7 +185,7 @@ export function SetupWizardPage() {
     setSetup((current) => ({ departments: [], ...current, ...next }));
   const refresh = async () => setSetup(await rpc.setup.get());
 
-  if (allowed === false) return <Navigate to="/app" replace />;
+  if (allowed === false) return <AdminKeyPage />;
   if (!setup) {
     return error ? (
       <main className="mx-auto max-w-2xl px-4 py-8">
@@ -151,6 +201,9 @@ export function SetupWizardPage() {
   return (
     <main className="h-dvh overflow-y-auto">
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+        <Link to="/app" className="text-[13px] text-muted-foreground hover:text-foreground">
+          <Trans>Open the app</Trans>
+        </Link>
         {error ? (
           <div className="sticky top-0 z-10 bg-background py-2">
             <ErrorAlert message={error} />
@@ -210,6 +263,7 @@ export function SetupWizardPage() {
               value={persona}
               onChange={(event) => setPersona(event.target.value)}
             />
+            <ToolSwitches off={offGroups} onChange={setOffGroups} />
             <Button
               variant="outline"
               disabled={busy || !departmentName.trim() || !persona.trim()}
@@ -219,6 +273,7 @@ export function SetupWizardPage() {
                     name: departmentName.trim(),
                     instructions: persona.trim(),
                     templateId: templateId || undefined,
+                    disabledTools: disabledToolsFor(offGroups),
                   });
                   await refresh();
                   pick(templates.find((entry) => entry.id === templateId));
@@ -229,11 +284,26 @@ export function SetupWizardPage() {
             </Button>
             <ul className="w-full space-y-1 text-[14px]">
               {setup.departments.map((department) => (
-                <li key={department.id}>
-                  {department.name}
-                  {department.botName ? (
-                    <span className="text-muted-foreground"> {department.botName}</span>
-                  ) : null}
+                <li key={department.id} className="space-y-2">
+                  <div>
+                    {department.name}
+                    {department.botName ? (
+                      <span className="text-muted-foreground"> {department.botName}</span>
+                    ) : null}
+                  </div>
+                  <ToolSwitches
+                    off={groupsOffFor(department.disabledTools)}
+                    disabled={busy}
+                    onChange={(next) =>
+                      run(async () => {
+                        await rpc.setup.setDepartmentTools({
+                          departmentId: department.id,
+                          disabledTools: disabledToolsFor(next),
+                        });
+                        await refresh();
+                      })
+                    }
+                  />
                 </li>
               ))}
             </ul>

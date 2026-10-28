@@ -10,7 +10,7 @@ import {
   toComputerRef,
 } from "@rakazo/adapters";
 import type { Actor, CompanySetup } from "@rakazo/contracts";
-import { ACTIVE_RUN_STATUSES, PERSONA_TEMPLATES, renderPersona } from "@rakazo/core";
+import { ACTIVE_RUN_STATUSES, PERSONA_TEMPLATES, renderPersona, TOOL_GROUPS } from "@rakazo/core";
 import {
   CompanySetupError,
   ComputerLimitError,
@@ -95,7 +95,10 @@ export async function getSetup(deps: Deps, actor: Actor) {
       select: {
         id: true,
         name: true,
-        bots: { select: { bot: { select: { id: true, name: true } } } },
+        bots: {
+          orderBy: { createdAt: "asc" },
+          select: { bot: { select: { id: true, name: true, disabledBuiltinTools: true } } },
+        },
       },
     }),
   );
@@ -106,6 +109,7 @@ export async function getSetup(deps: Deps, actor: Actor) {
       name: row.name,
       botId: row.bots[0]?.bot.id ?? null,
       botName: row.bots[0]?.bot.name ?? null,
+      disabledTools: row.bots[0]?.bot.disabledBuiltinTools ?? [],
     })),
   };
 }
@@ -137,7 +141,7 @@ export async function createCompany(deps: Deps, actor: Actor, name: string) {
 export async function addDepartment(
   deps: Deps,
   actor: Actor,
-  input: { name: string; instructions: string; templateId?: string },
+  input: { name: string; instructions: string; templateId?: string; disabledTools?: string[] },
 ) {
   requireSuperadmin(actor);
   const template = input.templateId
@@ -152,6 +156,7 @@ export async function addDepartment(
     try {
       department = await createDepartmentWithBot(deps.prisma, scoped, input.name, {
         instructions: renderPersona(input.instructions, values),
+        disabledBuiltinTools: input.disabledTools ?? [],
       });
     } catch (error) {
       if (error instanceof DepartmentNameConflictError) {
@@ -190,6 +195,41 @@ export async function addDepartment(
   });
   await audit(actor, "addDepartment", { templateId: input.templateId ?? "" });
   return result;
+}
+
+const GROUP_TOOLS = new Set(TOOL_GROUPS.flatMap((group) => group.tools));
+
+export async function setDepartmentTools(
+  deps: Deps,
+  actor: Actor,
+  input: { departmentId: string; disabledTools: string[] },
+) {
+  requireSuperadmin(actor);
+  const disabledTools = await inCompany(deps, actor, async (scoped) => {
+    const department = await deps.prisma.department.findFirst({
+      where: { id: input.departmentId, spaceId: scoped.spaceId },
+      select: {
+        bots: {
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: { bot: { select: { id: true, disabledBuiltinTools: true } } },
+        },
+      },
+    });
+    const bot = department?.bots[0]?.bot;
+    if (!bot) throw new ORPCError("NOT_FOUND", { message: "Department not found." });
+    // The wizard switches only its groups; choices made on the bot's own page stay.
+    const next = [
+      ...new Set([
+        ...bot.disabledBuiltinTools.filter((tool) => !GROUP_TOOLS.has(tool)),
+        ...input.disabledTools.filter((tool) => GROUP_TOOLS.has(tool)),
+      ]),
+    ].sort();
+    await deps.prisma.bot.update({ where: { id: bot.id }, data: { disabledBuiltinTools: next } });
+    return next;
+  });
+  await audit(actor, "setDepartmentTools", { departmentId: input.departmentId });
+  return { disabledTools };
 }
 
 export async function updateSetup(

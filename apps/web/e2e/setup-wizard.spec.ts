@@ -17,7 +17,13 @@ test("the superadmin sets up a company with a department and marks it ready", as
     readyAt: null as string | null,
     signInMode: "invited",
     tenantId: null,
-    departments: [] as { id: string; name: string; botId: string; botName: string }[],
+    departments: [] as {
+      id: string;
+      name: string;
+      botId: string;
+      botName: string;
+      disabledTools: string[];
+    }[],
   };
   const template = {
     id: "accounts",
@@ -27,6 +33,7 @@ test("the superadmin sets up a company with a department and marks it ready", as
     routines: [],
   };
   let refuseNextDepartment = false;
+  const setDepartmentToolsCalls: string[][] = [];
   await page.route("**/rpc/setup/*", async (route) => {
     const procedure = new URL(route.request().url()).pathname.split("/").pop();
     const input = (route.request().postDataJSON() as { json?: Record<string, string> } | null)
@@ -54,7 +61,17 @@ test("the superadmin sets up a company with a department and marks it ready", as
         name: input?.name ?? "",
         botId: "b1",
         botName: "Accounts assistant",
+        disabledTools: ["call_user", "end_call", "web_fetch"],
       });
+    } else if (procedure === "setDepartmentTools") {
+      const disabledTools = (input?.disabledTools ?? []) as unknown as string[];
+      setDepartmentToolsCalls.push(disabledTools);
+      setup.departments[0].disabledTools = disabledTools;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ json: { disabledTools } }),
+      });
+      return;
     } else if (procedure === "update") {
       setup.ownerEmail = input?.ownerEmail ?? null;
     } else if (procedure === "markReady") {
@@ -63,18 +80,19 @@ test("the superadmin sets up a company with a department and marks it ready", as
     const json = procedure === "templates" ? [template] : setup;
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ json }) });
   });
+  const superadminMe = { isDeploymentOwner: true, superadmin: true, siteReady: false };
   await page.route("**/rpc/bootstrap", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as {
       json?: { me?: Record<string, unknown> };
     };
-    if (body.json?.me) body.json.me.isDeploymentOwner = true;
+    if (body.json?.me) Object.assign(body.json.me, superadminMe);
     await route.fulfill({ response, json: body });
   });
   await page.route("**/rpc/me", async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as { json?: Record<string, unknown> };
-    if (body.json) body.json.isDeploymentOwner = true;
+    if (body.json) Object.assign(body.json, superadminMe);
     await route.fulfill({ response, json: body });
   });
   await signup(page, `setup-wizard-${Date.now()}@rakazo.test`, "password12", "Setup Owner");
@@ -95,6 +113,15 @@ test("the superadmin sets up a company with a department and marks it ready", as
   await page.getByRole("button", { name: "Add department", exact: true }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "Accounts" })).toBeVisible();
   await captureScreenshot(page, testInfo, "setup-wizard-departments");
+
+  // One tool off on the bot's own page is enough to show its group off.
+  await expect(page.getByRole("switch", { name: "Web" }).last()).not.toBeChecked();
+  const calls = page.getByRole("switch", { name: "Calls" }).last();
+  await expect(calls).not.toBeChecked();
+  await calls.click();
+  await expect(calls).toBeChecked();
+  expect(setDepartmentToolsCalls).toEqual([["web_fetch", "web_search"]]);
+  await captureScreenshot(page, testInfo, "setup-wizard-tools");
 
   await page.getByLabel("Owner email").fill("owner@example.test");
   await page.getByRole("button", { name: "Save", exact: true }).last().click();

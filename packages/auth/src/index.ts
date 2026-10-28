@@ -19,9 +19,11 @@ import {
 import type { PrismaClient, SecurityEventType } from "@rakazo/db";
 import {
   bootstrapUserSpace,
+  isSuperadminEmail,
   joinCompanySpace,
   readCompanySetup,
   recordSecurityEvent,
+  SUPERADMIN_EMAIL,
 } from "@rakazo/db";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { betterAuth } from "better-auth";
@@ -40,11 +42,13 @@ import {
   sessionForAuthHook,
   signedBearer,
 } from "./account-security.js";
+import { adminKeySignIn } from "./admin-key.js";
 import { breachedPasswordCheck } from "./breached-password.js";
 import {
   admitCompanyPerson,
   isAdmittedCompanyPerson,
   oidcIdentity,
+  refusesNewcomerBeforeReady,
   refusesNewcomerWithoutSso,
 } from "./company-admission.js";
 import type { OidcConfig } from "./oidc.js";
@@ -65,6 +69,8 @@ export {
 } from "./person-token.js";
 
 export interface AuthEnv {
+  /** Enables `POST /sign-in/admin-key` for the fixed superadmin account. */
+  superadminKey?: string;
   analytics?: ProductAnalytics;
   passwordAuth?: boolean;
   /** Opt-in: rejects new passwords found in Have I Been Pwned. Calls an outside service. */
@@ -284,6 +290,16 @@ const CREDENTIAL_PATHS = [
   CODE_SIGN_IN_PATH,
 ] as const;
 
+/** Session paths that would give the superadmin account a way in other than the admin key. */
+const SUPERADMIN_REFUSED_PATHS = [
+  "/link-social",
+  "/oauth2/link",
+  "/passkey/generate-register-options",
+  "/passkey/verify-registration",
+  "/change-email",
+  "/set-password",
+];
+
 /** Sign-in codes are short-lived, single use and hashed at rest. */
 export const SIGN_IN_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
@@ -323,6 +339,7 @@ export function authRateLimitOptions(nodeEnv = process.env.NODE_ENV) {
     customRules: {
       ...Object.fromEntries(CREDENTIAL_PATHS.map((path) => [path, rule])),
       "/request-account-deletion": { window: 600, max: 3 },
+      "/sign-in/admin-key": rule,
       "/passkey/verify-authentication": rule,
       "/passkey/verify-registration": rule,
       // Sign-in pages request a challenge on load for passkey autofill.
@@ -486,6 +503,9 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       signedBearer,
       expo(),
       accountSecurity(env.email, env.oidc?.name, env.oidc?.issuer, env.passwordAuth !== false),
+      ...(env.superadminKey
+        ? [adminKeySignIn({ key: env.superadminKey, superadminEmail: SUPERADMIN_EMAIL })]
+        : []),
       ...(discovery ? [discovery.plugin] : []),
       ...(emailCodeSignIn
         ? [
@@ -552,6 +572,29 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           if (typeof value === "string" && isMessagingEmail(value)) {
             throw new APIError("BAD_REQUEST", { message: "Email is not available" });
           }
+        }
+        // The superadmin signs in with the admin key only.
+        if (
+          env.superadminKey &&
+          [...CREDENTIAL_PATHS, "/forget-password"].includes(ctx.path) &&
+          typeof ctx.body?.email === "string" &&
+          isSuperadminEmail(ctx.body.email)
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "NOT_INVITED",
+            message: "Ask your administrator for an invitation",
+          });
+        }
+        // Nor can a superadmin session add a password, passkey, provider or other email.
+        if (
+          env.superadminKey &&
+          SUPERADMIN_REFUSED_PATHS.includes(ctx.path) &&
+          isSuperadminEmail((await sessionForAuthHook(ctx))?.user.email ?? "")
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "NOT_INVITED",
+            message: "Ask your administrator for an invitation",
+          });
         }
         if (
           env.passwordAuth === false &&
@@ -717,7 +760,21 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                 message: "Email verification required",
               });
             }
+            if (env.superadminKey && oidcSignIn && isSuperadminEmail(user.email))
+              throw new APIError("FORBIDDEN", {
+                code: "NOT_INVITED",
+                message: "Ask your administrator for an invitation",
+              });
             const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
+            if (
+              env.superadminKey &&
+              !membership &&
+              (await refusesNewcomerBeforeReady(prisma, user.id))
+            )
+              throw new APIError("FORBIDDEN", {
+                code: "NOT_INVITED",
+                message: "Ask your administrator for an invitation",
+              });
             if (oidcSignIn && ctx && !membership) {
               // A handed-over company's sign-in switch is authoritative over the signup policy.
               const settings = await prisma.deploymentSettings.findUnique({

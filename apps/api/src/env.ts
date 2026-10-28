@@ -32,6 +32,8 @@ export interface AppEnv {
   oidc?: OidcConfig;
   /** Company connections each person signs into with their own SSO token, set up automatically. */
   companySsoMcpServers: { name: string; endpoint: string }[];
+  /** Per-site admin key; enables the fixed superadmin account. */
+  superadminKey: string | undefined;
   nodeEnv: string;
   desktopStackToken?: string;
   databaseUrl: string;
@@ -168,6 +170,12 @@ function parseSsoMcpServers(value: string | undefined, sso: boolean) {
   });
 }
 
+export function parseSuperadminKey(value: string | undefined): string | undefined {
+  if (value !== undefined && !/^[a-f0-9]{64}$/.test(value))
+    throw new Error("SUPERADMIN_KEY must be 64 hex characters (openssl rand -hex 32)");
+  return value;
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   secretStoreOptionsFromEnv(source);
   const issuer = optional(source.OIDC_ISSUER);
@@ -225,6 +233,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     breachedPasswordCheck: source.AUTH_BREACHED_PASSWORD_CHECK_ENABLED === "true",
     oidc,
     companySsoMcpServers,
+    superadminKey: parseSuperadminKey(optional(source.SUPERADMIN_KEY)),
     nodeEnv: source.NODE_ENV ?? "",
     databaseUrl: required(source, "DATABASE_URL"),
     realtimeDatabaseUrl: source.REALTIME_DATABASE_URL ?? required(source, "DATABASE_URL"),

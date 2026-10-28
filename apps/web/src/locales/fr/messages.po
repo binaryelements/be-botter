@@ -518,6 +518,10 @@ msgstr "Ajouté"
 msgid "Adding…"
 msgstr "Ajout en cours…"
 
+#: src/pages/AdminKey.tsx
+msgid "Admin key"
+msgstr ""
+
 #: src/pages/AccountSettingsOverlay.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/model-settings/catalog-model-fields.tsx
@@ -984,6 +988,10 @@ msgstr "Vous appelle…"
 msgid "Calling…"
 msgstr "Appel en cours…"
 
+#: src/pages/SetupWizard.tsx
+msgid "Calls"
+msgstr ""
+
 #: src/App.tsx
 msgid "Can't reach the server."
 msgstr "Impossible d'atteindre le serveur."
@@ -1324,6 +1332,10 @@ msgstr "Terminé"
 msgid "Computer"
 msgstr "Ordinateur"
 
+#: src/pages/SetupWizard.tsx
+msgid "Computer and browser"
+msgstr ""
+
 #: src/pages/Shell.tsx
 #: src/pages/shell/computer-view.tsx
 msgid "Computer failed to boot"
@@ -1475,6 +1487,7 @@ msgid "Context limit"
 msgstr "Limite de contexte"
 
 #: src/components/integrations/IntegrationSetup.tsx
+#: src/pages/AdminKey.tsx
 #: src/pages/Auth.tsx
 #: src/pages/Onboarding.tsx
 msgid "Continue"
@@ -2116,6 +2129,10 @@ msgstr ""
 msgid "Default scope"
 msgstr "Portée par défaut"
 
+#: src/pages/SetupWizard.tsx
+msgid "Delegation"
+msgstr ""
+
 #: src/components/PasskeySettings.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/BotContextMenu.tsx
@@ -2560,6 +2577,10 @@ msgstr "Champs à comparer, par ex. id, modifiedTime (facultatif)"
 #: src/pages/McpServersOverlay.tsx
 msgid "File"
 msgstr "Fichier"
+
+#: src/pages/SetupWizard.tsx
+msgid "Files"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Files or folders on the computer"
@@ -3146,6 +3167,10 @@ msgstr "Point de terminaison MCP"
 msgid "MCP servers"
 msgstr "Serveurs MCP"
 
+#: src/pages/SetupWizard.tsx
+msgid "Media"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Medium"
@@ -3171,6 +3196,10 @@ msgstr ""
 #: src/pages/SettingsOverlay.tsx
 msgid "Memory"
 msgstr "Mémoire"
+
+#: src/pages/SetupWizard.tsx
+msgid "Memory and notes"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Memory scope"
@@ -3705,6 +3734,10 @@ msgstr "Ouvrir en fenêtre complète"
 #: src/pages/Shell.tsx
 msgid "Open navigation"
 msgstr "Ouvrir la navigation"
+
+#: src/pages/SetupWizard.tsx
+msgid "Open the app"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
@@ -5178,6 +5211,7 @@ msgid "Tool sources"
 msgstr "Sources d'outils"
 
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/SetupWizard.tsx
 msgid "Tools"
 msgstr "Outils"
 
@@ -5469,6 +5503,10 @@ msgstr "En attente dans la file…"
 msgid "Waiting…"
 msgstr "En attente…"
 
+#: src/pages/SetupWizard.tsx
+msgid "Web"
+msgstr ""
+
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"
 msgstr ""
@@ -5542,6 +5580,10 @@ msgstr "Où les bots doivent-ils s'exécuter ?"
 msgid "Won't do"
 msgstr ""
 
+#: src/pages/SetupWizard.tsx
+msgid "Work items"
+msgstr ""
+
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -5549,6 +5591,10 @@ msgstr "En cours…"
 
 #: src/pages/memory-providers/HonchoSettingsForm.tsx
 msgid "Workspace"
+msgstr ""
+
+#: src/pages/AdminKey.tsx
+msgid "Wrong admin key"
 msgstr ""
 
 #: src/lib/billing.ts

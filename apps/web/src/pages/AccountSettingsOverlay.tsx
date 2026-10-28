@@ -71,6 +71,8 @@ export type SettingsGeneralProps = {
   messagingEnabled?: boolean;
   onOpenMessaging?: () => void;
   isDeploymentOwner?: boolean;
+  /** The admin-key account: it never gains a passkey or SSO link. */
+  superadmin?: boolean;
 };
 
 export function GeneralSettingsPanels({
@@ -83,6 +85,7 @@ export function GeneralSettingsPanels({
   messagingEnabled = false,
   onOpenMessaging,
   isDeploymentOwner = false,
+  superadmin = false,
 }: SettingsGeneralProps) {
   const { t } = useLingui();
   const account = accountDisplay({ name, email }, t`You`);
@@ -172,7 +175,7 @@ export function GeneralSettingsPanels({
         <ChangePasswordSection email={email} />
       ) : null}
 
-      <PasskeySettings />
+      {superadmin ? null : <PasskeySettings />}
 
       {messagingEnabled && onOpenMessaging ? (
         <section className="rounded-xl border border-border px-4 py-4">
@@ -389,7 +392,7 @@ export function GeneralSettingsPanels({
         </div>
       </Disclosure>
 
-      <AccountAccess onSecurity={setAccountSecurity} />
+      <AccountAccess onSecurity={setAccountSecurity} superadmin={superadmin} />
       <AuditLog isDeploymentOwner={isDeploymentOwner} />
     </div>
   );

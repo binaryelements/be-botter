@@ -106,6 +106,7 @@ describe("authRateLimitOptions", () => {
         "/request-password-reset": { window: 15 * 60, max: 10 },
         "/email-otp/send-verification-otp": { window: 15 * 60, max: 10 },
         "/sign-in/email-otp": { window: 15 * 60, max: 10 },
+        "/sign-in/admin-key": { window: 15 * 60, max: 10 },
         "/passkey/verify-authentication": { window: 15 * 60, max: 10 },
         "/passkey/verify-registration": { window: 15 * 60, max: 10 },
         "/passkey/generate-authenticate-options": { window: 60, max: 30 },

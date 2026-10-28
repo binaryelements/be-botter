@@ -18,6 +18,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SubscriptionGate } from "./components/SubscriptionGate";
 import { authClient } from "./lib/auth";
 import { getTicketBoardEnabled, subscribeTicketBoardEnabled } from "./lib/bootstrap";
+import { rootRoute } from "./lib/company-access";
 import { desktopBridge } from "./lib/desktop";
 import { identifyMonitoringUser } from "./lib/monitoring";
 import { markAfterPaint, markOnce } from "./lib/performance";
@@ -49,7 +50,21 @@ const ArtifactsPage = lazyComponent(() =>
 const SetupWizardPage = lazyComponent(() =>
   import("./pages/SetupWizard").then((module) => module.SetupWizardPage),
 );
+const AdminKeyPage = lazyComponent(() =>
+  import("./pages/AdminKey").then((module) => module.AdminKeyPage),
+);
 const BoardPage = lazyComponent(() => import("./pages/Board").then((module) => module.BoardPage));
+
+function RootRedirect() {
+  const [to, setTo] = useState<string | null>(null);
+  useEffect(() => {
+    rpc
+      .me()
+      .then((me) => setTo(rootRoute(me)))
+      .catch(() => setTo("/app"));
+  }, []);
+  return to ? <Navigate to={to} replace /> : null;
+}
 
 function SsoCallbackPage() {
   useEffect(() => {
@@ -151,7 +166,7 @@ function SessionApp() {
       <Suspense fallback={<div className="h-full bg-background" />}>
         <Routes>
           {/* BE Botter is sign-in only: there is no public landing page. */}
-          <Route path="/" element={<Navigate to={user ? "/app" : "/sign-in"} replace />} />
+          <Route path="/" element={user ? <RootRedirect /> : <Navigate to="/sign-in" replace />} />
           <Route
             path="/sign-in"
             element={
@@ -168,6 +183,7 @@ function SessionApp() {
               user ? <Navigate to="/app" replace /> : <AuthPage key="forgot" mode="forgot" />
             }
           />
+          <Route path="/setup" element={user ? <SetupWizardPage /> : <AdminKeyPage />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route
             path="/mcp/oauth/callback"
@@ -195,7 +211,6 @@ function SessionApp() {
             }
           >
             <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/setup" element={<SetupWizardPage />} />
             <Route path="/app" element={<ShellPage />} />
             <Route path="/app/g/:groupId" element={<ShellPage />} />
             <Route path="/app/artifacts" element={<ArtifactsPage />} />

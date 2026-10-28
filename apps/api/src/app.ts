@@ -96,8 +96,10 @@ import {
   createThreadEvents,
   describeRowSecurity,
   ensureCompanySsoServers,
+  ensureSuperadmin,
   IsolationError,
   installSecurityEventStore,
+  isSuperadminEmail,
   parsePositiveInteger,
   provisionMessagingIdentity,
   pushSessionExpiresAt,
@@ -180,6 +182,7 @@ export const MOBILE_AUTH_ORIGINS = [
 
 export interface AppHandles {
   app: Hono;
+  auth: Pick<ReturnType<typeof createAuth>, "deleteAccount">;
   prisma: PrismaClient;
   jobs: JobPublisher;
   sandbox: SandboxProvider;
@@ -468,11 +471,14 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       jobs,
       accessToken: env.expoAccessToken,
     });
+  // First, so a company SSO server added on the first keyed start belongs to the superadmin.
+  if (env.superadminKey) await ensureSuperadmin(prisma, env);
   await ensureCompanySsoServers(prisma, env.companySsoMcpServers).catch((error) =>
     getLogger().error("company sso connections setup failed", error),
   );
   const auth = createAuth(prisma, {
     analytics,
+    superadminKey: env.superadminKey,
     passwordAuth: env.passwordAuth,
     breachedPasswordCheck: env.breachedPasswordCheck,
     oidc: env.oidc,
@@ -511,6 +517,9 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
         ).catch((error) => getLogger().error("department routine sync failed", error));
     },
     beforeDeleteUser: async (userId) => {
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      if (user && isSuperadminEmail(user.email))
+        throw new Error("The superadmin account cannot be deleted");
       // First, so a provider failure aborts deletion before anything is destroyed.
       await billing?.cancelForDeletedUser(userId);
       const bots = await prisma.bot.findMany({
@@ -690,6 +699,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       openSignup: env.messagingOpenSignup,
     },
     env: {
+      superadminKey: env.superadminKey,
       phoneCallsEnabled: env.phoneCallsEnabled,
       phoneCallRingSeconds: env.phoneCallRingSeconds,
       ticketBoardEnabled,
@@ -1162,6 +1172,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
 
   return {
     app,
+    auth,
     prisma,
     jobs,
     sandbox,
