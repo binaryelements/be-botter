@@ -290,6 +290,16 @@ const CREDENTIAL_PATHS = [
   CODE_SIGN_IN_PATH,
 ] as const;
 
+/** Session paths that would give the superadmin account a way in other than the admin key. */
+const SUPERADMIN_REFUSED_PATHS = [
+  "/link-social",
+  "/oauth2/link",
+  "/passkey/generate-register-options",
+  "/passkey/verify-registration",
+  "/change-email",
+  "/set-password",
+];
+
 /** Sign-in codes are short-lived, single use and hashed at rest. */
 export const SIGN_IN_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
@@ -575,6 +585,17 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
             message: "Ask your administrator for an invitation",
           });
         }
+        // Nor can a superadmin session add a password, passkey, provider or other email.
+        if (
+          env.superadminKey &&
+          SUPERADMIN_REFUSED_PATHS.includes(ctx.path) &&
+          isSuperadminEmail((await sessionForAuthHook(ctx))?.user.email ?? "")
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "NOT_INVITED",
+            message: "Ask your administrator for an invitation",
+          });
+        }
         if (
           env.passwordAuth === false &&
           [...CREDENTIAL_PATHS, "/reset-password", "/change-password", "/set-password"].includes(
@@ -739,6 +760,11 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
                 message: "Email verification required",
               });
             }
+            if (env.superadminKey && oidcSignIn && isSuperadminEmail(user.email))
+              throw new APIError("FORBIDDEN", {
+                code: "NOT_INVITED",
+                message: "Ask your administrator for an invitation",
+              });
             const membership = await prisma.spaceMember.findFirst({ where: { userId: user.id } });
             if (
               env.superadminKey &&

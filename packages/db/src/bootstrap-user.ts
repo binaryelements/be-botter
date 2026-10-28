@@ -12,7 +12,7 @@ function newId(): string {
 }
 
 /** Prisma unique-constraint violation; anything else must still throw. */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
 }
 

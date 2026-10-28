@@ -1601,6 +1601,10 @@ export const MeSchema = z.object({
   companyReady: z.boolean().default(false),
   /** True for the superadmin while the company Space exists and is not ready yet. */
   companySetupPending: z.boolean().default(false),
+  /** True for the admin-key account on a site with an admin key. */
+  superadmin: z.boolean().default(false),
+  /** True once the company was marked ready, whichever Space is active. */
+  siteReady: z.boolean().default(false),
   needsModel: z.boolean(),
   defaultProvider: z.string().nullable(),
   defaultModel: z.string().nullable(),

@@ -182,6 +182,7 @@ export const MOBILE_AUTH_ORIGINS = [
 
 export interface AppHandles {
   app: Hono;
+  auth: Pick<ReturnType<typeof createAuth>, "deleteAccount">;
   prisma: PrismaClient;
   jobs: JobPublisher;
   sandbox: SandboxProvider;
@@ -470,10 +471,11 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       jobs,
       accessToken: env.expoAccessToken,
     });
+  // First, so a company SSO server added on the first keyed start belongs to the superadmin.
+  if (env.superadminKey) await ensureSuperadmin(prisma, env);
   await ensureCompanySsoServers(prisma, env.companySsoMcpServers).catch((error) =>
     getLogger().error("company sso connections setup failed", error),
   );
-  if (env.superadminKey) await ensureSuperadmin(prisma, env);
   const auth = createAuth(prisma, {
     analytics,
     superadminKey: env.superadminKey,
@@ -697,6 +699,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
       openSignup: env.messagingOpenSignup,
     },
     env: {
+      superadminKey: env.superadminKey,
       phoneCallsEnabled: env.phoneCallsEnabled,
       phoneCallRingSeconds: env.phoneCallRingSeconds,
       ticketBoardEnabled,
@@ -1169,6 +1172,7 @@ async function buildApp(overrides: CreateAppOverrides): Promise<AppHandles> {
 
   return {
     app,
+    auth,
     prisma,
     jobs,
     sandbox,

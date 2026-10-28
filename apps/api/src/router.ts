@@ -234,6 +234,7 @@ import {
   InvalidSpaceNameError,
   IsolationError,
   isSpaceOwner,
+  isSuperadminEmail,
   issueMessagingLinkCode,
   listBoards,
   listSecurityEvents,
@@ -759,6 +760,8 @@ export interface RouterDeps {
   /** Present only when the deployment bills; self-hosted installs leave it unset. */
   billing?: BillingService;
   env: {
+    /** Set on sites with an admin key; only its presence is read here. */
+    superadminKey?: string;
     ticketBoardEnabled?: boolean;
     phoneCallsEnabled?: boolean;
     phoneCallRingSeconds?: number;
@@ -7372,6 +7375,8 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     companyReady: company.readyAt != null && actor.spaceId === company.companySpaceId,
     companySetupPending:
       actor.isDeploymentOwner && company.companySpaceId != null && company.readyAt == null,
+    superadmin: Boolean(deps.env.superadminKey) && isSuperadminEmail(user.email),
+    siteReady: company.readyAt != null,
     needsModel: setup.needsModel,
     defaultProvider: canonicalPiProviderId(
       setup.credential?.provider ??

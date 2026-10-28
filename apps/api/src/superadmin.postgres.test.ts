@@ -18,6 +18,11 @@ const describePostgres =
 const ORIGIN = "http://127.0.0.1:5173";
 const KEY = "f".repeat(64);
 const json = { "content-type": "application/json", origin: ORIGIN };
+const cookieOf = (response: Response) =>
+  response.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
 const signInWith = (app: AppHandles["app"], key: string) =>
   app.request("/api/auth/sign-in/admin-key", {
     method: "POST",
@@ -96,6 +101,7 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
     });
     expect(((await me.json()) as { json: unknown }).json).toMatchObject({
       isDeploymentOwner: true,
+      superadmin: true,
       name: "Binary Elements",
     });
   });
@@ -137,5 +143,42 @@ describePostgres("superadmin admin-key sign-in (PostgreSQL)", () => {
     expect(((await r.json()) as { code?: string }).code).toBe("NOT_INVITED");
     await db.user.deleteMany({ where: { email } });
     expect((await signInWith(handles.app, KEY)).status).toBe(200);
+  });
+
+  it("refuses every way to add another sign-in method to the superadmin", async () => {
+    const cookie = cookieOf(await signInWith(handles.app, KEY));
+    for (const [route, body] of [
+      ["passkey/generate-register-options", {}],
+      ["change-email", { newEmail: `moved-${Date.now()}@rakazo.test` }],
+      ["link-social", { provider: "oidc", callbackURL: "/app" }],
+    ] as const) {
+      const r = await handles.app.request(`/api/auth/${route}`, {
+        method: route.startsWith("passkey/") ? "GET" : "POST",
+        headers: { ...json, cookie },
+        ...(route.startsWith("passkey/") ? {} : { body: JSON.stringify(body) }),
+      });
+      expect(r.status, route).toBe(403);
+      expect(((await r.json()) as { code?: string }).code, route).toBe("NOT_INVITED");
+    }
+    // Better Auth serves set-password to server calls only; over HTTP it does not exist.
+    const setPassword = await handles.app.request("/api/auth/set-password", {
+      method: "POST",
+      headers: { ...json, cookie },
+      body: JSON.stringify({ newPassword: "password12" }),
+    });
+    expect(setPassword.status).toBe(404);
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: "superadmin@botter.invalid" },
+    });
+    expect(user.email).toBe("superadmin@botter.invalid");
+    expect(await db.account.count({ where: { userId: user.id } })).toBe(0);
+  });
+
+  it("refuses to delete the superadmin account", async () => {
+    const user = await db.user.findUniqueOrThrow({
+      where: { email: "superadmin@botter.invalid" },
+    });
+    await expect(handles.auth.deleteAccount(user.id)).rejects.toThrow();
+    expect(await db.user.count({ where: { id: user.id } })).toBe(1);
   });
 });
