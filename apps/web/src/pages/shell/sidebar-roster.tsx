@@ -40,6 +40,7 @@ export function SidebarRoster({
   rosterDropAction,
   applyRosterDrop,
   openSpaceChat,
+  emptySpacePath,
   spaceMenuAnchor,
   setSpaceMenu,
   setRenameSectionTarget,
@@ -75,6 +76,7 @@ export function SidebarRoster({
   rosterDropAction: (target: RosterDropTarget, sameParent: boolean) => RosterDropAction | null;
   applyRosterDrop: (target: RosterDropTarget, sameParent: boolean, botIds: string[]) => void;
   openSpaceChat: (spaceId: string, path: string) => void;
+  emptySpacePath: string;
   spaceMenuAnchor: RefObject<HTMLElement | null>;
   setSpaceMenu: (menu: { id: string; position: { x: number; y: number } }) => void;
   setRenameSectionTarget: (target: { section: BotSection; spaceId: string }) => void;
@@ -179,7 +181,7 @@ export function SidebarRoster({
                       className={`flex min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-[11px] font-semibold tracking-wider uppercase text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full pe-8" : "flex-1"}`}
                       onClick={() => {
                         if (group.emptySpaceId) {
-                          openSpaceChat(group.emptySpaceId, "/onboarding");
+                          openSpaceChat(group.emptySpaceId, emptySpacePath);
                         }
                       }}
                       onContextMenu={

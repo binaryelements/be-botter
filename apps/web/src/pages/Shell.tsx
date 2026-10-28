@@ -133,7 +133,7 @@ import {
   useCallSession,
 } from "../lib/call-session";
 import { newClientId } from "../lib/client-id";
-import { firstRunRoute, hidesSetup } from "../lib/company-access";
+import { emptySpaceRoute, firstRunRoute, hidesSetup } from "../lib/company-access";
 import { setComposerUnsavedWork } from "../lib/composer-draft";
 import {
   getComposerEnterToSend,
@@ -3400,6 +3400,7 @@ function SpaceShell() {
                 rosterDropAction={rosterDropAction}
                 applyRosterDrop={applyRosterDrop}
                 openSpaceChat={openSpaceChat}
+                emptySpacePath={emptySpaceRoute(bootstrapMe)}
                 spaceMenuAnchor={spaceMenuAnchor}
                 setSpaceMenu={setSpaceMenu}
                 setRenameSectionTarget={setRenameSectionTarget}
@@ -4114,7 +4115,7 @@ function SpaceShell() {
                 await refreshBots();
                 return;
               }
-              window.location.assign("/onboarding");
+              window.location.assign(emptySpaceRoute(bootstrapMe));
             }}
           />
         ) : null}

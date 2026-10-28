@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { firstRunRoute, hidesSetup, rootRoute } from "./company-access";
+import { emptySpaceRoute, firstRunRoute, hidesSetup, rootRoute } from "./company-access";
 
 const me = {
   canManageConnections: true,
@@ -39,4 +39,11 @@ it("never sends the superadmin to onboarding", () => {
   const superadmin = { ...me, isDeploymentOwner: true, superadmin: true };
   expect(firstRunRoute({ ...superadmin, siteReady: false })).toBe("/setup");
   expect(firstRunRoute({ ...superadmin, siteReady: true })).toBeNull();
+});
+
+it("opens an empty Space in the app for the superadmin and in onboarding for a first-run admin", () => {
+  expect(
+    emptySpaceRoute({ ...me, isDeploymentOwner: true, superadmin: true, siteReady: true }),
+  ).toBe("/app");
+  expect(emptySpaceRoute(me)).toBe("/onboarding");
 });
