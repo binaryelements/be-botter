@@ -42,7 +42,19 @@ const dto = (setup: Awaited<ReturnType<typeof readCompanySetup>>): CompanySetup 
 });
 
 export const read = (deps: Deps) =>
-  runAsSystem("read company setup", () => readCompanySetup(deps.prisma));
+  runAsSystem("read company setup", async () => {
+    const setup = await readCompanySetup(deps.prisma);
+    // A fresh site points at the superadmin's own Space until the wizard creates the company.
+    const personal =
+      setup.companySpaceId &&
+      (
+        await deps.prisma.space.findUnique({
+          where: { id: setup.companySpaceId },
+          select: { isDefault: true },
+        })
+      )?.isDefault;
+    return personal ? { ...setup, companySpaceId: null, companyName: null } : setup;
+  });
 
 export const audit = (
   actor: Actor,

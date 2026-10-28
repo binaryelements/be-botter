@@ -126,6 +126,25 @@ describePostgres("setup over the API (PostgreSQL)", () => {
     }
   });
 
+  it("treats a fresh site's company Space, the superadmin's own, as no company yet", async () => {
+    const personal = await db.spaceMember.findFirstOrThrow({
+      where: { userId: superadmin.userId, space: { isDefault: true } },
+      select: { spaceId: true },
+    });
+    await db.deploymentSettings.update({
+      where: { id: "default" },
+      data: { companySpaceId: personal.spaceId },
+    });
+    const setup = await raw(app, superadmin.cookie, "setup/get");
+    expect(setup.json).toMatchObject({ companySpaceId: null, companyName: null, departments: [] });
+    const department = await raw(app, superadmin.cookie, "setup/addDepartment", {
+      name: "Accounts",
+      instructions: "x",
+    });
+    expect(department.status).toBe(400);
+    expect(department.message).toBe("Create the company first.");
+  });
+
   it("refuses to be ready without an owner email or a department", async () => {
     await raw(app, superadmin.cookie, "setup/createCompany", { name: company });
     const noEmail = await raw(app, superadmin.cookie, "setup/markReady");
