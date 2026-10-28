@@ -504,12 +504,12 @@ head signed in they wait. A routine someone switched off stays off when a head s
 does.
 
 **Reset.** The superadmin can reset a prepared company by typing its name. It first writes a
-database dump and refuses to continue if that fails (see [Backup](#backup)). It removes the people
-in the company Space, their bots in any Space (deleting a person deletes their whole account),
-conversations, runs, memory, boards, artifacts, invitations, and the files and browser sessions on
-the company's computers. It keeps the departments and their bots (with their tool choices), which
-start again as new bots owned by the superadmin, and the company model and connections. The company
-stays ready for the next owner, whose first sign-in records the Microsoft tenant again.
+database dump and refuses to continue if that fails (see [Backup](#backup)). Then everything goes:
+the company Space with its departments, bots, model, connections, conversations, runs, memory,
+boards, artifacts and invitations; every person who joined the company, with their whole account
+and their own Space; the computers' files and browser sessions; and the superadmin's own bots. Only
+the superadmin's account remains, and the wizard starts again from the company name. An account
+that never joined the company Space (from before the admin key) is not touched.
 
 ### Mobile push notifications
 

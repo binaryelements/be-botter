@@ -319,6 +319,9 @@ describePostgres("setup over the API (PostgreSQL)", () => {
         where: { botId: department.botId },
         data: { active: true, nextRunAt: new Date(Date.now() + 3_600_000) },
       });
+      const ownerOrganizationId = (
+        await db.member.findFirstOrThrow({ where: { userId: owner.userId } })
+      ).organizationId;
       const ownerBot = await db.bot.create({
         data: { spaceId, userId: owner.userId, name: "Owner's bot", color: "blue" },
       });
@@ -454,6 +457,7 @@ describePostgres("setup over the API (PostgreSQL)", () => {
         spaceId,
         department,
         owner,
+        ownerOrganizationId,
         staff,
         ownerBot,
         ownerComputer,
@@ -494,16 +498,17 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       await untouched();
     });
 
-    it("returns the company to its prepared setup, still ready for the next owner", async () => {
+    it("returns the site to the moment before the wizard", async () => {
       const cancel = vi.spyOn(handles.jobs, "cancel");
       takeResetBackup.mockClear();
       const reset = await raw(app, superadmin.cookie, "setup/reset", { confirmName: company });
       expect(reset.status).toBe(200);
       expect(takeResetBackup).toHaveBeenCalledTimes(1);
       expect(reset.json).toMatchObject({
-        companyName: company,
-        ownerEmail: "boss@acme.test",
-        readyAt: expect.any(String),
+        companySpaceId: null,
+        companyName: null,
+        ownerEmail: null,
+        readyAt: null,
         tenantId: null,
       });
 
@@ -511,37 +516,26 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       expect(cancel).toHaveBeenCalledWith(runJobKey(trial.run.id));
       expect(await db.run.findUnique({ where: { id: trial.run.id } })).toBeNull();
 
-      // Only the superadmin is left among the company's people; the others are deleted.
-      const members = await db.spaceMember.findMany({ where: { spaceId: trial.spaceId } });
-      expect(members.map((member) => member.userId)).toEqual([superadmin.userId]);
+      // The company's people are deleted with their accounts and their own organizations.
       for (const person of [trial.owner, trial.staff]) {
         expect(await db.user.findUnique({ where: { id: person.userId } })).toBeNull();
       }
+      expect(
+        await db.organization.findUnique({ where: { id: trial.ownerOrganizationId } }),
+      ).toBeNull();
       expect(await db.bot.findUnique({ where: { id: trial.ownerBot.id } })).toBeNull();
       expect(await db.computer.findUnique({ where: { id: trial.ownerComputer.id } })).toBeNull();
 
-      // The department and its bot stay, with a fresh home thread and nothing else.
-      const bot = await db.bot.findUniqueOrThrow({ where: { id: trial.department.botId } });
-      const threads = await db.thread.findMany({ where: { botId: bot.id } });
-      expect(threads.map((thread) => thread.id)).toEqual([bot.homeThreadId]);
-      expect(threads[0]).toMatchObject({ userId: superadmin.userId, departmentId: null });
-      expect(await db.message.count({ where: { threadId: threads[0]!.id } })).toBe(0);
-      expect(await db.memoryDocument.count({ where: { botId: bot.id } })).toBe(0);
-      expect(await db.artifact.count({ where: { spaceId: trial.spaceId } })).toBe(0);
-      expect(await db.department.count({ where: { spaceId: trial.spaceId } })).toBe(2);
-      const routines = await db.routine.findMany({ where: { botId: bot.id } });
-      expect(routines).toHaveLength(2);
-      for (const routine of routines) expect(routine.active).toBe(false);
-      // The Sales bot keeps its tool choices.
+      // The company Space, its departments and bots are gone with everything in them.
+      expect(await db.space.findUnique({ where: { id: trial.spaceId } })).toBeNull();
+      expect(await db.bot.findUnique({ where: { id: trial.department.botId } })).toBeNull();
+      expect(await db.department.count({ where: { spaceId: trial.spaceId } })).toBe(0);
       expect(
-        (
-          await db.bot.findFirstOrThrow({
-            where: { spaceId: trial.spaceId, name: "Sales Assistant" },
-          })
-        ).disabledBuiltinTools,
-      ).toEqual(["web_fetch", "web_search"]);
+        await db.computer.findUnique({ where: { id: trial.departmentComputerId! } }),
+      ).toBeNull();
+      expect(await db.artifact.count({ where: { spaceId: trial.spaceId } })).toBe(0);
+      expect(await db.spaceMember.count({ where: { spaceId: trial.spaceId } })).toBe(0);
 
-      expect(await db.spaceInvitation.count({ where: { spaceId: trial.spaceId } })).toBe(0);
       const event = await db.securityEvent.findFirst({
         where: { type: "configuration.changed", userId: superadmin.userId },
         orderBy: { createdAt: "desc" },
@@ -560,50 +554,32 @@ describePostgres("setup over the API (PostgreSQL)", () => {
       });
       expect(started).toBe(1);
 
-      // Every other kind of trial content is gone; the bot starts like a new one.
-      const where = { spaceId: trial.spaceId };
-      const counts = await Promise.all([
-        db.agentSkill.count({ where }),
-        db.scratchpadItem.count({ where }),
-        db.taughtSkill.count({ where }),
-        db.chatGroup.count({ where }),
-        db.board.count({ where }),
-        db.ticket.count({ where }),
-        db.ticketComment.count({ where }),
-        db.agentHome.count({ where }),
-        db.externalConversation.count({ where }),
-      ]);
-      expect(counts).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0]);
-      expect(await db.browserProfile.findMany({ where })).toMatchObject([
-        { botId: bot.id, userId: superadmin.userId },
-        { userId: superadmin.userId },
-      ]);
-      // Its computer, which the superadmin owns, is destroyed and replaced by a fresh one.
-      expect(trial.departmentComputerId).toEqual(expect.any(String));
+      // The superadmin keeps its account and its own Space, emptied.
+      expect(await db.user.findUnique({ where: { id: superadmin.userId } })).not.toBeNull();
       expect(
-        await db.computer.findUnique({ where: { id: trial.departmentComputerId! } }),
-      ).toBeNull();
-      expect(bot.computerId).not.toBeNull();
-      expect(bot.computerId).not.toBe(trial.departmentComputerId);
-      expect(await db.computer.findUniqueOrThrow({ where: { id: bot.computerId! } })).toMatchObject(
-        { spaceId: trial.spaceId, userId: superadmin.userId, state: "stopped" },
-      );
-
-      // The superadmin's own Space is never touched.
+        await db.space.findUnique({ where: { id: trial.personalBot.spaceId } }),
+      ).not.toBeNull();
+      expect(await db.bot.findUnique({ where: { id: trial.personalBot.id } })).toBeNull();
+      expect(await db.thread.findUnique({ where: { id: trial.personalThread.id } })).toBeNull();
       const personalWhere = { spaceId: trial.personalBot.spaceId };
       const personalCounts = await Promise.all([
         db.agentSkill.count({ where: personalWhere }),
         db.scratchpadItem.count({ where: personalWhere }),
         db.taughtSkill.count({ where: personalWhere }),
         db.chatGroup.count({ where: personalWhere }),
+        db.board.count({ where: personalWhere }),
         db.ticketComment.count({ where: personalWhere }),
         db.agentHome.count({ where: personalWhere }),
         db.externalConversation.count({ where: personalWhere }),
       ]);
-      for (const count of personalCounts) expect(count).toBeGreaterThan(0);
-      expect(await db.bot.findUnique({ where: { id: trial.personalBot.id } })).not.toBeNull();
-      expect(await db.thread.findUnique({ where: { id: trial.personalThread.id } })).not.toBeNull();
-      expect(await db.user.findUnique({ where: { id: superadmin.userId } })).not.toBeNull();
+      expect(personalCounts).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+
+      // The wizard starts again from the company name.
+      const again = await raw(app, superadmin.cookie, "setup/createCompany", {
+        name: `${company} again`,
+      });
+      expect(again.status).toBe(200);
+      expect(again.json).toMatchObject({ companyName: `${company} again` });
     });
   });
 });

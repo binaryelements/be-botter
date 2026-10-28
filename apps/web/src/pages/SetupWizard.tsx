@@ -378,6 +378,8 @@ export function SetupWizardPage() {
                   run(async () => {
                     await rpc.setup.reset({ confirmName });
                     setConfirmName("");
+                    setCompanyName("");
+                    setOwnerEmail("");
                     await refresh();
                   })
                 }

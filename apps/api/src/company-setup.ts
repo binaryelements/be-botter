@@ -3,8 +3,7 @@ import { ORPCError } from "@orpc/server";
 import type { AdapterContext } from "@rakazo/adapter-kit";
 import { runJobKey } from "@rakazo/adapter-kit";
 import {
-  archiveBot,
-  removePiBotSessions,
+  destroyBot,
   removeStoredArtifacts,
   resolveAgentHomePath,
   toComputerRef,
@@ -18,9 +17,6 @@ import {
   createCompanySpace,
   createDepartmentWithBot,
   DepartmentNameConflictError,
-  ensureComputerRecord,
-  homeThread,
-  parseComputerMode,
   readCompanySetup,
   recordSecurityEvent,
   runAsSystem,
@@ -28,7 +24,6 @@ import {
   updateCompanySetup,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
-import { syncDepartmentRoutines } from "./department-routines.js";
 import type { RouterDeps } from "./router.js";
 
 type Deps = Pick<RouterDeps, "prisma">;
@@ -270,8 +265,9 @@ type ResetDeps = Pick<
 >;
 
 /**
- * Returns the company to its prepared setup: its people other than the superadmin and all its
- * threads, memory and files go; departments, bots, personas, routines, model and connections stay.
+ * Returns the site to the moment before the wizard: the company, its departments, bots, people
+ * (whole accounts), model, connections, threads, memory and files all go; only the superadmin's
+ * account remains, its own Space emptied.
  */
 export async function reset(deps: ResetDeps, actor: Actor, confirmName: string) {
   requireSuperadmin(actor);
@@ -300,10 +296,7 @@ export async function reset(deps: ResetDeps, actor: Actor, confirmName: string) 
   });
   await audit(actor, "reset", { backup, outcome: "started" });
   try {
-    const departmentIds = await runAsSystem("reset the company", () =>
-      wipeCompany(deps, actor, spaceId, context),
-    );
-    for (const departmentId of departmentIds) await syncDepartmentRoutines(deps, departmentId);
+    await runAsSystem("reset the company", () => wipeSite(deps, actor, spaceId, context));
   } catch (error) {
     await audit(actor, "reset", { backup, outcome: "failed" });
     throw error;
@@ -312,12 +305,12 @@ export async function reset(deps: ResetDeps, actor: Actor, confirmName: string) 
   return dto(await read(deps));
 }
 
-async function wipeCompany(
+async function wipeSite(
   deps: ResetDeps,
   actor: Actor,
   spaceId: string,
   context: (botId?: string) => AdapterContext,
-): Promise<string[]> {
+): Promise<void> {
   const { prisma } = deps;
   // Nothing keeps working while its data goes.
   const active = await prisma.run.findMany({
@@ -326,44 +319,46 @@ async function wipeCompany(
   });
   await prisma.$transaction((tx) => cancelRunsInTransaction(tx, active, new Date()));
   await Promise.allSettled(active.map((run) => deps.jobs.cancel(runJobKey(run.id))));
-  const bots = await prisma.bot.findMany({
-    where: { spaceId, departments: { some: {} } },
-    select: {
-      id: true,
-      spaceId: true,
-      userId: true,
-      name: true,
-      archivedAt: true,
-      pinned: true,
-      computerId: true,
-      computer: { select: { scope: true, kind: true } },
-    },
-  });
-  const botIds = bots.map((bot) => bot.id);
-  for (const bot of bots) {
-    // Archiving stops the bot's runs, routine wakeups and computer; the bot itself stays.
-    await archiveBot(deps, bot, context(bot.id));
-    await prisma.bot.update({
-      where: { id: bot.id },
-      data: { archivedAt: bot.archivedAt, pinned: bot.pinned },
-    });
-    await removePiBotSessions(deps.dataDir, bot.userId, bot.id);
-  }
-  // A department bot someone else made becomes the superadmin's, so deleting that person keeps it.
-  await prisma.bot.updateMany({ where: { id: { in: botIds } }, data: { userId: actor.userId } });
-  await prisma.routine.updateMany({
-    where: { botId: { in: botIds } },
-    data: { userId: actor.userId },
-  });
 
+  // Everyone who joined the company goes, with their whole account and the Space of their own.
+  // shortcut: an account that never joined the company Space (one from before the admin key) stays;
+  // delete it in Settings > People, or extend this when such sites stop existing.
   const people = await prisma.spaceMember.findMany({
     where: { spaceId, userId: { not: actor.userId } },
     select: { userId: true },
   });
-  for (const person of people) await deps.auth.deleteAccount(person.userId);
+  const userIds = people.map((person) => person.userId);
+  const theirOrganizations = await prisma.member.findMany({
+    where: { userId: { in: userIds } },
+    select: { organizationId: true },
+  });
+  for (const userId of userIds) await deps.auth.deleteAccount(userId);
+  const company = await prisma.space.findUniqueOrThrow({
+    where: { id: spaceId },
+    select: { organizationId: true },
+  });
+  const goingOrganizationIds = [
+    company.organizationId,
+    ...new Set(theirOrganizations.map((member) => member.organizationId)),
+  ];
+  const goingSpaceIds = (
+    await prisma.space.findMany({
+      where: { organizationId: { in: goingOrganizationIds } },
+      select: { id: true },
+    })
+  ).map((space) => space.id);
 
-  // Every computer in the company Space holds the trial's files and browser sessions.
-  for (const computer of await prisma.computer.findMany({ where: { spaceId } })) {
+  // The superadmin's bots anywhere, and every bot left in the company Space.
+  const bots = await prisma.bot.findMany({
+    where: { OR: [{ spaceId }, { userId: actor.userId }] },
+    select: { id: true, spaceId: true, userId: true, name: true, archivedAt: true },
+  });
+  for (const bot of bots) await destroyBot(deps, bot, context(bot.id), { deleteMemories: true });
+
+  // Computers hold files and browser sessions; a Space's team computer survives its bots.
+  for (const computer of await prisma.computer.findMany({
+    where: { spaceId: { in: goingSpaceIds } },
+  })) {
     if (computer.providerRef) {
       await deps.sandbox.destroy(toComputerRef(computer), context()).catch(() => undefined);
     }
@@ -374,56 +369,46 @@ async function wipeCompany(
     }).catch(() => undefined);
   }
 
+  // The superadmin's own Space stays, emptied; the company and the deleted people's organizations go
+  // with everything in them.
+  const own = await prisma.spaceMember.findMany({
+    where: { userId: actor.userId, spaceId: { notIn: goingSpaceIds } },
+    select: { spaceId: true },
+  });
   const storageKeys = await prisma.$transaction(async (tx) => {
     const artifacts = await tx.artifact.findMany({
-      where: { spaceId },
+      where: { spaceId: { in: goingSpaceIds } },
       select: { storageKey: true },
     });
-    await tx.artifact.deleteMany({ where: { spaceId } });
-    await tx.memoryDocument.deleteMany({ where: { spaceId } });
-    // Runs, tasks, messages and events go with their threads; group members with their groups;
-    // tickets and comments with the board, which is created again on first use.
-    await tx.thread.deleteMany({ where: { spaceId } });
-    await tx.chatGroup.deleteMany({ where: { spaceId } });
-    await tx.board.deleteMany({ where: { spaceId } });
-    await tx.spaceInvitation.deleteMany({ where: { spaceId } });
-    await tx.agentSkill.deleteMany({ where: { spaceId } });
-    await tx.taughtSkill.deleteMany({ where: { spaceId } });
-    await tx.scratchpadItem.deleteMany({ where: { spaceId } });
-    await tx.cloudAgent.deleteMany({ where: { spaceId } });
-    await tx.externalConversation.deleteMany({ where: { spaceId } });
-    await tx.messagingIdentity.deleteMany({ where: { spaceId } });
-    await tx.messagingLinkCode.deleteMany({ where: { spaceId } });
-    await tx.browserProfile.deleteMany({ where: { spaceId } });
-    await tx.agentHome.deleteMany({ where: { spaceId } });
-    // Deleted people's rows that have no foreign key to their account.
-    const theirs = { spaceId, userId: { not: actor.userId } };
-    await tx.connection.deleteMany({ where: theirs });
-    await tx.capabilityInstall.deleteMany({ where: theirs });
-    await tx.notificationPreference.deleteMany({ where: theirs });
-    await tx.mcpOAuthSession.deleteMany({ where: theirs });
+    for (const { spaceId } of own) {
+      await tx.artifact.deleteMany({ where: { spaceId } });
+      await tx.memoryDocument.deleteMany({ where: { spaceId } });
+      await tx.thread.deleteMany({ where: { spaceId } });
+      await tx.chatGroup.deleteMany({ where: { spaceId } });
+      await tx.board.deleteMany({ where: { spaceId } });
+      await tx.spaceInvitation.deleteMany({ where: { spaceId } });
+      await tx.agentSkill.deleteMany({ where: { spaceId } });
+      await tx.taughtSkill.deleteMany({ where: { spaceId } });
+      await tx.scratchpadItem.deleteMany({ where: { spaceId } });
+      await tx.cloudAgent.deleteMany({ where: { spaceId } });
+      await tx.externalConversation.deleteMany({ where: { spaceId } });
+      await tx.messagingIdentity.deleteMany({ where: { spaceId } });
+      await tx.messagingLinkCode.deleteMany({ where: { spaceId } });
+      await tx.browserProfile.deleteMany({ where: { spaceId } });
+      await tx.agentHome.deleteMany({ where: { spaceId } });
+    }
+    await tx.organization.deleteMany({ where: { id: { in: goingOrganizationIds } } });
+    await tx.deploymentSettings.update({
+      where: { id: "default" },
+      data: {
+        companySpaceId: null,
+        companyOwnerEmail: null,
+        companyReadyAt: null,
+        companyTenantId: null,
+        signInMode: "invited",
+      },
+    });
     return artifacts.map((artifact) => artifact.storageKey);
   });
   await removeStoredArtifacts(deps.artifacts, storageKeys, context());
-
-  // Each department bot starts again as a new bot does: home thread, browser profile, computer.
-  for (const bot of bots) {
-    await homeThread(prisma, { ...bot, userId: actor.userId, homeThreadId: null });
-    await prisma.browserProfile.create({ data: { spaceId, botId: bot.id, userId: actor.userId } });
-    if (!bot.computer) continue;
-    const computer = await ensureComputerRecord(prisma, {
-      mode: parseComputerMode(bot.computer.scope),
-      spaceId,
-      userId: actor.userId,
-      botId: bot.id,
-      kind: bot.computer.kind,
-    });
-    await prisma.bot.update({ where: { id: bot.id }, data: { computerId: computer.id } });
-  }
-  await updateCompanySetup(prisma, { tenantId: null });
-  const departments = await prisma.department.findMany({
-    where: { spaceId },
-    select: { id: true },
-  });
-  return departments.map((department) => department.id);
 }
