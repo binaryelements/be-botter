@@ -21,7 +21,7 @@ globalThis.ResizeObserver ??= class {
 };
 Element.prototype.scrollIntoView ??= () => {};
 
-function render(canManage: boolean) {
+function render(canManage: boolean, canCreate = true) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -30,6 +30,7 @@ function render(canManage: boolean) {
       <ConnectionsAccess value={canManage}>
         <BotCreatePicker
           bots={[]}
+          canCreate={canCreate}
           onCreateBot={vi.fn()}
           onOpenBot={vi.fn()}
           onCreateGroup={vi.fn()}
@@ -49,4 +50,8 @@ function render(canManage: boolean) {
 it("offers a new bot only to people who may add one", () => {
   expect(render(true)).toBe(true);
   expect(render(false)).toBe(false);
+});
+
+it("offers the superadmin no new bot even though it may manage connections", () => {
+  expect(render(true, false)).toBe(false);
 });

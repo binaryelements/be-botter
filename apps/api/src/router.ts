@@ -308,6 +308,7 @@ import {
 import {
   assertMayCreateSpace,
   assertMayManageConnections,
+  assertNotSuperadmin,
   mayManageConnections,
   mayShareConnections,
   resolveCompanyServer,
@@ -1217,6 +1218,7 @@ export function createRouter(deps: RouterDeps) {
       ),
       // Seeds a Space whose id does not exist yet; the member limit is checked inside.
       create: authed.spaces.create.handler(async ({ context, input }) => {
+        assertNotSuperadmin(context.actor);
         await assertMayCreateSpace(context.actor, deps);
         return runAsSystem("create a Space for its member", async () => {
           let space: { id: string; name: string };
@@ -2061,6 +2063,7 @@ export function createRouter(deps: RouterDeps) {
         return found;
       }),
       create: authed.bots.create.handler(async ({ context, input }) => {
+        assertNotSuperadmin(context.actor);
         await assertMayManageConnections(context.actor, deps);
         let bot: Bot;
         try {
@@ -2074,6 +2077,7 @@ export function createRouter(deps: RouterDeps) {
         return bot;
       }),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
+        assertNotSuperadmin(context.actor);
         await assertMayManageConnections(context.actor, deps);
         const source = await repos.getBot(context.actor, input.botId);
         const duplicate = await repos
