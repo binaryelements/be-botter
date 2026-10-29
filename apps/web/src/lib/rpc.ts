@@ -119,9 +119,19 @@ const link = new RPCLink<RpcClientContext>({
  * A 401 means the session behind the app's last known user may be gone, but Better Auth only
  * rechecks it on focus or a timer, so a backgrounded window would keep its stale user (and every
  * screen that polls) indefinitely. Recheck now: a signed-out answer routes to sign-in.
+ *
+ * With a remembered space it means that space is no longer this account's (someone else signed in
+ * on this browser, or the space was deleted) and every request would keep failing: forget it and
+ * start over in the account's own space.
  */
 export function recheckSessionOnUnauthorized(status: number): void {
-  if (status === 401) authClient.$store.notify("$sessionSignal");
+  if (status !== 401) return;
+  if (selectedSpaceId()) {
+    clearSpaceSelection();
+    window.location.reload();
+    return;
+  }
+  authClient.$store.notify("$sessionSignal");
 }
 
 export type RpcClient = ContractRouterClient<AppContract, RpcClientContext>;
