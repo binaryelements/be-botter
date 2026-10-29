@@ -436,7 +436,13 @@ fi
 # WebGL still needs SwiftShader: --disable-software-rasterizer blocks it, and
 # current Chromium allows that fallback only with --enable-unsafe-swiftshader.
 FLAGS="--test-type --no-sandbox --disable-dev-shm-usage --disable-gpu --enable-unsafe-swiftshader --no-first-run --no-default-browser-check --disable-session-crashed-bubble --hide-crash-restore-bubble --password-store=basic --restore-last-session --start-maximized --remote-debugging-address=127.0.0.1 --remote-debugging-port=$DEBUG_PORT"
+# Chromium paints in software and can saturate the computer's CPU cap. Running it
+# below the default priority keeps screenshots, input and the screen stream
+# responsive while a page renders; its child processes inherit the setting.
+# A desktop without coreutils' nice still gets its browser.
+LOWER_PRIORITY=""
+command -v nice >/dev/null 2>&1 && LOWER_PRIORITY="nice -n 10"
 if [ "$USER_DATA_DIR_SET" -eq 0 ]; then
-  exec "$BIN" $FLAGS --user-data-dir="$PROFILE" "$@"
+  exec $LOWER_PRIORITY "$BIN" $FLAGS --user-data-dir="$PROFILE" "$@"
 fi
-exec "$BIN" $FLAGS "$@"
+exec $LOWER_PRIORITY "$BIN" $FLAGS "$@"
