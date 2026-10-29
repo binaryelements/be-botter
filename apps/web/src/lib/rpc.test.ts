@@ -32,6 +32,29 @@ describe("signed-out responses", () => {
     await expect(rpc.me()).rejects.toMatchObject({ status: 500 });
     expect(notify).not.toHaveBeenCalled();
   });
+
+  it("forgets a remembered space the server refuses and starts over", async () => {
+    // Another account signed in on this browser, or the space was deleted: every request
+    // carrying the old space id is refused, and nothing in the app would ever clear it.
+    const removeItem = vi.fn();
+    const reload = vi.fn();
+    const localStorage = { getItem: () => "space-gone", setItem: vi.fn(), removeItem };
+    vi.stubGlobal("window", {
+      localStorage,
+      location: { origin: "https://example.test", pathname: "/onboarding", reload },
+    });
+    vi.stubGlobal("localStorage", localStorage);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ json: { code: "UNAUTHORIZED", status: 401 } }, { status: 401 }),
+      ),
+    );
+    await expect(rpc.me()).rejects.toMatchObject({ status: 401 });
+    expect(removeItem).toHaveBeenCalledWith("rakazo:space-id");
+    expect(reload).toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
 });
 
 describe("space selection storage", () => {
